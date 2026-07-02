@@ -107,7 +107,7 @@ const CATEGORIES: {
   {
     key: "PN",
     label: "Parent Nourricier",
-    short: "PN",
+    short: "PNr",
     color: "oklch(0.72 0.15 30)",
     description: "Bienveillant, protecteur, encourageant.",
   },
