@@ -1,9 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/")({
@@ -162,7 +160,11 @@ function Index() {
   const [answers, setAnswers] = useState<(boolean | undefined)[]>(
     () => Array(60).fill(undefined),
   );
-  const [hideChart, setHideChart] = useState(false);
+
+  // Track a unique visit once per session
+  useEffect(() => {
+    fetch("/api/public/track", { method: "POST" }).catch(() => {});
+  }, []);
 
   const setAnswer = (index: number, value: boolean) => {
     setAnswers((prev) => {
@@ -196,6 +198,20 @@ function Index() {
 
   const maxScore = Math.max(...Object.values(scores), 1);
 
+  // Save result once when the 60 questions are answered
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (answeredCount === 60 && !savedRef.current) {
+      savedRef.current = true;
+      fetch("/api/public/save-result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scores }),
+      }).catch(() => {});
+    }
+    if (answeredCount < 60) savedRef.current = false;
+  }, [answeredCount, scores]);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -223,14 +239,11 @@ function Index() {
               <Progress value={(answeredCount / 60) * 100} className="mt-1.5 h-2" />
             </div>
             <div className="flex items-center gap-2">
-              <Switch
-                id="hide-chart"
-                checked={hideChart}
-                onCheckedChange={setHideChart}
-              />
-              <Label htmlFor="hide-chart" className="text-sm">
-                Masquer le diagramme
-              </Label>
+              <Link to="/stats">
+                <Button variant="outline" size="sm">
+                  Statistiques
+                </Button>
+              </Link>
             </div>
             <Button variant="outline" size="sm" onClick={reset}>
               Réinitialiser
@@ -287,13 +300,7 @@ function Index() {
                 </span>
               </div>
 
-              {hideChart ? (
-                <p className="mt-6 rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  Le diagramme est masqué pendant la saisie. Activez le bouton
-                  pour l'afficher.
-                </p>
-              ) : (
-                <>
+              <>
                   {/* Bar chart */}
                   <div className="mt-5">
                     <div className="flex gap-2">
@@ -401,8 +408,7 @@ function Index() {
                       </li>
                     ))}
                   </ul>
-                </>
-              )}
+              </>
 
               <p className="mt-5 border-t border-border pt-3 text-[11px] text-muted-foreground">
                 D'après Michel Josien, « Techniques de communication
