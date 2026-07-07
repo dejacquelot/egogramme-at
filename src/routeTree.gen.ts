@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicTrackRouteImport } from './routes/api/public/track'
+import { Route as ApiPublicSaveResultRouteImport } from './routes/api/public/save-result'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +23,39 @@ const ApiPublicTrackRoute = ApiPublicTrackRouteImport.update({
   path: '/api/public/track',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSaveResultRoute = ApiPublicSaveResultRouteImport.update({
+  id: '/api/public/save-result',
+  path: '/api/public/save-result',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/track'
+  fullPaths: '/' | '/api/public/save-result' | '/api/public/track'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/track'
-  id: '__root__' | '/' | '/api/public/track'
+  to: '/' | '/api/public/save-result' | '/api/public/track'
+  id: '__root__' | '/' | '/api/public/save-result' | '/api/public/track'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicSaveResultRoute: typeof ApiPublicSaveResultRoute
   ApiPublicTrackRoute: typeof ApiPublicTrackRoute
 }
 
@@ -65,11 +75,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTrackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/save-result': {
+      id: '/api/public/save-result'
+      path: '/api/public/save-result'
+      fullPath: '/api/public/save-result'
+      preLoaderRoute: typeof ApiPublicSaveResultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicSaveResultRoute: ApiPublicSaveResultRoute,
   ApiPublicTrackRoute: ApiPublicTrackRoute,
 }
 export const routeTree = rootRouteImport
