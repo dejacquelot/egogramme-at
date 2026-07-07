@@ -15,12 +15,17 @@ import { Card } from "@/components/ui/card";
 
 type Period = "day" | "week" | "month" | "quarter" | "year";
 
-const PERIODS: { key: Period; label: string; days: number }[] = [
-  { key: "day", label: "Par jour (30 j)", days: 30 },
-  { key: "week", label: "Par semaine (12 sem.)", days: 7 * 12 },
-  { key: "month", label: "Par mois (12 mois)", days: 31 * 12 },
-  { key: "quarter", label: "Par trimestre (8 trim.)", days: 92 * 8 },
-  { key: "year", label: "Par année (5 ans)", days: 366 * 5 },
+const PERIODS: {
+  key: Period;
+  label: string;
+  days: number;
+  buckets: number;
+}[] = [
+  { key: "day", label: "Par jour (30 j)", days: 30, buckets: 30 },
+  { key: "week", label: "Par semaine (12 sem.)", days: 7 * 12, buckets: 12 },
+  { key: "month", label: "Par mois (12 mois)", days: 31 * 12, buckets: 12 },
+  { key: "quarter", label: "Par trimestre (8 trim.)", days: 92 * 8, buckets: 8 },
+  { key: "year", label: "Par année (5 ans)", days: 366 * 5, buckets: 5 },
 ];
 
 function bucketKey(date: Date, period: Period): string {
@@ -40,6 +45,39 @@ function bucketKey(date: Date, period: Period): string {
   if (period === "month") return `${y}-${String(m + 1).padStart(2, "0")}`;
   if (period === "quarter") return `${y}-T${Math.floor(m / 3) + 1}`;
   return `${y}`;
+}
+
+function bucketLabel(key: string, period: Period): string {
+  if (period === "day") {
+    const [, m, d] = key.split("-");
+    return `${d}/${m}`;
+  }
+  if (period === "week") {
+    const [, m, d] = key.split("-");
+    return `${d}/${m}`;
+  }
+  if (period === "month") {
+    const [y, m] = key.split("-");
+    return `${m}/${y.slice(2)}`;
+  }
+  return key;
+}
+
+function buildBuckets(period: Period, count: number): string[] {
+  const now = new Date();
+  const keys: string[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    if (period === "day") d.setUTCDate(d.getUTCDate() - i);
+    else if (period === "week") d.setUTCDate(d.getUTCDate() - i * 7);
+    else if (period === "month") d.setUTCMonth(d.getUTCMonth() - i);
+    else if (period === "quarter") d.setUTCMonth(d.getUTCMonth() - i * 3);
+    else if (period === "year") d.setUTCFullYear(d.getUTCFullYear() - i);
+    keys.push(bucketKey(d, period));
+  }
+  return keys;
 }
 
 export const Route = createFileRoute("/stats")({
@@ -90,15 +128,16 @@ function Stats() {
   }, [period]);
 
   const chartData = useMemo(() => {
+    const cfg = PERIODS.find((p) => p.key === period)!;
+    const keys = buildBuckets(period, cfg.buckets);
     const map = new Map<string, number>();
+    keys.forEach((k) => map.set(k, 0));
     rows.forEach((r) => {
       const d = new Date(r.visit_date + "T00:00:00Z");
       const key = bucketKey(d, period);
-      map.set(key, (map.get(key) ?? 0) + 1);
+      if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1);
     });
-    return Array.from(map.entries())
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([label, value]) => ({ label, value }));
+    return keys.map((k) => ({ label: bucketLabel(k, period), value: map.get(k) ?? 0 }));
   }, [rows, period]);
 
   const total = chartData.reduce((a, b) => a + b.value, 0);
