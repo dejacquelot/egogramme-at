@@ -300,6 +300,14 @@ function Stats() {
             également associés à ce hash.
           </p>
         </Card>
+
+        <div className="flex justify-center pt-2">
+          <Link to="/admin">
+            <Button variant="outline" size="sm">
+              Page d'administration →
+            </Button>
+          </Link>
+        </div>
       </main>
     </div>
   );
