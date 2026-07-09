@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,6 @@ function bucketKey(date: Date, period: Period): string {
     return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   }
   if (period === "week") {
-    // ISO-like week start (Monday)
     const tmp = new Date(Date.UTC(y, m, d));
     const dayNum = tmp.getUTCDay() || 7;
     tmp.setUTCDate(tmp.getUTCDate() - dayNum + 1);
@@ -97,6 +97,7 @@ export const Route = createFileRoute("/stats")({
 function Stats() {
   const [period, setPeriod] = useState<Period>("day");
   const [rows, setRows] = useState<{ visit_date: string }[]>([]);
+  const [resultRows, setResultRows] = useState<{ created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalResults, setTotalResults] = useState<number | null>(null);
 
@@ -105,21 +106,37 @@ function Stats() {
     (async () => {
       setLoading(true);
       const cfg = PERIODS.find((p) => p.key === period)!;
-      const since = new Date();
-      since.setUTCDate(since.getUTCDate() - cfg.days);
-      const isoDate = since.toISOString().slice(0, 10);
+      const since = new Date(
+        Date.UTC(
+          new Date().getUTCFullYear(),
+          new Date().getUTCMonth(),
+          new Date().getUTCDate(),
+        ),
+      );
+      if (period === "day") since.setUTCDate(since.getUTCDate() - cfg.days);
+      else if (period === "week") since.setUTCDate(since.getUTCDate() - cfg.days);
+      else if (period === "month") since.setUTCMonth(since.getUTCMonth() - cfg.buckets);
+      else if (period === "quarter") since.setUTCMonth(since.getUTCMonth() - cfg.buckets * 3);
+      else if (period === "year") since.setUTCFullYear(since.getUTCFullYear() - cfg.buckets);
+      const isoDate = since.toISOString();
 
-      const [visitsRes, resultsRes] = await Promise.all([
+      const [visitsRes, resultsRes, resultsCountRes] = await Promise.all([
         supabase
           .from("visits")
           .select("visit_date")
-          .gte("visit_date", isoDate)
+          .gte("visit_date", isoDate.slice(0, 10))
           .order("visit_date", { ascending: true }),
+        supabase
+          .from("results")
+          .select("created_at")
+          .gte("created_at", isoDate)
+          .order("created_at", { ascending: true }),
         supabase.from("results").select("*", { count: "exact", head: true }),
       ]);
       if (cancelled) return;
       setRows((visitsRes.data as { visit_date: string }[] | null) ?? []);
-      setTotalResults(resultsRes.count ?? 0);
+      setResultRows((resultsRes.data as { created_at: string }[] | null) ?? []);
+      setTotalResults(resultsCountRes.count ?? 0);
       setLoading(false);
     })();
     return () => {
@@ -130,17 +147,31 @@ function Stats() {
   const chartData = useMemo(() => {
     const cfg = PERIODS.find((p) => p.key === period)!;
     const keys = buildBuckets(period, cfg.buckets);
-    const map = new Map<string, number>();
-    keys.forEach((k) => map.set(k, 0));
+    const visitorsMap = new Map<string, number>();
+    const completedMap = new Map<string, number>();
+    keys.forEach((k) => {
+      visitorsMap.set(k, 0);
+      completedMap.set(k, 0);
+    });
     rows.forEach((r) => {
       const d = new Date(r.visit_date + "T00:00:00Z");
       const key = bucketKey(d, period);
-      if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1);
+      if (visitorsMap.has(key)) visitorsMap.set(key, (visitorsMap.get(key) ?? 0) + 1);
     });
-    return keys.map((k) => ({ label: bucketLabel(k, period), value: map.get(k) ?? 0 }));
-  }, [rows, period]);
+    resultRows.forEach((r) => {
+      const d = new Date(r.created_at);
+      const key = bucketKey(d, period);
+      if (completedMap.has(key)) completedMap.set(key, (completedMap.get(key) ?? 0) + 1);
+    });
+    return keys.map((k) => ({
+      label: bucketLabel(k, period),
+      visitors: visitorsMap.get(k) ?? 0,
+      completed: completedMap.get(k) ?? 0,
+    }));
+  }, [rows, resultRows, period]);
 
-  const total = chartData.reduce((a, b) => a + b.value, 0);
+  const totalVisitors = chartData.reduce((a, b) => a + b.visitors, 0);
+  const totalCompleted = chartData.reduce((a, b) => a + b.completed, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -182,7 +213,15 @@ function Stats() {
               <div className="text-xs text-muted-foreground">
                 Visiteurs uniques (période)
               </div>
-              <div className="text-2xl font-semibold tabular-nums">{total}</div>
+              <div className="text-2xl font-semibold tabular-nums">{totalVisitors}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Tests complétés (période)
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-green-600">
+                {totalCompleted}
+              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">
@@ -228,14 +267,24 @@ function Stats() {
                       fontSize: 12,
                     }}
                   />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Line
                     type="monotone"
-                    dataKey="value"
+                    dataKey="visitors"
                     stroke="oklch(0.55 0.15 250)"
                     strokeWidth={2.5}
                     dot={{ r: 3 }}
                     activeDot={{ r: 5 }}
                     name="Visiteurs uniques"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="completed"
+                    stroke="oklch(0.55 0.18 145)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                    name="Tests complétés"
                   />
                 </LineChart>
               </ResponsiveContainer>
