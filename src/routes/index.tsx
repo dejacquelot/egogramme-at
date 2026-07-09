@@ -198,6 +198,11 @@ function Index() {
 
   const maxScore = Math.max(...Object.values(scores), 1);
 
+  const interpretation = useMemo(
+    () => (answeredCount === 60 ? buildInterpretation(scores) : null),
+    [answeredCount, scores],
+  );
+
   // Save result once when the 60 questions are answered
   const savedRef = useRef(false);
   useEffect(() => {
@@ -418,6 +423,177 @@ function Index() {
           </aside>
         </div>
       </main>
+
+      {interpretation && (
+        <section className="mx-auto max-w-5xl px-4 pb-12">
+          <Card className="p-6">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                Interprétation clinique de votre égogramme
+              </h2>
+              <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                Analyse transactionnelle
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Lecture indicative, à visée pédagogique — ne remplace pas un
+              entretien avec un professionnel.
+            </p>
+
+            <div className="mt-5 space-y-5 text-sm leading-relaxed text-foreground">
+              <div>
+                <h3 className="font-semibold">Profil global</h3>
+                <p className="mt-1 text-muted-foreground">{interpretation.overview}</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold">États du moi dominants</h3>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
+                  {interpretation.dominants.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              </div>
+
+              {interpretation.lows.length > 0 && (
+                <div>
+                  <h3 className="font-semibold">États peu investis</h3>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
+                    {interpretation.lows.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div>
+                <h3 className="font-semibold">Équilibre Parent / Adulte / Enfant</h3>
+                <p className="mt-1 text-muted-foreground">{interpretation.balance}</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold">Tendances relationnelles</h3>
+                <p className="mt-1 text-muted-foreground">{interpretation.tendencies}</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold">Pistes de développement</h3>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
+                  {interpretation.advice.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Card>
+        </section>
+      )}
     </div>
   );
+}
+
+type Scores = Record<CategoryKey, number>;
+
+const DOMINANT_DESCRIPTIONS: Record<CategoryKey, string> = {
+  PN: "Parent Nourricier marqué : posture chaleureuse, protectrice, orientée vers le soin et l'encouragement des autres. Attention au risque de sur-protection ou de sauvetage (triangle dramatique de Karpman).",
+  PNo: "Parent Normatif fort : sens du cadre, des règles et des valeurs. Peut être structurant pour l'entourage, mais gare à la rigidité, au jugement ou au discours moralisateur.",
+  A: "Adulte solide : traitement rationnel de l'information, prise de décision fondée sur les faits, capacité à négocier et à résoudre les problèmes de manière posée.",
+  EL: "Enfant Libre présent : spontanéité, créativité, expression émotionnelle assumée, capacité à jouer et à ressentir du plaisir. Peut parfois manquer de filtre selon le contexte.",
+  EAS: "Enfant Adapté Soumis dominant : forte capacité d'adaptation, politesse, coopération. Risque de se sur-adapter, d'avoir du mal à dire non et d'accumuler du ressentiment.",
+  EAR: "Enfant Adapté Rebelle marqué : énergie contestataire, esprit critique, refus des injonctions. Peut se traduire par de l'opposition systématique et des conflits interpersonnels.",
+};
+
+const LOW_DESCRIPTIONS: Record<CategoryKey, string> = {
+  PN: "Peu de Parent Nourricier : difficulté à se montrer bienveillant, à réconforter ou à se réconforter soi-même.",
+  PNo: "Peu de Parent Normatif : difficulté à poser un cadre, à faire respecter des règles ou à s'auto-discipliner.",
+  A: "Adulte peu mobilisé : décisions plus souvent guidées par l'émotion ou l'injonction que par l'analyse objective.",
+  EL: "Enfant Libre discret : peu d'expression spontanée, du plaisir ou de la créativité ; risque de rigidité intérieure.",
+  EAS: "Enfant Adapté Soumis faible : peu de conformisme social ; peut compliquer l'insertion dans des cadres très normés.",
+  EAR: "Enfant Adapté Rebelle faible : peu de contestation, difficulté à dire non ou à défendre son territoire.",
+};
+
+function level(n: number): "élevé" | "modéré" | "faible" {
+  if (n >= 7) return "élevé";
+  if (n >= 4) return "modéré";
+  return "faible";
+}
+
+function buildInterpretation(scores: Scores) {
+  const entries = (Object.keys(scores) as CategoryKey[]).map((k) => ({
+    key: k,
+    score: scores[k],
+    label: CATEGORIES.find((c) => c.key === k)!.label,
+  }));
+  const sorted = [...entries].sort((a, b) => b.score - a.score);
+  const top = sorted.filter((e) => e.score === sorted[0].score);
+  const lows = sorted.filter((e) => e.score <= 2);
+
+  const P = scores.PN + scores.PNo;
+  const A = scores.A;
+  const E = scores.EL + scores.EAS + scores.EAR;
+  const total = P + A + E || 1;
+  const pctP = Math.round((P / total) * 100);
+  const pctA = Math.round((A / total) * 100);
+  const pctE = Math.round((E / total) * 100);
+
+  const overview =
+    `Le profil présente un Parent à ${P}/20 (${pctP}% de l'énergie totale), ` +
+    `un Adulte à ${A}/10 (${pctA}%) et un Enfant à ${E}/30 (${pctE}%). ` +
+    `L'état du moi le plus investi est le ${top.map((t) => t.label).join(" et ")}` +
+    `, ce qui colore la manière habituelle d'entrer en relation.`;
+
+  const dominants = top.map((t) => `${t.label} (${t.score}/10) — ${DOMINANT_DESCRIPTIONS[t.key]}`);
+  const lowsText = lows.map((l) => `${l.label} (${l.score}/10) — ${LOW_DESCRIPTIONS[l.key]}`);
+
+  let balance: string;
+  if (A >= 7 && pctA >= 25) {
+    balance =
+      "L'Adulte occupe une place centrale et régulatrice : bonne capacité à arbitrer entre les injonctions du Parent et les besoins de l'Enfant.";
+  } else if (P > E + 4) {
+    balance =
+      "Le Parent l'emporte nettement sur l'Enfant : posture plutôt encadrante, potentiellement au détriment de la spontanéité et du plaisir.";
+  } else if (E > P + 4) {
+    balance =
+      "L'Enfant domine le Parent : forte réactivité émotionnelle, énergie vive, mais un cadre intérieur qui peut manquer.";
+  } else if (A <= 3) {
+    balance =
+      "L'Adulte est peu mobilisé, ce qui laisse les décisions osciller entre les scripts parentaux et les réactions de l'Enfant ; renforcer l'Adulte apporterait plus de stabilité.";
+  } else {
+    balance =
+      "Les trois grandes instances (Parent, Adulte, Enfant) sont globalement équilibrées, ce qui favorise une communication souple.";
+  }
+
+  const tParts: string[] = [];
+  if (scores.PN >= 7) tParts.push("posture d'aidant naturel, à surveiller pour ne pas glisser vers le sauvetage");
+  if (scores.PNo >= 7) tParts.push("tendance à structurer, évaluer, parfois juger");
+  if (scores.EL >= 7) tParts.push("expressivité et enthousiasme communicatifs");
+  if (scores.EAS >= 7) tParts.push("forte adaptabilité sociale, avec un risque d'oubli de soi");
+  if (scores.EAR >= 7) tParts.push("énergie d'opposition qui peut ressourcer comme user la relation");
+  if (scores.A >= 7) tParts.push("mode de communication factuel et négociateur");
+  if (tParts.length === 0)
+    tParts.push(
+      "profil sans hyper-investissement marqué : la personne module ses états du moi selon les situations",
+    );
+  const tendencies =
+    "En relation, on peut s'attendre à : " + tParts.join(" ; ") + ".";
+
+  const advice: string[] = [];
+  if (level(scores.A) !== "élevé")
+    advice.push("Renforcer l'Adulte : prendre le temps de collecter des faits avant de réagir, reformuler, poser des questions ouvertes.");
+  if (scores.EAS >= 7)
+    advice.push("Travailler l'affirmation de soi pour transformer la sur-adaptation en accord conscient (dire un vrai « oui » ou un vrai « non »).");
+  if (scores.EAR >= 7)
+    advice.push("Distinguer l'opposition automatique du désaccord argumenté, pour préserver la qualité du lien.");
+  if (scores.PN >= 8)
+    advice.push("Vérifier que l'aide apportée est demandée et respecte l'autonomie de l'autre (éviter le rôle de Sauveur).");
+  if (scores.PNo >= 8)
+    advice.push("Assouplir le discours normatif : passer du « il faut » au « je propose », pour ouvrir le dialogue.");
+  if (scores.EL <= 3)
+    advice.push("Faire une place au plaisir et à la spontanéité : activités créatives, jeu, expression des émotions positives.");
+  if (scores.PN <= 3)
+    advice.push("Cultiver l'auto-bienveillance : se parler à soi-même comme on parlerait à un ami cher.");
+  if (advice.length === 0)
+    advice.push("Continuer à observer, dans les situations tendues, quel état du moi prend le devant — c'est déjà un excellent levier de conscience.");
+
+  return { overview, dominants, lows: lowsText, balance, tendencies, advice };
 }
