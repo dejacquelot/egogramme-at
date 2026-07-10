@@ -16,21 +16,33 @@ export type Database = {
     Tables: {
       results: {
         Row: {
+          contact_requested: boolean
           created_at: string
+          first_name: string | null
           id: string
           ip_hash: string
+          last_name: string | null
+          phone: string | null
           scores: Json
         }
         Insert: {
+          contact_requested?: boolean
           created_at?: string
+          first_name?: string | null
           id?: string
           ip_hash: string
+          last_name?: string | null
+          phone?: string | null
           scores: Json
         }
         Update: {
+          contact_requested?: boolean
           created_at?: string
+          first_name?: string | null
           id?: string
           ip_hash?: string
+          last_name?: string | null
+          phone?: string | null
           scores?: Json
         }
         Relationships: []
