@@ -386,7 +386,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       setLoading(true);
       const { data } = await supabase
         .from("results")
-        .select("id, ip_hash, scores, created_at")
+        .select("id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested")
         .order("created_at", { ascending: false })
         .limit(500);
       if (cancelled) return;
