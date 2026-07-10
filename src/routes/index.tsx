@@ -3,6 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -205,6 +208,7 @@ function Index() {
 
   // Save result once when the 60 questions are answered
   const savedRef = useRef(false);
+  const [resultId, setResultId] = useState<string | null>(null);
   useEffect(() => {
     if (answeredCount === 60 && !savedRef.current) {
       savedRef.current = true;
@@ -212,9 +216,17 @@ function Index() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scores }),
-      }).catch(() => {});
+      })
+        .then((r) => r.json())
+        .then((j) => {
+          if (j?.ok && j?.id) setResultId(j.id as string);
+        })
+        .catch(() => {});
     }
-    if (answeredCount < 60) savedRef.current = false;
+    if (answeredCount < 60) {
+      savedRef.current = false;
+      setResultId(null);
+    }
   }, [answeredCount, scores]);
 
   return (
