@@ -497,6 +497,12 @@ function Index() {
                 </ul>
               </div>
             </div>
+
+            <ReportActions
+              scores={scores}
+              interpretation={interpretation}
+              resultId={resultId}
+            />
           </Card>
         </section>
       )}
