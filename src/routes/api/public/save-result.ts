@@ -39,10 +39,13 @@ export const Route = createFileRoute("/api/public/save-result")({
           const { supabaseAdmin } = await import(
             "@/integrations/supabase/client.server"
           );
-          await supabaseAdmin
+          const { data, error } = await supabaseAdmin
             .from("results")
-            .insert({ ip_hash: ipHash, scores });
-          return Response.json({ ok: true });
+            .insert({ ip_hash: ipHash, scores })
+            .select("id")
+            .single();
+          if (error) throw error;
+          return Response.json({ ok: true, id: data.id, ipHash });
         } catch (e) {
           console.error("save-result error", e);
           return Response.json({ ok: false }, { status: 400 });
