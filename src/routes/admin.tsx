@@ -467,6 +467,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
                     <th className="py-2 pr-3 font-medium">Date</th>
+                    <th className="py-2 pr-3 font-medium">Contact</th>
+                    <th className="py-2 pr-3 font-medium">Téléphone</th>
                     <th className="py-2 pr-3 font-medium">IP (hash)</th>
                     {CATEGORIES.map((c) => (
                       <th key={c.key} className="py-2 pr-3 font-medium text-center" title={c.label}>
@@ -482,11 +484,40 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       key={r.id}
                       className={
                         "border-b border-border/50 hover:bg-muted/40 " +
-                        (r.id === selectedId ? "bg-muted/60" : "")
+                        (r.id === selectedId ? "bg-muted/60 " : "") +
+                        (r.contact_requested ? "bg-amber-50/60 " : "")
                       }
                     >
                       <td className="py-2 pr-3 whitespace-nowrap text-xs">
                         {formatDate(r.created_at)}
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        {(r.first_name || r.last_name) ? (
+                          <div className="flex items-center gap-1.5">
+                            {r.contact_requested && (
+                              <span
+                                title="Demande de rappel"
+                                className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white"
+                              >
+                                ★
+                              </span>
+                            )}
+                            <span className="font-medium text-foreground">
+                              {[r.first_name, r.last_name].filter(Boolean).join(" ")}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        {r.phone ? (
+                          <a href={`tel:${r.phone}`} className="text-primary underline underline-offset-2">
+                            {r.phone}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="py-2 pr-3">
                         <button
