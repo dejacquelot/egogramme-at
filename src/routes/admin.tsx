@@ -289,6 +289,25 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
             Résultat détaillé
           </p>
           <h2 className="mt-1 text-lg font-semibold">{formatDate(row.created_at)}</h2>
+          {(row.first_name || row.last_name || row.phone || row.contact_requested) && (
+            <div className="mt-2 space-y-0.5 text-sm">
+              {(row.first_name || row.last_name) && (
+                <p className="font-medium text-foreground">
+                  {[row.first_name, row.last_name].filter(Boolean).join(" ")}
+                </p>
+              )}
+              {row.contact_requested && (
+                <p className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                  ★ Demande de rappel
+                </p>
+              )}
+              {row.phone && (
+                <p className="text-sm text-foreground">
+                  <a href={`tel:${row.phone}`} className="underline">{row.phone}</a>
+                </p>
+              )}
+            </div>
+          )}
           <p className="mt-1 font-mono text-[11px] text-muted-foreground break-all">
             IP hash : {row.ip_hash}
           </p>
