@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicTrackRouteImport } from './routes/api/public/track'
 import { Route as ApiPublicSaveResultRouteImport } from './routes/api/public/save-result'
+import { Route as ApiPublicSaveContactRouteImport } from './routes/api/public/save-contact'
 
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
@@ -40,11 +41,17 @@ const ApiPublicSaveResultRoute = ApiPublicSaveResultRouteImport.update({
   path: '/api/public/save-result',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSaveContactRoute = ApiPublicSaveContactRouteImport.update({
+  id: '/api/public/save-contact',
+  path: '/api/public/save-contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/stats': typeof StatsRoute
+  '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/stats': typeof StatsRoute
+  '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
@@ -60,6 +68,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/stats': typeof StatsRoute
+  '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
@@ -69,6 +78,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/stats'
+    | '/api/public/save-contact'
     | '/api/public/save-result'
     | '/api/public/track'
   fileRoutesByTo: FileRoutesByTo
@@ -76,6 +86,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/stats'
+    | '/api/public/save-contact'
     | '/api/public/save-result'
     | '/api/public/track'
   id:
@@ -83,6 +94,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/stats'
+    | '/api/public/save-contact'
     | '/api/public/save-result'
     | '/api/public/track'
   fileRoutesById: FileRoutesById
@@ -91,6 +103,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   StatsRoute: typeof StatsRoute
+  ApiPublicSaveContactRoute: typeof ApiPublicSaveContactRoute
   ApiPublicSaveResultRoute: typeof ApiPublicSaveResultRoute
   ApiPublicTrackRoute: typeof ApiPublicTrackRoute
 }
@@ -132,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSaveResultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/save-contact': {
+      id: '/api/public/save-contact'
+      path: '/api/public/save-contact'
+      fullPath: '/api/public/save-contact'
+      preLoaderRoute: typeof ApiPublicSaveContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -139,6 +159,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   StatsRoute: StatsRoute,
+  ApiPublicSaveContactRoute: ApiPublicSaveContactRoute,
   ApiPublicSaveResultRoute: ApiPublicSaveResultRoute,
   ApiPublicTrackRoute: ApiPublicTrackRoute,
 }

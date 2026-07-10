@@ -3,6 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -205,6 +208,7 @@ function Index() {
 
   // Save result once when the 60 questions are answered
   const savedRef = useRef(false);
+  const [resultId, setResultId] = useState<string | null>(null);
   useEffect(() => {
     if (answeredCount === 60 && !savedRef.current) {
       savedRef.current = true;
@@ -212,9 +216,17 @@ function Index() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scores }),
-      }).catch(() => {});
+      })
+        .then((r) => r.json())
+        .then((j) => {
+          if (j?.ok && j?.id) setResultId(j.id as string);
+        })
+        .catch(() => {});
     }
-    if (answeredCount < 60) savedRef.current = false;
+    if (answeredCount < 60) {
+      savedRef.current = false;
+      setResultId(null);
+    }
   }, [answeredCount, scores]);
 
   return (
@@ -485,6 +497,12 @@ function Index() {
                 </ul>
               </div>
             </div>
+
+            <ReportActions
+              scores={scores}
+              interpretation={interpretation}
+              resultId={resultId}
+            />
           </Card>
         </section>
       )}
@@ -596,4 +614,384 @@ function buildInterpretation(scores: Scores) {
     advice.push("Continuer à observer, dans les situations tendues, quel état du moi prend le devant — c'est déjà un excellent levier de conscience.");
 
   return { overview, dominants, lows: lowsText, balance, tendencies, advice };
+}
+
+type Interpretation = ReturnType<typeof buildInterpretation>;
+
+function ReportActions({
+  scores,
+  interpretation,
+  resultId,
+}: {
+  scores: Scores;
+  interpretation: Interpretation;
+  resultId: string | null;
+}) {
+  const [downloading, setDownloading] = useState(false);
+
+  // Contact form state
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [wantsCall, setWantsCall] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await generateReportImage(scores, interpretation);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleSubmitContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!firstName.trim() || !lastName.trim()) {
+      setFormError("Merci d'indiquer votre prénom et votre nom.");
+      return;
+    }
+    if (wantsCall && phone.trim().length < 4) {
+      setFormError("Merci d'indiquer un numéro de téléphone valide.");
+      return;
+    }
+    if (!resultId) {
+      setFormError("Votre résultat n'est pas encore enregistré, réessayez dans un instant.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/public/save-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: resultId,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          contact_requested: wantsCall,
+          phone: wantsCall ? phone.trim() : null,
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j?.ok) {
+        setFormError("Enregistrement impossible. Veuillez réessayer.");
+        return;
+      }
+      setSubmitted(true);
+    } catch {
+      setFormError("Enregistrement impossible. Veuillez réessayer.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mt-8 border-t border-border pt-6 space-y-6">
+      <div>
+        <h3 className="text-base font-semibold">Recevoir mon rapport</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Téléchargez une image récapitulative avec votre diagramme et l'analyse complète.
+        </p>
+        <div className="mt-3">
+          <Button onClick={handleDownload} disabled={downloading}>
+            {downloading ? "Génération…" : "Télécharger mon rapport (image)"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-muted/30 p-4">
+        <h3 className="text-base font-semibold">
+          Un échange de 15 minutes avec un coach ?
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Si vous souhaitez débriefer votre égogramme, laissez vos coordonnées et
+          cochez « Je souhaite être rappelé·e ». Sinon, indiquez simplement votre
+          prénom et votre nom pour garder trace de votre passage.
+        </p>
+
+        {submitted ? (
+          <p className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
+            Merci {firstName} ! Vos informations ont bien été enregistrées
+            {wantsCall ? " — vous serez rappelé·e sous peu." : "."}
+          </p>
+        ) : (
+          <form onSubmit={handleSubmitContact} className="mt-4 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="firstName" className="text-xs">
+                  Prénom
+                </Label>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  autoComplete="given-name"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="lastName" className="text-xs">
+                  Nom
+                </Label>
+                <Input
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  autoComplete="family-name"
+                  required
+                />
+              </div>
+            </div>
+
+            <label className="flex items-start gap-2 pt-1 text-sm">
+              <Checkbox
+                checked={wantsCall}
+                onCheckedChange={(v) => setWantsCall(v === true)}
+                className="mt-0.5"
+              />
+              <span>
+                Je souhaite être rappelé·e pour un débrief téléphonique de 15
+                minutes avec un coach.
+              </span>
+            </label>
+
+            {wantsCall && (
+              <div>
+                <Label htmlFor="phone" className="text-xs">
+                  Téléphone
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  autoComplete="tel"
+                  placeholder="+33 6 12 34 56 78"
+                  required
+                />
+              </div>
+            )}
+
+            {formError && (
+              <p className="text-sm text-red-600">{formError}</p>
+            )}
+
+            <div className="pt-1">
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Envoi…" : "Envoyer"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+async function generateReportImage(
+  scores: Scores,
+  interp: Interpretation,
+) {
+  const W = 1200;
+  const padding = 48;
+  const canvas = document.createElement("canvas");
+  // We compute height dynamically after measuring text.
+  const ctx0 = canvas.getContext("2d")!;
+
+  // Colors (avoid oklch, canvas doesn't parse it — use hex equivalents).
+  const barColors: Record<CategoryKey, string> = {
+    PN: "#e08a5a",
+    PNo: "#b98240",
+    A: "#4f6cd6",
+    EL: "#5eb26a",
+    EAS: "#9b6cc4",
+    EAR: "#d15547",
+  };
+
+  const wrap = (text: string, maxWidth: number, ctx: CanvasRenderingContext2D) => {
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let current = "";
+    for (const w of words) {
+      const test = current ? current + " " + w : w;
+      if (ctx.measureText(test).width > maxWidth && current) {
+        lines.push(current);
+        current = w;
+      } else {
+        current = test;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
+  };
+
+  // First pass: compute height.
+  ctx0.font = "16px system-ui, sans-serif";
+  const contentW = W - padding * 2;
+  const chartH = 340;
+  const headerH = 130;
+
+  type Block = { title: string; lines: string[]; bullet?: boolean };
+  const blocks: Block[] = [
+    { title: "Profil global", lines: wrap(interp.overview, contentW, ctx0) },
+    {
+      title: "États du moi dominants",
+      lines: interp.dominants.flatMap((d) =>
+        wrap("• " + d, contentW - 20, ctx0),
+      ),
+      bullet: true,
+    },
+  ];
+  if (interp.lows.length > 0) {
+    blocks.push({
+      title: "États peu investis",
+      lines: interp.lows.flatMap((d) => wrap("• " + d, contentW - 20, ctx0)),
+      bullet: true,
+    });
+  }
+  blocks.push({
+    title: "Équilibre Parent / Adulte / Enfant",
+    lines: wrap(interp.balance, contentW, ctx0),
+  });
+  blocks.push({
+    title: "Tendances relationnelles",
+    lines: wrap(interp.tendencies, contentW, ctx0),
+  });
+  blocks.push({
+    title: "Pistes de développement",
+    lines: interp.advice.flatMap((d) => wrap("• " + d, contentW - 20, ctx0)),
+    bullet: true,
+  });
+
+  const lineH = 22;
+  const blockTitleH = 32;
+  const blockGap = 14;
+  let bodyH = 0;
+  blocks.forEach((b) => {
+    bodyH += blockTitleH + b.lines.length * lineH + blockGap;
+  });
+
+  const footerH = 70;
+  const H = headerH + chartH + 40 + bodyH + footerH;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+
+  // Background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  // Header
+  ctx.fillStyle = "#666";
+  ctx.font = "14px system-ui, sans-serif";
+  ctx.fillText("ANALYSE TRANSACTIONNELLE", padding, padding + 6);
+  ctx.fillStyle = "#111";
+  ctx.font = "bold 32px system-ui, sans-serif";
+  ctx.fillText("Votre égogramme personnel", padding, padding + 42);
+  ctx.fillStyle = "#666";
+  ctx.font = "14px system-ui, sans-serif";
+  const now = new Date().toLocaleString("fr-FR", {
+    dateStyle: "long",
+    timeStyle: "short",
+  });
+  ctx.fillText("Généré le " + now, padding, padding + 72);
+
+  // Chart
+  const chartTop = headerH;
+  const chartLeft = padding + 40;
+  const chartRight = W - padding;
+  const chartBottom = chartTop + chartH - 60;
+  const chartWidth = chartRight - chartLeft;
+  const chartHeight = chartBottom - chartTop;
+
+  // Gridlines + Y labels
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "#666";
+  ctx.font = "12px system-ui, sans-serif";
+  for (let n = 0; n <= 10; n++) {
+    const y = chartBottom - (n / 10) * chartHeight;
+    ctx.beginPath();
+    ctx.moveTo(chartLeft, y);
+    ctx.lineTo(chartRight, y);
+    ctx.stroke();
+    ctx.fillText(String(n), padding, y + 4);
+  }
+
+  // Bars
+  const cats: { key: CategoryKey; short: string; label: string }[] = [
+    { key: "PN", short: "PNr", label: "Parent Nourricier" },
+    { key: "PNo", short: "PNo", label: "Parent Normatif" },
+    { key: "A", short: "A", label: "Adulte" },
+    { key: "EL", short: "EL", label: "Enfant Libre" },
+    { key: "EAS", short: "EAS", label: "Enfant Adapté Soumis" },
+    { key: "EAR", short: "EAR", label: "Enfant Adapté Rebelle" },
+  ];
+  const gap = 16;
+  const barW = (chartWidth - gap * (cats.length - 1)) / cats.length;
+  cats.forEach((c, i) => {
+    const x = chartLeft + i * (barW + gap);
+    const val = scores[c.key];
+    const h = (val / 10) * chartHeight;
+    const y = chartBottom - h;
+    ctx.fillStyle = barColors[c.key];
+    ctx.fillRect(x, y, barW, h);
+    // Score above bar
+    ctx.fillStyle = "#111";
+    ctx.font = "bold 14px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(String(val), x + barW / 2, y - 8);
+    // Short label under
+    ctx.fillStyle = "#333";
+    ctx.font = "bold 13px system-ui, sans-serif";
+    ctx.fillText(c.short, x + barW / 2, chartBottom + 22);
+    // Full label
+    ctx.fillStyle = "#666";
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.fillText(c.label, x + barW / 2, chartBottom + 40);
+    ctx.textAlign = "left";
+  });
+
+  // Body blocks
+  let y = chartTop + chartH + 30;
+  ctx.textAlign = "left";
+  blocks.forEach((b) => {
+    ctx.fillStyle = "#111";
+    ctx.font = "bold 18px system-ui, sans-serif";
+    ctx.fillText(b.title, padding, y);
+    y += blockTitleH - 6;
+    ctx.fillStyle = "#333";
+    ctx.font = "15px system-ui, sans-serif";
+    b.lines.forEach((line) => {
+      ctx.fillText(line, padding, y);
+      y += lineH;
+    });
+    y += blockGap;
+  });
+
+  // Footer
+  ctx.fillStyle = "#888";
+  ctx.font = "12px system-ui, sans-serif";
+  const footerLines = wrap(
+    "D'après Michel Josien, « Techniques de communication interpersonnelle » — Éditions d'Organisation. Analyse indicative, à visée pédagogique, ne remplace pas un entretien avec un professionnel.",
+    contentW,
+    ctx,
+  );
+  let fy = H - footerH + 10;
+  footerLines.forEach((l) => {
+    ctx.fillText(l, padding, fy);
+    fy += 16;
+  });
+
+  // Trigger download
+  const dataUrl = canvas.toDataURL("image/png");
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = "egogramme-rapport.png";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }

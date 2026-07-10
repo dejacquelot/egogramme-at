@@ -135,6 +135,10 @@ type ResultRow = {
   ip_hash: string;
   scores: Scores;
   created_at: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  contact_requested: boolean;
 };
 
 const AUTH_KEY = "egogramme_admin_auth_v1";
@@ -285,6 +289,25 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
             Résultat détaillé
           </p>
           <h2 className="mt-1 text-lg font-semibold">{formatDate(row.created_at)}</h2>
+          {(row.first_name || row.last_name || row.phone || row.contact_requested) && (
+            <div className="mt-2 space-y-0.5 text-sm">
+              {(row.first_name || row.last_name) && (
+                <p className="font-medium text-foreground">
+                  {[row.first_name, row.last_name].filter(Boolean).join(" ")}
+                </p>
+              )}
+              {row.contact_requested && (
+                <p className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                  ★ Demande de rappel
+                </p>
+              )}
+              {row.phone && (
+                <p className="text-sm text-foreground">
+                  <a href={`tel:${row.phone}`} className="underline">{row.phone}</a>
+                </p>
+              )}
+            </div>
+          )}
           <p className="mt-1 font-mono text-[11px] text-muted-foreground break-all">
             IP hash : {row.ip_hash}
           </p>
@@ -382,7 +405,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       setLoading(true);
       const { data } = await supabase
         .from("results")
-        .select("id, ip_hash, scores, created_at")
+        .select("id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested")
         .order("created_at", { ascending: false })
         .limit(500);
       if (cancelled) return;
@@ -444,6 +467,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
                     <th className="py-2 pr-3 font-medium">Date</th>
+                    <th className="py-2 pr-3 font-medium">Contact</th>
+                    <th className="py-2 pr-3 font-medium">Téléphone</th>
                     <th className="py-2 pr-3 font-medium">IP (hash)</th>
                     {CATEGORIES.map((c) => (
                       <th key={c.key} className="py-2 pr-3 font-medium text-center" title={c.label}>
@@ -459,11 +484,40 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       key={r.id}
                       className={
                         "border-b border-border/50 hover:bg-muted/40 " +
-                        (r.id === selectedId ? "bg-muted/60" : "")
+                        (r.id === selectedId ? "bg-muted/60 " : "") +
+                        (r.contact_requested ? "bg-amber-50/60 " : "")
                       }
                     >
                       <td className="py-2 pr-3 whitespace-nowrap text-xs">
                         {formatDate(r.created_at)}
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        {(r.first_name || r.last_name) ? (
+                          <div className="flex items-center gap-1.5">
+                            {r.contact_requested && (
+                              <span
+                                title="Demande de rappel"
+                                className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white"
+                              >
+                                ★
+                              </span>
+                            )}
+                            <span className="font-medium text-foreground">
+                              {[r.first_name, r.last_name].filter(Boolean).join(" ")}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        {r.phone ? (
+                          <a href={`tel:${r.phone}`} className="text-primary underline underline-offset-2">
+                            {r.phone}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="py-2 pr-3">
                         <button
