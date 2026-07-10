@@ -135,6 +135,10 @@ type ResultRow = {
   ip_hash: string;
   scores: Scores;
   created_at: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  contact_requested: boolean;
 };
 
 const AUTH_KEY = "egogramme_admin_auth_v1";
