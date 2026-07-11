@@ -398,6 +398,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [rows, setRows] = useState<ResultRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -416,6 +418,36 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   }, []);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
+
+  const handleDelete = async (row: ResultRow) => {
+    const who = [row.first_name, row.last_name].filter(Boolean).join(" ")
+      || formatDate(row.created_at);
+    const ok = typeof window !== "undefined"
+      && window.confirm(
+        `Supprimer définitivement le résultat de « ${who} » ? Cette action est irréversible.`,
+      );
+    if (!ok) return;
+    setDeletingId(row.id);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/public/admin-delete-result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: row.id, user: VALID_USER, pass: VALID_PASS }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j?.ok) {
+        setDeleteError("Suppression impossible. Réessayez.");
+        return;
+      }
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      if (selectedId === row.id) setSelectedId(null);
+    } catch {
+      setDeleteError("Suppression impossible. Réessayez.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -475,7 +507,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         {c.short}
                       </th>
                     ))}
-                    <th className="py-2 font-medium"></th>
+                    <th className="py-2 pr-3 font-medium"></th>
+                    <th className="py-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -538,7 +571,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           {r.scores?.[c.key] ?? 0}
                         </td>
                       ))}
-                      <td className="py-2 text-right">
+                      <td className="py-2 pr-3 text-right">
                         <Button size="sm" variant="ghost" onClick={() => {
                           setSelectedId(r.id);
                           if (typeof window !== "undefined") {
@@ -548,10 +581,24 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           Détail
                         </Button>
                       </td>
+                      <td className="py-2 text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                          disabled={deletingId === r.id}
+                          onClick={() => handleDelete(r)}
+                        >
+                          {deletingId === r.id ? "Suppression…" : "Supprimer"}
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            )}
+            {deleteError && (
+              <p className="mt-3 text-sm text-red-600">{deleteError}</p>
             )}
           </div>
         </Card>

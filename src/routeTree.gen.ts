@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicTrackRouteImport } from './routes/api/public/track'
 import { Route as ApiPublicSaveResultRouteImport } from './routes/api/public/save-result'
 import { Route as ApiPublicSaveContactRouteImport } from './routes/api/public/save-contact'
+import { Route as ApiPublicAdminDeleteResultRouteImport } from './routes/api/public/admin-delete-result'
 
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
@@ -46,11 +47,18 @@ const ApiPublicSaveContactRoute = ApiPublicSaveContactRouteImport.update({
   path: '/api/public/save-contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAdminDeleteResultRoute =
+  ApiPublicAdminDeleteResultRouteImport.update({
+    id: '/api/public/admin-delete-result',
+    path: '/api/public/admin-delete-result',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/stats': typeof StatsRoute
+  '/api/public/admin-delete-result': typeof ApiPublicAdminDeleteResultRoute
   '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
@@ -59,6 +67,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/stats': typeof StatsRoute
+  '/api/public/admin-delete-result': typeof ApiPublicAdminDeleteResultRoute
   '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
@@ -68,6 +77,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/stats': typeof StatsRoute
+  '/api/public/admin-delete-result': typeof ApiPublicAdminDeleteResultRoute
   '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
   '/api/public/track': typeof ApiPublicTrackRoute
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/stats'
+    | '/api/public/admin-delete-result'
     | '/api/public/save-contact'
     | '/api/public/save-result'
     | '/api/public/track'
@@ -86,6 +97,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/stats'
+    | '/api/public/admin-delete-result'
     | '/api/public/save-contact'
     | '/api/public/save-result'
     | '/api/public/track'
@@ -94,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/stats'
+    | '/api/public/admin-delete-result'
     | '/api/public/save-contact'
     | '/api/public/save-result'
     | '/api/public/track'
@@ -103,6 +116,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   StatsRoute: typeof StatsRoute
+  ApiPublicAdminDeleteResultRoute: typeof ApiPublicAdminDeleteResultRoute
   ApiPublicSaveContactRoute: typeof ApiPublicSaveContactRoute
   ApiPublicSaveResultRoute: typeof ApiPublicSaveResultRoute
   ApiPublicTrackRoute: typeof ApiPublicTrackRoute
@@ -152,6 +166,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSaveContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/admin-delete-result': {
+      id: '/api/public/admin-delete-result'
+      path: '/api/public/admin-delete-result'
+      fullPath: '/api/public/admin-delete-result'
+      preLoaderRoute: typeof ApiPublicAdminDeleteResultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -159,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   StatsRoute: StatsRoute,
+  ApiPublicAdminDeleteResultRoute: ApiPublicAdminDeleteResultRoute,
   ApiPublicSaveContactRoute: ApiPublicSaveContactRoute,
   ApiPublicSaveResultRoute: ApiPublicSaveResultRoute,
   ApiPublicTrackRoute: ApiPublicTrackRoute,
