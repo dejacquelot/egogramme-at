@@ -507,7 +507,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         {c.short}
                       </th>
                     ))}
-                    <th className="py-2 font-medium"></th>
+                    <th className="py-2 pr-3 font-medium"></th>
+                    <th className="py-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -570,7 +571,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           {r.scores?.[c.key] ?? 0}
                         </td>
                       ))}
-                      <td className="py-2 text-right">
+                      <td className="py-2 pr-3 text-right">
                         <Button size="sm" variant="ghost" onClick={() => {
                           setSelectedId(r.id);
                           if (typeof window !== "undefined") {
@@ -580,10 +581,24 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           Détail
                         </Button>
                       </td>
+                      <td className="py-2 text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                          disabled={deletingId === r.id}
+                          onClick={() => handleDelete(r)}
+                        >
+                          {deletingId === r.id ? "Suppression…" : "Supprimer"}
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            )}
+            {deleteError && (
+              <p className="mt-3 text-sm text-red-600">{deleteError}</p>
             )}
           </div>
         </Card>
