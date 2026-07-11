@@ -886,7 +886,7 @@ async function generateReportImage(
   ctx0.font = "16px system-ui, sans-serif";
   const contentW = W - padding * 2;
   const chartH = 340;
-  const headerH = 130;
+  const headerH = 200;
 
   type Block = { title: string; lines: string[]; bullet?: boolean };
   const blocks: Block[] = [
@@ -943,15 +943,33 @@ async function generateReportImage(
   ctx.font = "14px system-ui, sans-serif";
   ctx.fillText("ANALYSE TRANSACTIONNELLE", padding, padding + 6);
   ctx.fillStyle = "#111";
-  ctx.font = "bold 32px system-ui, sans-serif";
-  ctx.fillText("Votre égogramme personnel", padding, padding + 42);
-  ctx.fillStyle = "#666";
-  ctx.font = "14px system-ui, sans-serif";
-  const now = new Date().toLocaleString("fr-FR", {
+  ctx.font = "bold 28px system-ui, sans-serif";
+  ctx.fillText("Votre égogramme personnel", padding, padding + 40);
+
+  // Prominent name + date band
+  const bandY = padding + 60;
+  const bandH = 90;
+  ctx.fillStyle = "#f4f1ec";
+  if (typeof (ctx as unknown as { roundRect?: unknown }).roundRect === "function") {
+    ctx.beginPath();
+    (ctx as CanvasRenderingContext2D & {
+      roundRect: (x: number, y: number, w: number, h: number, r: number) => void;
+    }).roundRect(padding, bandY, contentW, bandH, 12);
+    ctx.fill();
+  } else {
+    ctx.fillRect(padding, bandY, contentW, bandH);
+  }
+  ctx.fillStyle = "#111";
+  ctx.font = "bold 30px system-ui, sans-serif";
+  const fullName = `${identity.firstName} ${identity.lastName}`.trim();
+  ctx.fillText(fullName, padding + 20, bandY + 40);
+  ctx.fillStyle = "#555";
+  ctx.font = "16px system-ui, sans-serif";
+  const dateStr = identity.date.toLocaleString("fr-FR", {
     dateStyle: "long",
     timeStyle: "short",
   });
-  ctx.fillText("Généré le " + now, padding, padding + 72);
+  ctx.fillText("Égogramme réalisé le " + dateStr, padding + 20, bandY + 70);
 
   // Chart
   const chartTop = headerH;
@@ -992,7 +1010,34 @@ async function generateReportImage(
     const h = (val / 10) * chartHeight;
     const y = chartBottom - h;
     ctx.fillStyle = barColors[c.key];
-    ctx.fillRect(x, y, barW, h);
+    const r = Math.min(10, barW / 2, h);
+    ctx.beginPath();
+    if (h <= 0) {
+      // Nothing to draw for a zero score.
+    } else if (
+      typeof (ctx as unknown as { roundRect?: unknown }).roundRect === "function"
+    ) {
+      (ctx as CanvasRenderingContext2D & {
+        roundRect: (
+          x: number,
+          y: number,
+          w: number,
+          h: number,
+          radii: number[],
+        ) => void;
+      }).roundRect(x, y, barW, h, [r, r, 0, 0]);
+      ctx.fill();
+    } else {
+      // Fallback: manual rounded-top rectangle.
+      ctx.moveTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.lineTo(x + barW - r, y);
+      ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+      ctx.lineTo(x + barW, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.closePath();
+      ctx.fill();
+    }
     // Score above bar
     ctx.fillStyle = "#111";
     ctx.font = "bold 14px system-ui, sans-serif";
