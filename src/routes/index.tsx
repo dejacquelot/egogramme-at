@@ -629,19 +629,52 @@ function ReportActions({
 }) {
   const [downloading, setDownloading] = useState(false);
 
-  // Contact form state
+  // Identity for the downloadable report (also persisted so admin sees it).
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [wantsCall, setWantsCall] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // Optional callback section (revealed by a button).
+  const [showCallback, setShowCallback] = useState(false);
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const persistIdentity = async (contactRequested: boolean) => {
+    if (!resultId) return;
+    try {
+      await fetch("/api/public/save-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: resultId,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          contact_requested: contactRequested,
+          phone: contactRequested ? phone.trim() : null,
+        }),
+      });
+    } catch {
+      /* non-blocking */
+    }
+  };
+
   const handleDownload = async () => {
+    setDownloadError(null);
+    if (!firstName.trim() || !lastName.trim()) {
+      setDownloadError("Merci d'indiquer votre prénom et votre nom.");
+      return;
+    }
     setDownloading(true);
     try {
-      await generateReportImage(scores, interpretation);
+      // Persist first (best-effort) so the admin sees who downloaded.
+      persistIdentity(false);
+      await generateReportImage(scores, interpretation, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        date: new Date(),
+      });
     } finally {
       setDownloading(false);
     }
@@ -654,7 +687,7 @@ function ReportActions({
       setFormError("Merci d'indiquer votre prénom et votre nom.");
       return;
     }
-    if (wantsCall && phone.trim().length < 4) {
+    if (phone.trim().length < 4) {
       setFormError("Merci d'indiquer un numéro de téléphone valide.");
       return;
     }
@@ -671,8 +704,8 @@ function ReportActions({
           id: resultId,
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          contact_requested: wantsCall,
-          phone: wantsCall ? phone.trim() : null,
+          contact_requested: true,
+          phone: phone.trim(),
         }),
       });
       const j = await res.json().catch(() => ({}));
@@ -693,8 +726,36 @@ function ReportActions({
       <div>
         <h3 className="text-base font-semibold">Recevoir mon rapport</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Téléchargez une image récapitulative avec votre diagramme et l'analyse complète.
+          Votre prénom, nom et la date apparaîtront en haut de l'image générée.
         </p>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="report-firstName" className="text-xs">Prénom</Label>
+            <Input
+              id="report-firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              autoComplete="given-name"
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="report-lastName" className="text-xs">Nom</Label>
+            <Input
+              id="report-lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              autoComplete="family-name"
+              required
+            />
+          </div>
+        </div>
+
+        {downloadError && (
+          <p className="mt-2 text-sm text-red-600">{downloadError}</p>
+        )}
+
         <div className="mt-3">
           <Button onClick={handleDownload} disabled={downloading}>
             {downloading ? "Génération…" : "Télécharger mon rapport (image)"}
@@ -702,89 +763,82 @@ function ReportActions({
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-muted/30 p-4">
-        <h3 className="text-base font-semibold">
-          Un échange de 15 minutes avec un coach ?
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Si vous souhaitez débriefer votre égogramme, laissez vos coordonnées et
-          cochez « Je souhaite être rappelé·e ». Sinon, indiquez simplement votre
-          prénom et votre nom pour garder trace de votre passage.
-        </p>
-
-        {submitted ? (
-          <p className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-            Merci {firstName} ! Vos informations ont bien été enregistrées
-            {wantsCall ? " — vous serez rappelé·e sous peu." : "."}
-          </p>
+      <div>
+        {!showCallback ? (
+          <Button variant="outline" onClick={() => setShowCallback(true)}>
+            Souhaitez-vous être rappelé·e pour débriefer votre égogramme ?
+          </Button>
         ) : (
-          <form onSubmit={handleSubmitContact} className="mt-4 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="firstName" className="text-xs">
-                  Prénom
-                </Label>
-                <Input
-                  id="firstName"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  autoComplete="given-name"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="lastName" className="text-xs">
-                  Nom
-                </Label>
-                <Input
-                  id="lastName"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  autoComplete="family-name"
-                  required
-                />
-              </div>
-            </div>
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <h3 className="text-base font-semibold">
+              Être rappelé·e par un coach
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Laissez vos coordonnées pour un échange de 15 minutes avec un coach.
+              Prénom, nom et numéro de téléphone sont obligatoires.
+            </p>
 
-            <label className="flex items-start gap-2 pt-1 text-sm">
-              <Checkbox
-                checked={wantsCall}
-                onCheckedChange={(v) => setWantsCall(v === true)}
-                className="mt-0.5"
-              />
-              <span>
-                Je souhaite être rappelé·e pour un débrief téléphonique de 15
-                minutes avec un coach.
-              </span>
-            </label>
+            {submitted ? (
+              <p className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
+                Merci {firstName} ! Vos coordonnées ont bien été enregistrées —
+                vous serez rappelé·e sous peu.
+              </p>
+            ) : (
+              <form onSubmit={handleSubmitContact} className="mt-4 space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="cb-firstName" className="text-xs">Prénom</Label>
+                    <Input
+                      id="cb-firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      autoComplete="given-name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cb-lastName" className="text-xs">Nom</Label>
+                    <Input
+                      id="cb-lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      autoComplete="family-name"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="cb-phone" className="text-xs">Téléphone</Label>
+                  <Input
+                    id="cb-phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    autoComplete="tel"
+                    placeholder="+33 6 12 34 56 78"
+                    required
+                  />
+                </div>
 
-            {wantsCall && (
-              <div>
-                <Label htmlFor="phone" className="text-xs">
-                  Téléphone
-                </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  autoComplete="tel"
-                  placeholder="+33 6 12 34 56 78"
-                  required
-                />
-              </div>
+                {formError && (
+                  <p className="text-sm text-red-600">{formError}</p>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Envoi…" : "Demander à être rappelé·e"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowCallback(false)}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </form>
             )}
-
-            {formError && (
-              <p className="text-sm text-red-600">{formError}</p>
-            )}
-
-            <div className="pt-1">
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Envoi…" : "Envoyer"}
-              </Button>
-            </div>
-          </form>
+          </div>
         )}
       </div>
     </div>
@@ -794,6 +848,7 @@ function ReportActions({
 async function generateReportImage(
   scores: Scores,
   interp: Interpretation,
+  identity: { firstName: string; lastName: string; date: Date },
 ) {
   const W = 1200;
   const padding = 48;
