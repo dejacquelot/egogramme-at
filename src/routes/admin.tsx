@@ -223,6 +223,81 @@ function shortHash(h: string): string {
   return h.slice(0, 8) + "…" + h.slice(-4);
 }
 
+function averageScores(rows: ResultRow[]): Scores {
+  const out = { PN: 0, PNo: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores;
+  if (rows.length === 0) return out;
+  (Object.keys(out) as CategoryKey[]).forEach((k) => {
+    const sum = rows.reduce((acc, r) => acc + (r.scores?.[k] ?? 0), 0);
+    out[k] = Math.round((sum / rows.length) * 10) / 10;
+  });
+  return out;
+}
+
+function memberName(r: ResultRow, i: number): string {
+  return (
+    [r.first_name, r.last_name].filter(Boolean).join(" ") ||
+    `Membre ${i + 1} (${shortHash(r.ip_hash)})`
+  );
+}
+
+/** Minimal markdown renderer for headings, bold, lists and paragraphs. */
+function MarkdownText({ text }: { text: string }) {
+  const blocks = text.split(/\n{2,}/);
+  const inline = (s: string) =>
+    s.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+      part.startsWith("**") && part.endsWith("**") ? (
+        <strong key={i}>{part.slice(2, -2)}</strong>
+      ) : (
+        <span key={i}>{part}</span>
+      ),
+    );
+  return (
+    <div className="space-y-3 text-sm leading-relaxed">
+      {blocks.map((block, bi) => {
+        const lines = block.split("\n");
+        if (/^#{1,6}\s/.test(lines[0]) && lines.length === 1) {
+          const levelN = lines[0].match(/^#+/)![0].length;
+          const content = lines[0].replace(/^#+\s*/, "");
+          return (
+            <h3
+              key={bi}
+              className={
+                levelN <= 2
+                  ? "text-base font-semibold text-foreground"
+                  : "text-sm font-semibold text-foreground"
+              }
+            >
+              {inline(content)}
+            </h3>
+          );
+        }
+        if (lines.every((l) => /^\s*[-*]\s+/.test(l))) {
+          return (
+            <ul key={bi} className="list-disc space-y-1 pl-5 text-muted-foreground">
+              {lines.map((l, i) => (
+                <li key={i}>{inline(l.replace(/^\s*[-*]\s+/, ""))}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <div key={bi} className="space-y-1">
+            {lines.map((l, i) =>
+              /^#{1,6}\s/.test(l) ? (
+                <h3 key={i} className="text-base font-semibold text-foreground">
+                  {inline(l.replace(/^#+\s*/, ""))}
+                </h3>
+              ) : (
+                <p key={i} className="text-muted-foreground">{inline(l)}</p>
+              ),
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Bars({ scores }: { scores: Scores }) {
   const maxScore = Math.max(...Object.values(scores), 1);
   return (
@@ -400,6 +475,11 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [teamIds, setTeamIds] = useState<string[]>([]);
+  const [teamName, setTeamName] = useState("");
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analysing, setAnalysing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -418,6 +498,44 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   }, []);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
+  const teamRows = rows.filter((r) => teamIds.includes(r.id));
+  const teamAverage = averageScores(teamRows);
+
+  const toggleTeam = (id: string) => {
+    setAnalysis(null);
+    setAnalysisError(null);
+    setTeamIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const generateTeamAnalysis = async () => {
+    setAnalysing(true);
+    setAnalysisError(null);
+    setAnalysis(null);
+    try {
+      const res = await fetch("/api/public/team-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: teamIds,
+          teamName: teamName.trim() || undefined,
+          user: VALID_USER,
+          pass: VALID_PASS,
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j?.ok) {
+        setAnalysisError(j?.error ?? "Analyse impossible. Réessayez.");
+        return;
+      }
+      setAnalysis(j.analysis as string);
+    } catch {
+      setAnalysisError("Analyse impossible. Réessayez.");
+    } finally {
+      setAnalysing(false);
+    }
+  };
 
   const handleDelete = async (row: ResultRow) => {
     const who = [row.first_name, row.last_name].filter(Boolean).join(" ")
@@ -477,6 +595,94 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <ResultDetail row={selected} onClose={() => setSelectedId(null)} />
         )}
 
+        <Card className="p-5 space-y-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">Composition d'équipe</h2>
+            <p className="text-xs text-muted-foreground">
+              Cochez au moins deux résultats dans l'historique pour constituer une équipe.
+            </p>
+          </div>
+
+          {teamRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aucun membre sélectionné.
+            </p>
+          ) : (
+            <>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold">
+                    Égogramme moyen de l'équipe ({teamRows.length} membre
+                    {teamRows.length > 1 ? "s" : ""})
+                  </h3>
+                  <Bars scores={teamAverage} />
+                </div>
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold">Membres</h3>
+                  <ul className="space-y-1.5 text-xs">
+                    {teamRows.map((r, i) => (
+                      <li key={r.id} className="flex items-center gap-2">
+                        <span className="flex-1">{memberName(r, i)}</span>
+                        <span className="font-mono tabular-nums text-muted-foreground">
+                          {CATEGORIES.map((c) => r.scores?.[c.key] ?? 0).join(" · ")}
+                        </span>
+                        <button
+                          className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                          onClick={() => toggleTeam(r.id)}
+                        >
+                          retirer
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Ordre des scores : {CATEGORIES.map((c) => c.short).join(" · ")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3 border-t border-border pt-4">
+                <div className="w-full max-w-xs">
+                  <Label htmlFor="teamName" className="text-xs">
+                    Nom de l'équipe (optionnel)
+                  </Label>
+                  <Input
+                    id="teamName"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    placeholder="Ex. Comité de direction"
+                  />
+                </div>
+                <Button
+                  onClick={generateTeamAnalysis}
+                  disabled={analysing || teamRows.length < 2}
+                >
+                  {analysing ? "Analyse en cours…" : "Générer une analyse"}
+                </Button>
+                <Button variant="outline" onClick={() => {
+                  setTeamIds([]);
+                  setAnalysis(null);
+                  setAnalysisError(null);
+                }}>
+                  Vider la sélection
+                </Button>
+              </div>
+
+              {analysisError && (
+                <p className="text-sm text-red-600">{analysisError}</p>
+              )}
+              {analysis && (
+                <div className="border-t border-border pt-4">
+                  <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">
+                    Analyse transactionnelle de l'équipe
+                  </p>
+                  <MarkdownText text={analysis} />
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+
         <Card className="p-5">
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold">
@@ -498,6 +704,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="py-2 pr-3 font-medium" title="Ajouter à l'équipe">Éq.</th>
                     <th className="py-2 pr-3 font-medium">Date</th>
                     <th className="py-2 pr-3 font-medium">Contact</th>
                     <th className="py-2 pr-3 font-medium">Téléphone</th>
@@ -521,6 +728,15 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         (r.contact_requested ? "bg-amber-50/60 " : "")
                       }
                     >
+                      <td className="py-2 pr-3">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                          checked={teamIds.includes(r.id)}
+                          onChange={() => toggleTeam(r.id)}
+                          aria-label={`Ajouter ${memberName(r, 0)} à l'équipe`}
+                        />
+                      </td>
                       <td className="py-2 pr-3 whitespace-nowrap text-xs">
                         {formatDate(r.created_at)}
                       </td>
