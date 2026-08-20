@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy } from "lucide-react";
+import { FileDown, ImageDown } from "lucide-react";
+import {
+  downloadTeamReportImage,
+  downloadTeamReportPdf,
+  type TeamReportInput,
+} from "@/lib/team-report";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -239,32 +244,6 @@ function memberName(r: ResultRow, i: number): string {
     [r.first_name, r.last_name].filter(Boolean).join(" ") ||
     `Membre ${i + 1} (${shortHash(r.ip_hash)})`
   );
-}
-
-function buildTeamReportText(teamName: string, rows: ResultRow[], average: Scores, analysis: string): string {
-  const title = teamName.trim() || "Rapport de groupe";
-  const now = new Date().toLocaleString("fr-FR", {
-    dateStyle: "long",
-    timeStyle: "short",
-  });
-  const lines = [
-    `# Analyse d'équipe — ${title}`,
-    `Généré le ${now}`,
-    "",
-    `## Membres sélectionnés (${rows.length})`,
-    ...rows.map((r, i) => {
-      const name = memberName(r, i);
-      const scores = CATEGORIES.map((c) => `${c.short}: ${r.scores?.[c.key] ?? 0}/10`).join(", ");
-      return `- ${name} — ${scores}`;
-    }),
-    "",
-    "## Égogramme moyen du groupe",
-    ...CATEGORIES.map((c) => `- ${c.label} (${c.short}): ${average[c.key]}/10`),
-    "",
-    "## Analyse transactionnelle",
-    analysis,
-  ];
-  return lines.join("\n");
 }
 
 /** Minimal markdown renderer for headings, bold, lists and paragraphs. */
@@ -507,7 +486,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [analysing, setAnalysing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "png" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -595,15 +575,34 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  const copyAnalysis = async () => {
+  const reportInput = (): TeamReportInput => ({
+    teamName,
+    average: teamAverage,
+    members: teamRows.map((r, i) => ({
+      name: memberName(r, i),
+      date: formatDate(r.created_at),
+      scores: (Object.fromEntries(
+        CATEGORIES.map((c) => [c.key, r.scores?.[c.key] ?? 0]),
+      ) as Scores),
+    })),
+    analysis: analysis ?? "",
+  });
+
+  const exportReport = async (kind: "pdf" | "png") => {
     if (!analysis) return;
-    const text = buildTeamReportText(teamName, teamRows, teamAverage, analysis);
+    setExporting(kind);
+    setExportError(null);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      if (kind === "pdf") await downloadTeamReportPdf(reportInput());
+      else await downloadTeamReportImage(reportInput());
     } catch {
-      // Fallback silencieux : l'utilisateur peut sélectionner manuellement.
+      setExportError(
+        kind === "pdf"
+          ? "Export PDF impossible. Essayez le téléchargement en image."
+          : "Export image impossible. Réessayez.",
+      );
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -717,15 +716,28 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     Analyse transactionnelle de l'équipe
                   </p>
                   <MarkdownText text={analysis} />
-                  <div className="mt-4 flex justify-end">
+                  {exportError && (
+                    <p className="mt-3 text-sm text-red-600">{exportError}</p>
+                  )}
+                  <div className="mt-4 flex flex-wrap justify-end gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => exportReport("pdf")}
+                      disabled={exporting !== null}
+                      className="gap-1.5"
+                    >
+                      <FileDown className="h-4 w-4" />
+                      {exporting === "pdf" ? "Génération…" : "Télécharger le rapport PDF"}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={copyAnalysis}
+                      onClick={() => exportReport("png")}
+                      disabled={exporting !== null}
                       className="gap-1.5"
                     >
-                      <Copy className="h-4 w-4" />
-                      {copied ? "Copié !" : "Copier l'analyse pour un email"}
+                      <ImageDown className="h-4 w-4" />
+                      {exporting === "png" ? "Génération…" : "Télécharger en image"}
                     </Button>
                   </div>
                 </div>
