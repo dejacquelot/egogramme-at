@@ -246,32 +246,6 @@ function memberName(r: ResultRow, i: number): string {
   );
 }
 
-function buildTeamReportText(teamName: string, rows: ResultRow[], average: Scores, analysis: string): string {
-  const title = teamName.trim() || "Rapport de groupe";
-  const now = new Date().toLocaleString("fr-FR", {
-    dateStyle: "long",
-    timeStyle: "short",
-  });
-  const lines = [
-    `# Analyse d'équipe — ${title}`,
-    `Généré le ${now}`,
-    "",
-    `## Membres sélectionnés (${rows.length})`,
-    ...rows.map((r, i) => {
-      const name = memberName(r, i);
-      const scores = CATEGORIES.map((c) => `${c.short}: ${r.scores?.[c.key] ?? 0}/10`).join(", ");
-      return `- ${name} — ${scores}`;
-    }),
-    "",
-    "## Égogramme moyen du groupe",
-    ...CATEGORIES.map((c) => `- ${c.label} (${c.short}): ${average[c.key]}/10`),
-    "",
-    "## Analyse transactionnelle",
-    analysis,
-  ];
-  return lines.join("\n");
-}
-
 /** Minimal markdown renderer for headings, bold, lists and paragraphs. */
 function MarkdownText({ text }: { text: string }) {
   const blocks = text.split(/\n{2,}/);
@@ -512,7 +486,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [analysing, setAnalysing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "png" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -606,7 +581,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     members: teamRows.map((r, i) => ({
       name: memberName(r, i),
       date: formatDate(r.created_at),
-      scores: normalizeScores(r.scores),
+      scores: (Object.fromEntries(
+        CATEGORIES.map((c) => [c.key, r.scores?.[c.key] ?? 0]),
+      ) as Scores),
     })),
     analysis: analysis ?? "",
   });
