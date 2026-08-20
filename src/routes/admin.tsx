@@ -600,15 +600,32 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  const copyAnalysis = async () => {
+  const reportInput = (): TeamReportInput => ({
+    teamName,
+    average: teamAverage,
+    members: teamRows.map((r, i) => ({
+      name: memberName(r, i),
+      date: formatDate(r.created_at),
+      scores: normalizeScores(r.scores),
+    })),
+    analysis: analysis ?? "",
+  });
+
+  const exportReport = async (kind: "pdf" | "png") => {
     if (!analysis) return;
-    const text = buildTeamReportText(teamName, teamRows, teamAverage, analysis);
+    setExporting(kind);
+    setExportError(null);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      if (kind === "pdf") await downloadTeamReportPdf(reportInput());
+      else await downloadTeamReportImage(reportInput());
     } catch {
-      // Fallback silencieux : l'utilisateur peut sélectionner manuellement.
+      setExportError(
+        kind === "pdf"
+          ? "Export PDF impossible. Essayez le téléchargement en image."
+          : "Export image impossible. Réessayez.",
+      );
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -722,15 +739,28 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     Analyse transactionnelle de l'équipe
                   </p>
                   <MarkdownText text={analysis} />
-                  <div className="mt-4 flex justify-end">
+                  {exportError && (
+                    <p className="mt-3 text-sm text-red-600">{exportError}</p>
+                  )}
+                  <div className="mt-4 flex flex-wrap justify-end gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => exportReport("pdf")}
+                      disabled={exporting !== null}
+                      className="gap-1.5"
+                    >
+                      <FileDown className="h-4 w-4" />
+                      {exporting === "pdf" ? "Génération…" : "Télécharger le rapport PDF"}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={copyAnalysis}
+                      onClick={() => exportReport("png")}
+                      disabled={exporting !== null}
                       className="gap-1.5"
                     >
-                      <Copy className="h-4 w-4" />
-                      {copied ? "Copié !" : "Copier l'analyse pour un email"}
+                      <ImageDown className="h-4 w-4" />
+                      {exporting === "png" ? "Génération…" : "Télécharger en image"}
                     </Button>
                   </div>
                 </div>
