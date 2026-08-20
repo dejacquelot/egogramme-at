@@ -352,9 +352,9 @@ function drawHeader(
     return 200;
   }
   if (logo) {
-    const lw = 130;
+    const lw = 124;
     const lh = (logo.height / logo.width) * lw;
-    ctx.drawImage(logo, M, 30, lw, lh);
+    ctx.drawImage(logo, M, 22, lw, lh);
   } else {
     font(ctx, 13, "700");
     ctx.fillStyle = NAVY;
@@ -363,14 +363,14 @@ function drawHeader(
   font(ctx, 9);
   ctx.fillStyle = MUTED;
   ctx.textAlign = "right";
-  ctx.fillText(subtitle, W - M, 48);
+  ctx.fillText(subtitle, W - M, 50);
   ctx.textAlign = "left";
   ctx.strokeStyle = LINE;
   ctx.beginPath();
-  ctx.moveTo(M, 80);
-  ctx.lineTo(W - M, 80);
+  ctx.moveTo(M, 96);
+  ctx.lineTo(W - M, 96);
   ctx.stroke();
-  return 104;
+  return 120;
 }
 
 function drawFooter(ctx: CanvasRenderingContext2D, page: number, total: number) {
@@ -423,9 +423,15 @@ export async function renderTeamReportPages(input: TeamReportInput): Promise<HTM
   let y = drawHeader(page.ctx, logo, true, subtitle);
   pages.push(page);
 
-  for (const b of blocks) {
+  for (let bi = 0; bi < blocks.length; bi++) {
+    const b = blocks[bi];
     const h = blockHeight(page.ctx, b, contentW);
-    if (y + h > bottom && b.type !== "space") {
+    let need = h;
+    if (b.type === "h1" || b.type === "h2" || b.type === "h3") {
+      const next = blocks[bi + 1];
+      if (next) need += Math.min(blockHeight(page.ctx, next, contentW), 60);
+    }
+    if (y + need > bottom && b.type !== "space") {
       page = newPage();
       pages.push(page);
       y = drawHeader(page.ctx, logo, false, subtitle);
