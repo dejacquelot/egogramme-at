@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy } from "lucide-react";
+import { FileDown, ImageDown } from "lucide-react";
+import {
+  downloadTeamReportImage,
+  downloadTeamReportPdf,
+  type TeamReportInput,
+} from "@/lib/team-report";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
