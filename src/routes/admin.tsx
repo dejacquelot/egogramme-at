@@ -519,24 +519,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setAnalysisError(null);
     setAnalysis(null);
     try {
-      const res = await fetch("/api/public/team-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ids: teamIds,
-          teamName: teamName.trim() || undefined,
-          user: VALID_USER,
-          pass: VALID_PASS,
-        }),
+      const res = await generateTeamAnalysisFn({
+        data: { ids: teamIds, teamName: teamName.trim() || undefined },
       });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j?.ok) {
-        setAnalysisError(j?.error ?? "Analyse impossible. Réessayez.");
-        return;
-      }
-      setAnalysis(j.analysis as string);
-    } catch {
-      setAnalysisError("Analyse impossible. Réessayez.");
+      setAnalysis(res.analysis);
+    } catch (e) {
+      setAnalysisError(
+        e instanceof Error && e.message && !/fetch/i.test(e.message)
+          ? e.message
+          : "Analyse impossible. Réessayez.",
+      );
     } finally {
       setAnalysing(false);
     }
@@ -553,16 +545,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setDeletingId(row.id);
     setDeleteError(null);
     try {
-      const res = await fetch("/api/public/admin-delete-result", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: row.id, user: VALID_USER, pass: VALID_PASS }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j?.ok) {
-        setDeleteError("Suppression impossible. Réessayez.");
-        return;
-      }
+      await deleteAdminResultFn({ data: { id: row.id } });
       setRows((prev) => prev.filter((r) => r.id !== row.id));
       if (selectedId === row.id) setSelectedId(null);
     } catch {
