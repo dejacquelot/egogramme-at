@@ -147,24 +147,33 @@ type ResultRow = {
   contact_requested: boolean;
 };
 
-const AUTH_KEY = "egogramme_admin_auth_v1";
-const VALID_USER = "pinpin";
-const VALID_PASS = "lapin";
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
+      <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
+      <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
+    </svg>
+  );
+}
 
-function LoginGate({ onSuccess }: { onSuccess: () => void }) {
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
-  const [err, setErr] = useState(false);
+function LoginGate({ error }: { error: string | null }) {
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (user.trim() === VALID_USER && pass === VALID_PASS) {
-      try {
-        sessionStorage.setItem(AUTH_KEY, "1");
-      } catch {}
-      onSuccess();
-    } else {
-      setErr(true);
+  const signIn = async () => {
+    setBusy(true);
+    try {
+      const res = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: `${window.location.origin}/admin`,
+      });
+      if ("error" in res && res.error) {
+        toast.error("Connexion impossible. Réessayez.");
+        setBusy(false);
+      }
+    } catch {
+      toast.error("Connexion impossible. Réessayez.");
+      setBusy(false);
     }
   };
 
@@ -173,41 +182,29 @@ function LoginGate({ onSuccess }: { onSuccess: () => void }) {
       <Card className="w-full max-w-sm p-6">
         <h1 className="text-xl font-semibold">Administration</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Accès réservé. Entrez vos identifiants.
+          Accès réservé aux comptes autorisés.
         </p>
-        <form onSubmit={submit} className="mt-4 space-y-3">
-          <div>
-            <Label htmlFor="user" className="text-xs">Identifiant</Label>
-            <Input
-              id="user"
-              autoComplete="username"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div>
-            <Label htmlFor="pass" className="text-xs">Mot de passe</Label>
-            <Input
-              id="pass"
-              type="password"
-              autoComplete="current-password"
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-            />
-          </div>
-          {err && (
-            <p className="text-xs text-red-600">Identifiants incorrects.</p>
-          )}
-          <div className="flex items-center justify-between gap-2">
-            <Link to="/stats">
-              <Button type="button" variant="outline" size="sm">
-                Retour
-              </Button>
-            </Link>
-            <Button type="submit" size="sm">Se connecter</Button>
-          </div>
-        </form>
+        {error && (
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {error}
+          </p>
+        )}
+        <Button
+          onClick={signIn}
+          disabled={busy}
+          variant="outline"
+          className="mt-4 w-full gap-2"
+        >
+          <GoogleIcon />
+          {busy ? "Redirection…" : "Se connecter avec Google"}
+        </Button>
+        <div className="mt-4 text-center">
+          <Link to="/stats">
+            <Button type="button" variant="ghost" size="sm">
+              Retour aux statistiques
+            </Button>
+          </Link>
+        </div>
       </Card>
     </div>
   );
@@ -522,24 +519,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setAnalysisError(null);
     setAnalysis(null);
     try {
-      const res = await fetch("/api/public/team-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ids: teamIds,
-          teamName: teamName.trim() || undefined,
-          user: VALID_USER,
-          pass: VALID_PASS,
-        }),
+      const res = await generateTeamAnalysisFn({
+        data: { ids: teamIds, teamName: teamName.trim() || undefined },
       });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j?.ok) {
-        setAnalysisError(j?.error ?? "Analyse impossible. Réessayez.");
-        return;
-      }
-      setAnalysis(j.analysis as string);
-    } catch {
-      setAnalysisError("Analyse impossible. Réessayez.");
+      setAnalysis(res.analysis);
+    } catch (e) {
+      setAnalysisError(
+        e instanceof Error && e.message && !/fetch/i.test(e.message)
+          ? e.message
+          : "Analyse impossible. Réessayez.",
+      );
     } finally {
       setAnalysing(false);
     }
@@ -556,16 +545,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setDeletingId(row.id);
     setDeleteError(null);
     try {
-      const res = await fetch("/api/public/admin-delete-result", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: row.id, user: VALID_USER, pass: VALID_PASS }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j?.ok) {
-        setDeleteError("Suppression impossible. Réessayez.");
-        return;
-      }
+      await deleteAdminResultFn({ data: { id: row.id } });
       setRows((prev) => prev.filter((r) => r.id !== row.id));
       if (selectedId === row.id) setSelectedId(null);
     } catch {

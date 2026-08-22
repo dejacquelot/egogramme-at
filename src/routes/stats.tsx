@@ -131,7 +131,7 @@ function Stats() {
           .select("created_at")
           .gte("created_at", isoDate)
           .order("created_at", { ascending: true }),
-        supabase.from("results").select("*", { count: "exact", head: true }),
+        supabase.from("results").select("id", { count: "exact", head: true }),
       ]);
       if (cancelled) return;
       setRows((visitsRes.data as { visit_date: string }[] | null) ?? []);
