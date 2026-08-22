@@ -352,9 +352,9 @@ function drawHeader(
     return 200;
   }
   if (logo) {
-    const lw = 124;
-    const lh = (logo.height / logo.width) * lw;
-    ctx.drawImage(logo, M, 22, lw, lh);
+    const lh = 56;
+    const lw = (logo.width / logo.height) * lh;
+    ctx.drawImage(logo, M, 20, lw, lh);
   } else {
     font(ctx, 13, "700");
     ctx.fillStyle = NAVY;
