@@ -334,9 +334,9 @@ function drawHeader(
     ctx.fillStyle = NAVY;
     ctx.fillRect(0, 166, W, 3);
     if (logo) {
-      const lw = 300;
-      const lh = (logo.height / logo.width) * lw;
-      ctx.drawImage(logo, M, 40, lw, lh);
+      const lh = 116;
+      const lw = (logo.width / logo.height) * lh;
+      ctx.drawImage(logo, M, 26, lw, lh);
     } else {
       font(ctx, 26, "700");
       ctx.fillStyle = NAVY;
@@ -352,9 +352,9 @@ function drawHeader(
     return 200;
   }
   if (logo) {
-    const lw = 124;
-    const lh = (logo.height / logo.width) * lw;
-    ctx.drawImage(logo, M, 22, lw, lh);
+    const lh = 56;
+    const lw = (logo.width / logo.height) * lh;
+    ctx.drawImage(logo, M, 20, lw, lh);
   } else {
     font(ctx, 13, "700");
     ctx.fillStyle = NAVY;
