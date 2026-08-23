@@ -462,24 +462,68 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
 }
 
 function Admin() {
-  const [authed, setAuthed] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState<"loading" | "anon" | "authed">("loading");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      setAuthed(sessionStorage.getItem(AUTH_KEY) === "1");
-    } catch {}
-    setReady(true);
+    let mounted = true;
+
+    const check = async (u: { email?: string | null } | null | undefined) => {
+      if (!u) {
+        if (mounted) setStatus("anon");
+        return;
+      }
+      if (isAdminEmail(u.email)) {
+        if (mounted) {
+          setError(null);
+          setStatus("authed");
+        }
+        return;
+      }
+      await supabase.auth.signOut();
+      if (!mounted) return;
+      const msg = "Accès refusé : votre compte n'a pas les droits d'administration.";
+      toast.error(msg);
+      setError(msg);
+      setStatus("anon");
+    };
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (mounted) void check(data.user);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === "SIGNED_OUT") {
+        setStatus("anon");
+        return;
+      }
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        void check(session?.user);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  if (!ready) return null;
-  if (!authed) return <LoginGate onSuccess={() => setAuthed(true)} />;
+  if (status === "loading") return null;
+  if (status !== "authed") return <LoginGate error={error} />;
 
-  return <AdminDashboard onLogout={() => {
-    try { sessionStorage.removeItem(AUTH_KEY); } catch {}
-    setAuthed(false);
-  }} />;
+  return (
+    <AdminDashboard
+      onLogout={async () => {
+        await supabase.auth.signOut();
+        setStatus("anon");
+      }}
+    />
+  );
 }
+
 
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [rows, setRows] = useState<ResultRow[]>([]);
