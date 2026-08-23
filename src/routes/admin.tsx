@@ -1,6 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import { toast } from "sonner";
+import { isAdminEmail } from "@/lib/admin-config";
+import {
+  listAdminResults,
+  deleteAdminResult as deleteAdminResultFn,
+  generateTeamAnalysis as generateTeamAnalysisFn,
+} from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +19,7 @@ import {
   downloadTeamReportPdf,
   type TeamReportInput,
 } from "@/lib/team-report";
+
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -453,24 +462,68 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
 }
 
 function Admin() {
-  const [authed, setAuthed] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState<"loading" | "anon" | "authed">("loading");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      setAuthed(sessionStorage.getItem(AUTH_KEY) === "1");
-    } catch {}
-    setReady(true);
+    let mounted = true;
+
+    const check = async (u: { email?: string | null } | null | undefined) => {
+      if (!u) {
+        if (mounted) setStatus("anon");
+        return;
+      }
+      if (isAdminEmail(u.email)) {
+        if (mounted) {
+          setError(null);
+          setStatus("authed");
+        }
+        return;
+      }
+      await supabase.auth.signOut();
+      if (!mounted) return;
+      const msg = "Accès refusé : votre compte n'a pas les droits d'administration.";
+      toast.error(msg);
+      setError(msg);
+      setStatus("anon");
+    };
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (mounted) void check(data.user);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === "SIGNED_OUT") {
+        setStatus("anon");
+        return;
+      }
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        void check(session?.user);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  if (!ready) return null;
-  if (!authed) return <LoginGate onSuccess={() => setAuthed(true)} />;
+  if (status === "loading") return null;
+  if (status !== "authed") return <LoginGate error={error} />;
 
-  return <AdminDashboard onLogout={() => {
-    try { sessionStorage.removeItem(AUTH_KEY); } catch {}
-    setAuthed(false);
-  }} />;
+  return (
+    <AdminDashboard
+      onLogout={async () => {
+        await supabase.auth.signOut();
+        setStatus("anon");
+      }}
+    />
+  );
 }
+
 
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [rows, setRows] = useState<ResultRow[]>([]);
@@ -486,21 +539,26 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [exporting, setExporting] = useState<"pdf" | "png" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("results")
-        .select("id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (cancelled) return;
-      setRows(((data as unknown) as ResultRow[]) ?? []);
-      setLoading(false);
+      setLoadError(null);
+      try {
+        const data = await listAdminResults();
+        if (cancelled) return;
+        setRows((data as unknown) as ResultRow[]);
+      } catch {
+        if (!cancelled) setLoadError("Chargement impossible. Réessayez.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, []);
+
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
   const teamRows = rows.filter((r) => teamIds.includes(r.id));
@@ -739,6 +797,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <div className="mt-4 overflow-x-auto">
             {loading ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Chargement…</p>
+            ) : loadError ? (
+              <p className="py-8 text-center text-sm text-red-600">{loadError}</p>
+
             ) : rows.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 Aucun résultat enregistré pour l'instant.
