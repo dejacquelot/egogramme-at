@@ -539,21 +539,26 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [exporting, setExporting] = useState<"pdf" | "png" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("results")
-        .select("id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (cancelled) return;
-      setRows(((data as unknown) as ResultRow[]) ?? []);
-      setLoading(false);
+      setLoadError(null);
+      try {
+        const data = await listAdminResults();
+        if (cancelled) return;
+        setRows((data as unknown) as ResultRow[]);
+      } catch {
+        if (!cancelled) setLoadError("Chargement impossible. Réessayez.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, []);
+
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
   const teamRows = rows.filter((r) => teamIds.includes(r.id));
