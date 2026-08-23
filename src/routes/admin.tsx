@@ -797,6 +797,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <div className="mt-4 overflow-x-auto">
             {loading ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Chargement…</p>
+            ) : loadError ? (
+              <p className="py-8 text-center text-sm text-red-600">{loadError}</p>
+
             ) : rows.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 Aucun résultat enregistré pour l'instant.
