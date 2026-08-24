@@ -9,17 +9,17 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Égogramme — Analyse Transactionnelle" },
+      { title: "Test égogramme gratuit — mieux vous connaître pour mieux interagir" },
       {
         name: "description",
         content:
-          "Test d'égogramme interactif (60 questions) basé sur l'analyse transactionnelle de Michel Josien. Visualisez en direct vos états du moi.",
+          "Révélez votre mode de fonctionnement relationnel en moins de 5 minutes. Test d'égogramme interactif basé sur l'analyse transactionnelle.",
       },
-      { property: "og:title", content: "Égogramme — Analyse Transactionnelle" },
+      { property: "og:title", content: "Test égogramme gratuit — mieux vous connaître pour mieux interagir" },
       {
         property: "og:description",
         content:
-          "Répondez à 60 questions et découvrez votre égogramme personnel en direct.",
+          "Découvrez votre égogramme personnel et développez des relations plus fluides, équilibrées et constructives.",
       },
     ],
   }),
