@@ -40,6 +40,35 @@ export const deleteAdminResult = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const updateAdminResultName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; first_name: string; last_name: string }) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        first_name: z.string().trim().max(80),
+        last_name: z.string().trim().max(80),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    assertAdmin(context.claims as Record<string, unknown>);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("results")
+      .update({
+        first_name: data.first_name || null,
+        last_name: data.last_name || null,
+      })
+      .eq("id", data.id);
+    if (error) throw error;
+    return {
+      ok: true as const,
+      first_name: data.first_name || null,
+      last_name: data.last_name || null,
+    };
+  });
+
 export const generateTeamAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { ids: string[]; teamName?: string }) =>
