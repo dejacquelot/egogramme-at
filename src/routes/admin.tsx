@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/admin-config";
 import {
   listAdminResults,
   deleteAdminResult as deleteAdminResultFn,
+  updateAdminResultName as updateAdminResultNameFn,
   generateTeamAnalysis as generateTeamAnalysisFn,
 } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
