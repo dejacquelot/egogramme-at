@@ -540,6 +540,33 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [exportError, setExportError] = useState<string | null>(null);
 
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFirst, setEditFirst] = useState("");
+  const [editLast, setEditLast] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const saveName = async (row: ResultRow) => {
+    setSavingId(row.id);
+    setSaveError(null);
+    try {
+      const res = await updateAdminResultNameFn({
+        data: { id: row.id, first_name: editFirst.trim(), last_name: editLast.trim() },
+      });
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? { ...r, first_name: res.first_name, last_name: res.last_name }
+            : r,
+        ),
+      );
+      setEditingId(null);
+    } catch {
+      setSaveError("Modification impossible. Réessayez.");
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
