@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/admin-config";
 import {
   listAdminResults,
   deleteAdminResult as deleteAdminResultFn,
+  updateAdminResultName as updateAdminResultNameFn,
   generateTeamAnalysis as generateTeamAnalysisFn,
 } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
@@ -540,6 +541,33 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [exportError, setExportError] = useState<string | null>(null);
 
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFirst, setEditFirst] = useState("");
+  const [editLast, setEditLast] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const saveName = async (row: ResultRow) => {
+    setSavingId(row.id);
+    setSaveError(null);
+    try {
+      const res = await updateAdminResultNameFn({
+        data: { id: row.id, first_name: editFirst.trim(), last_name: editLast.trim() },
+      });
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? { ...r, first_name: res.first_name, last_name: res.last_name }
+            : r,
+        ),
+      );
+      setEditingId(null);
+    } catch {
+      setSaveError("Modification impossible. Réessayez.");
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -845,7 +873,38 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         {formatDate(r.created_at)}
                       </td>
                       <td className="py-2 pr-3 text-xs">
-                        {(r.first_name || r.last_name) ? (
+                        {editingId === r.id ? (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <input
+                              className="w-24 rounded border border-border bg-background px-1.5 py-1 text-xs"
+                              placeholder="Prénom"
+                              value={editFirst}
+                              onChange={(e) => setEditFirst(e.target.value)}
+                            />
+                            <input
+                              className="w-24 rounded border border-border bg-background px-1.5 py-1 text-xs"
+                              placeholder="Nom"
+                              value={editLast}
+                              onChange={(e) => setEditLast(e.target.value)}
+                            />
+                            <Button
+                              size="sm"
+                              className="h-7 px-2"
+                              disabled={savingId === r.id}
+                              onClick={() => saveName(r)}
+                            >
+                              {savingId === r.id ? "…" : "OK"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2"
+                              onClick={() => setEditingId(null)}
+                            >
+                              Annuler
+                            </Button>
+                          </div>
+                        ) : (
                           <div className="flex items-center gap-1.5">
                             {r.contact_requested && (
                               <span
@@ -855,12 +914,26 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                 ★
                               </span>
                             )}
-                            <span className="font-medium text-foreground">
-                              {[r.first_name, r.last_name].filter(Boolean).join(" ")}
-                            </span>
+                            {(r.first_name || r.last_name) ? (
+                              <span className="font-medium text-foreground">
+                                {[r.first_name, r.last_name].filter(Boolean).join(" ")}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                            <button
+                              className="text-primary underline underline-offset-2 hover:opacity-80"
+                              onClick={() => {
+                                setEditingId(r.id);
+                                setEditFirst(r.first_name ?? "");
+                                setEditLast(r.last_name ?? "");
+                                setSaveError(null);
+                              }}
+                              title="Modifier prénom et nom"
+                            >
+                              ✎
+                            </button>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="py-2 pr-3 text-xs">
@@ -916,6 +989,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   ))}
                 </tbody>
               </table>
+            )}
+            {saveError && (
+              <p className="mt-3 text-sm text-red-600">{saveError}</p>
             )}
             {deleteError && (
               <p className="mt-3 text-sm text-red-600">{deleteError}</p>
