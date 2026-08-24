@@ -845,7 +845,38 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         {formatDate(r.created_at)}
                       </td>
                       <td className="py-2 pr-3 text-xs">
-                        {(r.first_name || r.last_name) ? (
+                        {editingId === r.id ? (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <input
+                              className="w-24 rounded border border-border bg-background px-1.5 py-1 text-xs"
+                              placeholder="Prénom"
+                              value={editFirst}
+                              onChange={(e) => setEditFirst(e.target.value)}
+                            />
+                            <input
+                              className="w-24 rounded border border-border bg-background px-1.5 py-1 text-xs"
+                              placeholder="Nom"
+                              value={editLast}
+                              onChange={(e) => setEditLast(e.target.value)}
+                            />
+                            <Button
+                              size="sm"
+                              className="h-7 px-2"
+                              disabled={savingId === r.id}
+                              onClick={() => saveName(r)}
+                            >
+                              {savingId === r.id ? "…" : "OK"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2"
+                              onClick={() => setEditingId(null)}
+                            >
+                              Annuler
+                            </Button>
+                          </div>
+                        ) : (
                           <div className="flex items-center gap-1.5">
                             {r.contact_requested && (
                               <span
@@ -855,12 +886,26 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                 ★
                               </span>
                             )}
-                            <span className="font-medium text-foreground">
-                              {[r.first_name, r.last_name].filter(Boolean).join(" ")}
-                            </span>
+                            {(r.first_name || r.last_name) ? (
+                              <span className="font-medium text-foreground">
+                                {[r.first_name, r.last_name].filter(Boolean).join(" ")}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                            <button
+                              className="text-primary underline underline-offset-2 hover:opacity-80"
+                              onClick={() => {
+                                setEditingId(r.id);
+                                setEditFirst(r.first_name ?? "");
+                                setEditLast(r.last_name ?? "");
+                                setSaveError(null);
+                              }}
+                              title="Modifier prénom et nom"
+                            >
+                              ✎
+                            </button>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="py-2 pr-3 text-xs">
