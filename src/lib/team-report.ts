@@ -415,6 +415,14 @@ export async function renderTeamReportPages(input: TeamReportInput): Promise<HTM
     blocks.push({ type: "space", h: 10 });
   });
 
+  return paginate(blocks, logo, subtitle);
+}
+
+function paginate(
+  blocks: Block[],
+  logo: HTMLImageElement | null,
+  subtitle: string,
+): HTMLCanvasElement[] {
   const pages: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D }[] = [];
   const contentW = W - M * 2;
   const bottom = H - 60;
@@ -442,6 +450,84 @@ export async function renderTeamReportPages(input: TeamReportInput): Promise<HTM
 
   pages.forEach((p, i) => drawFooter(p.ctx, i + 1, pages.length));
   return pages.map((p) => p.canvas);
+}
+
+export type IndividualReportInput = {
+  name: string;
+  date: string;
+  scores: ReportScores;
+  analysis: string;
+};
+
+export async function renderIndividualReportPages(
+  input: IndividualReportInput,
+): Promise<HTMLCanvasElement[]> {
+  const logo = await loadLogo();
+  const name = input.name.trim() || "Résultat individuel";
+  const subtitle = `${name} · ${input.date}`;
+  const blocks: Block[] = [
+    { type: "h1", text: `Analyse individuelle — ${name}` },
+    { type: "small", text: `Égogramme réalisé le ${input.date}` },
+    { type: "space", h: 12 },
+    { type: "bars", scores: input.scores, title: "Votre égogramme" },
+    { type: "space", h: 8 },
+    { type: "rule" },
+    { type: "h2", text: "Analyse transactionnelle" },
+    ...analysisToBlocks(input.analysis),
+    { type: "space", h: 10 },
+    { type: "rule" },
+    {
+      type: "small",
+      text:
+        "D'après Michel Josien, « Techniques de communication interpersonnelle » — Éditions d'Organisation. Analyse indicative, à visée pédagogique : elle ne remplace pas un entretien avec un professionnel.",
+    },
+  ];
+  return paginate(blocks, logo, subtitle);
+}
+
+function canvasesToPdf(pages: HTMLCanvasElement[], name: string) {
+  return import("jspdf").then(({ default: JsPDF }) => {
+    const pdf = new JsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    pages.forEach((c, i) => {
+      if (i > 0) pdf.addPage();
+      pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pw, ph);
+    });
+    pdf.save(`${name}.pdf`);
+  });
+}
+
+function canvasesToImage(pages: HTMLCanvasElement[], name: string) {
+  const out = document.createElement("canvas");
+  const gap = 24 * SCALE;
+  out.width = W * SCALE;
+  out.height = pages.length * H * SCALE + gap * (pages.length - 1);
+  const ctx = out.getContext("2d")!;
+  ctx.fillStyle = "#e6eaf1";
+  ctx.fillRect(0, 0, out.width, out.height);
+  pages.forEach((c, i) => ctx.drawImage(c, 0, i * (H * SCALE + gap)));
+  triggerDownload(out.toDataURL("image/png"), `${name}.png`);
+}
+
+function individualFileBase(name: string) {
+  const slug = (name.trim() || "egogramme")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `egogramme-${slug}-${new Date().toISOString().slice(0, 10)}`;
+}
+
+export async function downloadIndividualReportPdf(input: IndividualReportInput) {
+  const pages = await renderIndividualReportPages(input);
+  await canvasesToPdf(pages, individualFileBase(input.name));
+}
+
+export async function downloadIndividualReportImage(input: IndividualReportInput) {
+  const pages = await renderIndividualReportPages(input);
+  canvasesToImage(pages, individualFileBase(input.name));
 }
 
 function fileBase(teamName: string) {
