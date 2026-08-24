@@ -990,6 +990,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </tbody>
               </table>
             )}
+            {saveError && (
+              <p className="mt-3 text-sm text-red-600">{saveError}</p>
+            )}
             {deleteError && (
               <p className="mt-3 text-sm text-red-600">{deleteError}</p>
             )}
