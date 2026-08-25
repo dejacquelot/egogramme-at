@@ -18,8 +18,12 @@ import { FileDown, ImageDown } from "lucide-react";
 import {
   downloadTeamReportImage,
   downloadTeamReportPdf,
+  downloadIndividualReportPdf,
+  downloadIndividualReportImage,
   type TeamReportInput,
 } from "@/lib/team-report";
+import { generateIndividualAnalysis as generateIndividualAnalysisFn } from "@/lib/analysis.functions";
+
 
 
 export const Route = createFileRoute("/admin")({
