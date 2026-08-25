@@ -5,6 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MarkdownText } from "@/components/markdown-text";
+import { generateIndividualAnalysis } from "@/lib/analysis.functions";
+import {
+  downloadIndividualReportImage,
+  downloadIndividualReportPdf,
+  type CatKey,
+} from "@/lib/team-report";
 
 export const Route = createFileRoute("/")({
   head: () => ({
