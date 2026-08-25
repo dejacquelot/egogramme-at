@@ -470,127 +470,19 @@ function Index() {
 
 type Scores = Record<CategoryKey, number>;
 
-const DOMINANT_DESCRIPTIONS: Record<CategoryKey, string> = {
-  PN: "Parent Nourricier marqué : posture chaleureuse, protectrice, orientée vers le soin et l'encouragement des autres. Attention au risque de sur-protection ou de sauvetage (triangle dramatique de Karpman).",
-  PNo: "Parent Normatif fort : sens du cadre, des règles et des valeurs. Peut être structurant pour l'entourage, mais gare à la rigidité, au jugement ou au discours moralisateur.",
-  A: "Adulte solide : traitement rationnel de l'information, prise de décision fondée sur les faits, capacité à négocier et à résoudre les problèmes de manière posée.",
-  EL: "Enfant Libre présent : spontanéité, créativité, expression émotionnelle assumée, capacité à jouer et à ressentir du plaisir. Peut parfois manquer de filtre selon le contexte.",
-  EAS: "Enfant Adapté Soumis dominant : forte capacité d'adaptation, politesse, coopération. Risque de se sur-adapter, d'avoir du mal à dire non et d'accumuler du ressentiment.",
-  EAR: "Enfant Adapté Rebelle marqué : énergie contestataire, esprit critique, refus des injonctions. Peut se traduire par de l'opposition systématique et des conflits interpersonnels.",
-};
-
-const LOW_DESCRIPTIONS: Record<CategoryKey, string> = {
-  PN: "Peu de Parent Nourricier : difficulté à se montrer bienveillant, à réconforter ou à se réconforter soi-même.",
-  PNo: "Peu de Parent Normatif : difficulté à poser un cadre, à faire respecter des règles ou à s'auto-discipliner.",
-  A: "Adulte peu mobilisé : décisions plus souvent guidées par l'émotion ou l'injonction que par l'analyse objective.",
-  EL: "Enfant Libre discret : peu d'expression spontanée, du plaisir ou de la créativité ; risque de rigidité intérieure.",
-  EAS: "Enfant Adapté Soumis faible : peu de conformisme social ; peut compliquer l'insertion dans des cadres très normés.",
-  EAR: "Enfant Adapté Rebelle faible : peu de contestation, difficulté à dire non ou à défendre son territoire.",
-};
-
-function level(n: number): "élevé" | "modéré" | "faible" {
-  if (n >= 7) return "élevé";
-  if (n >= 4) return "modéré";
-  return "faible";
-}
-
-function buildInterpretation(scores: Scores) {
-  const entries = (Object.keys(scores) as CategoryKey[]).map((k) => ({
-    key: k,
-    score: scores[k],
-    label: CATEGORIES.find((c) => c.key === k)!.label,
-  }));
-  const sorted = [...entries].sort((a, b) => b.score - a.score);
-  const top = sorted.filter((e) => e.score === sorted[0].score);
-  const lows = sorted.filter((e) => e.score <= 2);
-
-  const P = scores.PN + scores.PNo;
-  const A = scores.A;
-  const E = scores.EL + scores.EAS + scores.EAR;
-  const total = P + A + E || 1;
-  const pctP = Math.round((P / total) * 100);
-  const pctA = Math.round((A / total) * 100);
-  const pctE = Math.round((E / total) * 100);
-
-  const overview =
-    `Le profil présente un Parent à ${P}/20 (${pctP}% de l'énergie totale), ` +
-    `un Adulte à ${A}/10 (${pctA}%) et un Enfant à ${E}/30 (${pctE}%). ` +
-    `L'état du moi le plus investi est le ${top.map((t) => t.label).join(" et ")}` +
-    `, ce qui colore la manière habituelle d'entrer en relation.`;
-
-  const dominants = top.map((t) => `${t.label} (${t.score}/10) — ${DOMINANT_DESCRIPTIONS[t.key]}`);
-  const lowsText = lows.map((l) => `${l.label} (${l.score}/10) — ${LOW_DESCRIPTIONS[l.key]}`);
-
-  let balance: string;
-  if (A >= 7 && pctA >= 25) {
-    balance =
-      "L'Adulte occupe une place centrale et régulatrice : bonne capacité à arbitrer entre les injonctions du Parent et les besoins de l'Enfant.";
-  } else if (P > E + 4) {
-    balance =
-      "Le Parent l'emporte nettement sur l'Enfant : posture plutôt encadrante, potentiellement au détriment de la spontanéité et du plaisir.";
-  } else if (E > P + 4) {
-    balance =
-      "L'Enfant domine le Parent : forte réactivité émotionnelle, énergie vive, mais un cadre intérieur qui peut manquer.";
-  } else if (A <= 3) {
-    balance =
-      "L'Adulte est peu mobilisé, ce qui laisse les décisions osciller entre les scripts parentaux et les réactions de l'Enfant ; renforcer l'Adulte apporterait plus de stabilité.";
-  } else {
-    balance =
-      "Les trois grandes instances (Parent, Adulte, Enfant) sont globalement équilibrées, ce qui favorise une communication souple.";
-  }
-
-  const tParts: string[] = [];
-  if (scores.PN >= 7) tParts.push("posture d'aidant naturel, à surveiller pour ne pas glisser vers le sauvetage");
-  if (scores.PNo >= 7) tParts.push("tendance à structurer, évaluer, parfois juger");
-  if (scores.EL >= 7) tParts.push("expressivité et enthousiasme communicatifs");
-  if (scores.EAS >= 7) tParts.push("forte adaptabilité sociale, avec un risque d'oubli de soi");
-  if (scores.EAR >= 7) tParts.push("énergie d'opposition qui peut ressourcer comme user la relation");
-  if (scores.A >= 7) tParts.push("mode de communication factuel et négociateur");
-  if (tParts.length === 0)
-    tParts.push(
-      "profil sans hyper-investissement marqué : la personne module ses états du moi selon les situations",
-    );
-  const tendencies =
-    "En relation, on peut s'attendre à : " + tParts.join(" ; ") + ".";
-
-  const advice: string[] = [];
-  if (level(scores.A) !== "élevé")
-    advice.push("Renforcer l'Adulte : prendre le temps de collecter des faits avant de réagir, reformuler, poser des questions ouvertes.");
-  if (scores.EAS >= 7)
-    advice.push("Travailler l'affirmation de soi pour transformer la sur-adaptation en accord conscient (dire un vrai « oui » ou un vrai « non »).");
-  if (scores.EAR >= 7)
-    advice.push("Distinguer l'opposition automatique du désaccord argumenté, pour préserver la qualité du lien.");
-  if (scores.PN >= 8)
-    advice.push("Vérifier que l'aide apportée est demandée et respecte l'autonomie de l'autre (éviter le rôle de Sauveur).");
-  if (scores.PNo >= 8)
-    advice.push("Assouplir le discours normatif : passer du « il faut » au « je propose », pour ouvrir le dialogue.");
-  if (scores.EL <= 3)
-    advice.push("Faire une place au plaisir et à la spontanéité : activités créatives, jeu, expression des émotions positives.");
-  if (scores.PN <= 3)
-    advice.push("Cultiver l'auto-bienveillance : se parler à soi-même comme on parlerait à un ami cher.");
-  if (advice.length === 0)
-    advice.push("Continuer à observer, dans les situations tendues, quel état du moi prend le devant — c'est déjà un excellent levier de conscience.");
-
-  return { overview, dominants, lows: lowsText, balance, tendencies, advice };
-}
-
-type Interpretation = ReturnType<typeof buildInterpretation>;
-
-function ReportActions({
+function ResultSection({
   scores,
-  interpretation,
   resultId,
 }: {
   scores: Scores;
-  interpretation: Interpretation;
   resultId: string | null;
 }) {
-  const [downloading, setDownloading] = useState(false);
-
-  // Identity for the downloadable report (also persisted so admin sees it).
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
 
   // Optional callback section (revealed by a button).
   const [showCallback, setShowCallback] = useState(false);
@@ -598,6 +490,12 @@ function ReportActions({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const dateLabel = useMemo(
+    () => new Date().toLocaleDateString("fr-FR", { dateStyle: "long" }),
+    [],
+  );
+  const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
 
   const persistIdentity = async (contactRequested: boolean) => {
     if (!resultId) return;
@@ -618,23 +516,46 @@ function ReportActions({
     }
   };
 
-  const handleDownload = async () => {
-    setDownloadError(null);
+  const handleGenerate = async () => {
+    setError(null);
     if (!firstName.trim() || !lastName.trim()) {
-      setDownloadError("Merci d'indiquer votre prénom et votre nom.");
+      setError("Merci d'indiquer votre prénom et votre nom.");
       return;
     }
-    setDownloading(true);
+    setLoading(true);
     try {
-      // Persist first (best-effort) so the admin sees who downloaded.
       persistIdentity(false);
-      await generateReportImage(scores, interpretation, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        date: new Date(),
+      const res = await generateIndividualAnalysis({
+        data: { scores, firstName: firstName.trim() },
       });
+      setAnalysis(res.analysis);
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : "Analyse indisponible, réessayez dans un instant.",
+      );
     } finally {
-      setDownloading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = async (kind: "pdf" | "img") => {
+    if (!analysis) return;
+    setDownloading(kind);
+    try {
+      const input = {
+        name: fullName || "Résultat individuel",
+        date: dateLabel,
+        scores: scores as Record<CatKey, number>,
+        analysis,
+      };
+      if (kind === "pdf") await downloadIndividualReportPdf(input);
+      else await downloadIndividualReportImage(input);
+    } catch {
+      setError("Téléchargement impossible. Réessayez.");
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -680,57 +601,92 @@ function ReportActions({
   };
 
   return (
-    <div className="mt-8 border-t border-border pt-6 space-y-6">
-      <div>
-        <h3 className="text-base font-semibold">Recevoir mon rapport</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Votre prénom, nom et la date apparaîtront en haut de l'image générée.
-        </p>
+    <Card className="p-6">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          Votre test est terminé
+        </h2>
+        <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
+          Analyse transactionnelle
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Indiquez votre prénom et votre nom, puis générez votre analyse
+        approfondie. Elle apparaîtra ci-dessous et pourra être téléchargée en
+        PDF ou en image.
+      </p>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="report-firstName" className="text-xs">Prénom</Label>
-            <Input
-              id="report-firstName"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              autoComplete="given-name"
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="report-lastName" className="text-xs">Nom</Label>
-            <Input
-              id="report-lastName"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              autoComplete="family-name"
-              required
-            />
-          </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="report-firstName" className="text-xs">Prénom</Label>
+          <Input
+            id="report-firstName"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            autoComplete="given-name"
+            required
+          />
         </div>
-
-        {downloadError && (
-          <p className="mt-2 text-sm text-red-600">{downloadError}</p>
-        )}
-
-        <div className="mt-3">
-          <Button onClick={handleDownload} disabled={downloading}>
-            {downloading ? "Génération…" : "Télécharger mon rapport (image)"}
-          </Button>
+        <div>
+          <Label htmlFor="report-lastName" className="text-xs">Nom</Label>
+          <Input
+            id="report-lastName"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            autoComplete="family-name"
+            required
+          />
         </div>
       </div>
 
-      <div>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button onClick={handleGenerate} disabled={loading}>
+          {loading
+            ? "Génération de l'analyse…"
+            : analysis
+              ? "Régénérer mon analyse"
+              : "Générer mon analyse"}
+        </Button>
+      </div>
+
+      {analysis && (
+        <div className="mt-6 border-t border-border pt-6">
+          <h3 className="text-base font-semibold text-foreground">
+            Interprétation clinique de votre égogramme
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Lecture indicative, à visée pédagogique — ne remplace pas un
+            entretien avec un professionnel.
+          </p>
+          <div className="mt-4">
+            <MarkdownText text={analysis} />
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button onClick={() => handleDownload("pdf")} disabled={downloading !== null}>
+              {downloading === "pdf" ? "Préparation…" : "Télécharger le rapport PDF"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleDownload("img")}
+              disabled={downloading !== null}
+            >
+              {downloading === "img" ? "Préparation…" : "Télécharger en image"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 border-t border-border pt-6">
         {!showCallback ? (
           <Button variant="outline" onClick={() => setShowCallback(true)}>
             Souhaitez-vous être rappelé·e pour débriefer votre égogramme ?
           </Button>
         ) : (
           <div className="rounded-lg border border-border bg-muted/30 p-4">
-            <h3 className="text-base font-semibold">
-              Être rappelé·e par un coach
-            </h3>
+            <h3 className="text-base font-semibold">Être rappelé·e par un coach</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Laissez vos coordonnées pour un échange de 15 minutes avec un coach.
               Prénom, nom et numéro de téléphone sont obligatoires.
@@ -778,9 +734,7 @@ function ReportActions({
                   />
                 </div>
 
-                {formError && (
-                  <p className="text-sm text-red-600">{formError}</p>
-                )}
+                {formError && <p className="text-sm text-red-600">{formError}</p>}
 
                 <div className="flex items-center gap-2 pt-1">
                   <Button type="submit" disabled={submitting}>
@@ -799,257 +753,6 @@ function ReportActions({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
-}
-
-async function generateReportImage(
-  scores: Scores,
-  interp: Interpretation,
-  identity: { firstName: string; lastName: string; date: Date },
-) {
-  const W = 1200;
-  const padding = 48;
-  const canvas = document.createElement("canvas");
-  // We compute height dynamically after measuring text.
-  const ctx0 = canvas.getContext("2d")!;
-
-  // Colors (avoid oklch, canvas doesn't parse it — use hex equivalents).
-  const barColors: Record<CategoryKey, string> = {
-    PN: "#e08a5a",
-    PNo: "#b98240",
-    A: "#4f6cd6",
-    EL: "#5eb26a",
-    EAS: "#9b6cc4",
-    EAR: "#d15547",
-  };
-
-  const wrap = (text: string, maxWidth: number, ctx: CanvasRenderingContext2D) => {
-    const words = text.split(/\s+/);
-    const lines: string[] = [];
-    let current = "";
-    for (const w of words) {
-      const test = current ? current + " " + w : w;
-      if (ctx.measureText(test).width > maxWidth && current) {
-        lines.push(current);
-        current = w;
-      } else {
-        current = test;
-      }
-    }
-    if (current) lines.push(current);
-    return lines;
-  };
-
-  // First pass: compute height.
-  ctx0.font = "16px system-ui, sans-serif";
-  const contentW = W - padding * 2;
-  const chartH = 340;
-  const headerH = 200;
-
-  type Block = { title: string; lines: string[]; bullet?: boolean };
-  const blocks: Block[] = [
-    { title: "Profil global", lines: wrap(interp.overview, contentW, ctx0) },
-    {
-      title: "États du moi dominants",
-      lines: interp.dominants.flatMap((d) =>
-        wrap("• " + d, contentW - 20, ctx0),
-      ),
-      bullet: true,
-    },
-  ];
-  if (interp.lows.length > 0) {
-    blocks.push({
-      title: "États peu investis",
-      lines: interp.lows.flatMap((d) => wrap("• " + d, contentW - 20, ctx0)),
-      bullet: true,
-    });
-  }
-  blocks.push({
-    title: "Équilibre Parent / Adulte / Enfant",
-    lines: wrap(interp.balance, contentW, ctx0),
-  });
-  blocks.push({
-    title: "Tendances relationnelles",
-    lines: wrap(interp.tendencies, contentW, ctx0),
-  });
-  blocks.push({
-    title: "Pistes de développement",
-    lines: interp.advice.flatMap((d) => wrap("• " + d, contentW - 20, ctx0)),
-    bullet: true,
-  });
-
-  const lineH = 22;
-  const blockTitleH = 32;
-  const blockGap = 14;
-  let bodyH = 0;
-  blocks.forEach((b) => {
-    bodyH += blockTitleH + b.lines.length * lineH + blockGap;
-  });
-
-  const footerH = 70;
-  const H = headerH + chartH + 40 + bodyH + footerH;
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
-
-  // Background
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, W, H);
-
-  // Header
-  ctx.fillStyle = "#666";
-  ctx.font = "14px system-ui, sans-serif";
-  ctx.fillText("ANALYSE TRANSACTIONNELLE", padding, padding + 6);
-  ctx.fillStyle = "#111";
-  ctx.font = "bold 28px system-ui, sans-serif";
-  ctx.fillText("Votre égogramme personnel", padding, padding + 40);
-
-  // Prominent name + date band
-  const bandY = padding + 60;
-  const bandH = 90;
-  ctx.fillStyle = "#f4f1ec";
-  if (typeof (ctx as unknown as { roundRect?: unknown }).roundRect === "function") {
-    ctx.beginPath();
-    (ctx as CanvasRenderingContext2D & {
-      roundRect: (x: number, y: number, w: number, h: number, r: number) => void;
-    }).roundRect(padding, bandY, contentW, bandH, 12);
-    ctx.fill();
-  } else {
-    ctx.fillRect(padding, bandY, contentW, bandH);
-  }
-  ctx.fillStyle = "#111";
-  ctx.font = "bold 30px system-ui, sans-serif";
-  const fullName = `${identity.firstName} ${identity.lastName}`.trim();
-  ctx.fillText(fullName, padding + 20, bandY + 40);
-  ctx.fillStyle = "#555";
-  ctx.font = "16px system-ui, sans-serif";
-  const dateStr = identity.date.toLocaleString("fr-FR", {
-    dateStyle: "long",
-    timeStyle: "short",
-  });
-  ctx.fillText("Égogramme réalisé le " + dateStr, padding + 20, bandY + 70);
-
-  // Chart
-  const chartTop = headerH;
-  const chartLeft = padding + 40;
-  const chartRight = W - padding;
-  const chartBottom = chartTop + chartH - 60;
-  const chartWidth = chartRight - chartLeft;
-  const chartHeight = chartBottom - chartTop;
-
-  // Gridlines + Y labels
-  ctx.strokeStyle = "#e5e7eb";
-  ctx.lineWidth = 1;
-  ctx.fillStyle = "#666";
-  ctx.font = "12px system-ui, sans-serif";
-  for (let n = 0; n <= 10; n++) {
-    const y = chartBottom - (n / 10) * chartHeight;
-    ctx.beginPath();
-    ctx.moveTo(chartLeft, y);
-    ctx.lineTo(chartRight, y);
-    ctx.stroke();
-    ctx.fillText(String(n), padding, y + 4);
-  }
-
-  // Bars
-  const cats: { key: CategoryKey; short: string; label: string }[] = [
-    { key: "PN", short: "PNr", label: "Parent Nourricier" },
-    { key: "PNo", short: "PNo", label: "Parent Normatif" },
-    { key: "A", short: "A", label: "Adulte" },
-    { key: "EL", short: "EL", label: "Enfant Libre" },
-    { key: "EAS", short: "EAS", label: "Enfant Adapté Soumis" },
-    { key: "EAR", short: "EAR", label: "Enfant Adapté Rebelle" },
-  ];
-  const gap = 16;
-  const barW = (chartWidth - gap * (cats.length - 1)) / cats.length;
-  cats.forEach((c, i) => {
-    const x = chartLeft + i * (barW + gap);
-    const val = scores[c.key];
-    const h = (val / 10) * chartHeight;
-    const y = chartBottom - h;
-    ctx.fillStyle = barColors[c.key];
-    const r = Math.min(10, barW / 2, h);
-    ctx.beginPath();
-    if (h <= 0) {
-      // Nothing to draw for a zero score.
-    } else if (
-      typeof (ctx as unknown as { roundRect?: unknown }).roundRect === "function"
-    ) {
-      (ctx as CanvasRenderingContext2D & {
-        roundRect: (
-          x: number,
-          y: number,
-          w: number,
-          h: number,
-          radii: number[],
-        ) => void;
-      }).roundRect(x, y, barW, h, [r, r, 0, 0]);
-      ctx.fill();
-    } else {
-      // Fallback: manual rounded-top rectangle.
-      ctx.moveTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.lineTo(x + barW - r, y);
-      ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
-      ctx.lineTo(x + barW, y + h);
-      ctx.lineTo(x, y + h);
-      ctx.closePath();
-      ctx.fill();
-    }
-    // Score above bar
-    ctx.fillStyle = "#111";
-    ctx.font = "bold 14px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(String(val), x + barW / 2, y - 8);
-    // Short label under
-    ctx.fillStyle = "#333";
-    ctx.font = "bold 13px system-ui, sans-serif";
-    ctx.fillText(c.short, x + barW / 2, chartBottom + 22);
-    // Full label
-    ctx.fillStyle = "#666";
-    ctx.font = "11px system-ui, sans-serif";
-    ctx.fillText(c.label, x + barW / 2, chartBottom + 40);
-    ctx.textAlign = "left";
-  });
-
-  // Body blocks
-  let y = chartTop + chartH + 30;
-  ctx.textAlign = "left";
-  blocks.forEach((b) => {
-    ctx.fillStyle = "#111";
-    ctx.font = "bold 18px system-ui, sans-serif";
-    ctx.fillText(b.title, padding, y);
-    y += blockTitleH - 6;
-    ctx.fillStyle = "#333";
-    ctx.font = "15px system-ui, sans-serif";
-    b.lines.forEach((line) => {
-      ctx.fillText(line, padding, y);
-      y += lineH;
-    });
-    y += blockGap;
-  });
-
-  // Footer
-  ctx.fillStyle = "#888";
-  ctx.font = "12px system-ui, sans-serif";
-  const footerLines = wrap(
-    "D'après Michel Josien, « Techniques de communication interpersonnelle » — Éditions d'Organisation. Analyse indicative, à visée pédagogique, ne remplace pas un entretien avec un professionnel.",
-    contentW,
-    ctx,
-  );
-  let fy = H - footerH + 10;
-  footerLines.forEach((l) => {
-    ctx.fillText(l, padding, fy);
-    fy += 16;
-  });
-
-  // Trigger download
-  const dataUrl = canvas.toDataURL("image/png");
-  const a = document.createElement("a");
-  a.href = dataUrl;
-  a.download = "egogramme-rapport.png";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
 }
