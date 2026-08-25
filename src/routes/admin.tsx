@@ -18,8 +18,12 @@ import { FileDown, ImageDown } from "lucide-react";
 import {
   downloadTeamReportImage,
   downloadTeamReportPdf,
+  downloadIndividualReportPdf,
+  downloadIndividualReportImage,
   type TeamReportInput,
 } from "@/lib/team-report";
+import { generateIndividualAnalysis as generateIndividualAnalysisFn } from "@/lib/analysis.functions";
+
 
 
 export const Route = createFileRoute("/admin")({
@@ -369,6 +373,64 @@ function Bars({ scores }: { scores: Scores }) {
 
 function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void }) {
   const interp = useMemo(() => buildInterpretation(row.scores), [row.scores]);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
+
+  const fullName =
+    [row.first_name, row.last_name].filter(Boolean).join(" ") ||
+    `Résultat ${row.ip_hash.slice(0, 8)}`;
+  const dateLabel = new Date(row.created_at).toLocaleDateString("fr-FR", {
+    dateStyle: "long",
+  });
+
+  useEffect(() => {
+    setAnalysis(null);
+    setAiError(null);
+  }, [row.id]);
+
+  const handleGenerate = async () => {
+    setAiError(null);
+    setAiLoading(true);
+    try {
+      const res = await generateIndividualAnalysisFn({
+        data: {
+          scores: row.scores,
+          firstName: row.first_name?.trim() || undefined,
+        },
+      });
+      setAnalysis(res.analysis);
+    } catch (e) {
+      setAiError(
+        e instanceof Error && e.message
+          ? e.message
+          : "Analyse indisponible, réessayez dans un instant.",
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleDownload = async (kind: "pdf" | "img") => {
+    if (!analysis) return;
+    setDownloading(kind);
+    try {
+      const input = {
+        name: fullName,
+        date: dateLabel,
+        scores: row.scores,
+        analysis,
+      };
+      if (kind === "pdf") await downloadIndividualReportPdf(input);
+      else await downloadIndividualReportImage(input);
+    } catch {
+      setAiError("Téléchargement impossible. Réessayez.");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   return (
     <Card className="p-5 space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
