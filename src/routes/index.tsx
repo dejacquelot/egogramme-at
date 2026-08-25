@@ -200,10 +200,6 @@ function Index() {
 
   const maxScore = Math.max(...Object.values(scores), 1);
 
-  const interpretation = useMemo(
-    () => (answeredCount === 60 ? buildInterpretation(scores) : null),
-    [answeredCount, scores],
-  );
 
   // Save result once when the 60 questions are answered
   const savedRef = useRef(false);
