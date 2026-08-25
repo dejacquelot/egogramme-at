@@ -459,74 +459,9 @@ function Index() {
         </div>
       </main>
 
-      {interpretation && (
+      {answeredCount === 60 && (
         <section className="mx-auto max-w-5xl px-4 pb-12">
-          <Card className="p-6">
-            <div className="flex items-baseline justify-between gap-4">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                Interprétation clinique de votre égogramme
-              </h2>
-              <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
-                Analyse transactionnelle
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Lecture indicative, à visée pédagogique — ne remplace pas un
-              entretien avec un professionnel.
-            </p>
-
-            <div className="mt-5 space-y-5 text-sm leading-relaxed text-foreground">
-              <div>
-                <h3 className="font-semibold">Profil global</h3>
-                <p className="mt-1 text-muted-foreground">{interpretation.overview}</p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold">États du moi dominants</h3>
-                <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
-                  {interpretation.dominants.map((d, i) => (
-                    <li key={i}>{d}</li>
-                  ))}
-                </ul>
-              </div>
-
-              {interpretation.lows.length > 0 && (
-                <div>
-                  <h3 className="font-semibold">États peu investis</h3>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
-                    {interpretation.lows.map((d, i) => (
-                      <li key={i}>{d}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div>
-                <h3 className="font-semibold">Équilibre Parent / Adulte / Enfant</h3>
-                <p className="mt-1 text-muted-foreground">{interpretation.balance}</p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold">Tendances relationnelles</h3>
-                <p className="mt-1 text-muted-foreground">{interpretation.tendencies}</p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold">Pistes de développement</h3>
-                <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
-                  {interpretation.advice.map((d, i) => (
-                    <li key={i}>{d}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <ReportActions
-              scores={scores}
-              interpretation={interpretation}
-              resultId={resultId}
-            />
-          </Card>
+          <ResultSection scores={scores} resultId={resultId} />
         </section>
       )}
     </div>
