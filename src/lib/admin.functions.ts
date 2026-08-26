@@ -100,7 +100,7 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
       return `- ${name} : ${line}`;
     });
 
-    const apiKey = process.env["LOVABLE_API_KEY"];
+    const apiKey = process.env["GEMINI_API_KEY"];
     if (!apiKey) throw new Error("Clé IA manquante.");
 
     const prompt =
@@ -110,36 +110,34 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
       `## Portrait global de l'équipe\n## Cartographie des états du moi dominants et absents\n## Complémentarités et synergies\n## Risques relationnels et jeux psychologiques probables (triangle de Karpman, symbiose, méconnaissances)\n## Dynamiques de décision et de communication\n## Recommandations opérationnelles pour le manager/coach\n## Points de vigilance individuels (sans jugement, en nommant les personnes)\n` +
       `Sois précis, appuie chaque affirmation sur les scores, garde un ton professionnel de psychiatre expert en analyse transactionnelle, environ 600 à 900 mots.`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Tu es psychiatre et superviseur, expert reconnu en analyse transactionnelle (Berne, Karpman, Kahler). Tu analyses des égogrammes d'équipe pour un coach professionnel. Tu écris en français, en markdown, sans disclaimer inutile.",
+    const aiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [
+              {
+                text: "Tu es psychiatre et superviseur, expert reconnu en analyse transactionnelle (Berne, Karpman, Kahler). Tu analyses des égogrammes d'équipe pour un coach professionnel. Tu écris en français, en markdown, sans disclaimer inutile.",
+              },
+            ],
           },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        }),
+      },
+    );
 
-    if (aiRes.status === 429) throw new Error("Trop de requêtes, réessayez dans un instant.");
-    if (aiRes.status === 402) throw new Error("Crédits IA épuisés.");
+    if (aiRes.status === 429) throw new Error("Trop de requ\u00eates, réessayez dans un instant.");
     if (!aiRes.ok) {
       console.error("team-analysis ai error", aiRes.status, await aiRes.text());
       throw new Error("Analyse indisponible.");
     }
 
     const json = (await aiRes.json()) as {
-      choices?: { message?: { content?: string } }[];
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
     };
-    const text = json?.choices?.[0]?.message?.content ?? "";
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     if (!text) throw new Error("Réponse vide.");
     return { analysis: text };
   });
