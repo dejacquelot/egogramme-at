@@ -520,6 +520,55 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
           </ul>
         </div>
       </div>
+
+      <div className="border-t border-border pt-4 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">Analyse approfondie (IA)</h3>
+          {!analysis && !aiLoading && (
+            <Button size="sm" onClick={handleGenerate}>
+              Générer l&apos;analyse
+            </Button>
+          )}
+        </div>
+
+        {aiLoading && (
+          <p className="text-sm text-muted-foreground">Génération de l&apos;analyse en cours…</p>
+        )}
+        {aiError && (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {aiError}
+          </p>
+        )}
+        {analysis && (
+          <>
+            <div className="rounded-md border border-border bg-card p-4">
+              <MarkdownText text={analysis} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                disabled={downloading === "pdf"}
+                onClick={() => handleDownload("pdf")}
+              >
+                <FileDown className="h-4 w-4" />
+                {downloading === "pdf" ? "PDF…" : "Télécharger le rapport PDF"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                disabled={downloading === "img"}
+                onClick={() => handleDownload("img")}
+              >
+                <ImageDown className="h-4 w-4" />
+                {downloading === "img" ? "Image…" : "Télécharger en image"}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
     </Card>
   );
 }
