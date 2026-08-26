@@ -60,8 +60,9 @@ export const generateIndividualAnalysis = createServerFn({ method: "POST" })
 
     if (aiRes.status === 429) throw new Error("Trop de requêtes, réessayez dans un instant.");
     if (!aiRes.ok) {
-      console.error("individual-analysis ai error", aiRes.status, await aiRes.text());
-      throw new Error("Analyse indisponible.");
+      const errBody = await aiRes.text();
+      console.error("individual-analysis ai error", aiRes.status, errBody);
+      throw new Error(`Erreur IA (${aiRes.status}): ${errBody.slice(0, 200)}`);
     }
 
     const json = (await aiRes.json()) as {
