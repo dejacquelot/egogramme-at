@@ -613,7 +613,7 @@ function Admin() {
           L'administration est disponible sur la version Lovable de l'application.
         </p>
         <a
-          href="https://lovable.dev/projects/23e43f93-4187-432e-8134-8bdbb84a3c87"
+          href="https://23e43f93-4187-432e-8134-8bdbb84a3c87.lovable.app/admin"
           target="_blank"
           rel="noopener noreferrer"
         >
