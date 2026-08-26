@@ -8,6 +8,7 @@ import {
   deleteAdminResult as deleteAdminResultFn,
   updateAdminResultName as updateAdminResultNameFn,
   generateTeamAnalysis as generateTeamAnalysisFn,
+  provisionAdminAccount,
 } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -173,22 +174,32 @@ function GoogleIcon() {
 
 function LoginGate({ error }: { error: string | null }) {
   const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  const signIn = async () => {
+  const signIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      setLoginError("Veuillez remplir les deux champs.");
+      return;
+    }
     setBusy(true);
+    setLoginError(null);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/admin`,
-        },
+      // Provision or update the admin account in Supabase
+      await provisionAdminAccount({ data: { email: email.trim(), password: password.trim() } });
+      // Then sign in with email/password
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
       });
-      if (error) {
-        toast.error("Connexion impossible. Réessayez.");
-        setBusy(false);
+      if (signInErr) {
+        setLoginError("Identifiants invalides.");
       }
-    } catch {
-      toast.error("Connexion impossible. Réessayez.");
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Connexion impossible.");
+    } finally {
       setBusy(false);
     }
   };
@@ -200,20 +211,38 @@ function LoginGate({ error }: { error: string | null }) {
         <p className="mt-1 text-xs text-muted-foreground">
           Accès réservé aux comptes autorisés.
         </p>
-        {error && (
+        {(error || loginError) && (
           <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-            {error}
+            {loginError || error}
           </p>
         )}
-        <Button
-          onClick={signIn}
-          disabled={busy}
-          variant="outline"
-          className="mt-4 w-full gap-2"
-        >
-          <GoogleIcon />
-          {busy ? "Redirection…" : "Se connecter avec Google"}
-        </Button>
+        <form onSubmit={signIn} className="mt-4 space-y-3">
+          <div>
+            <Label htmlFor="admin-email">Email</Label>
+            <Input
+              id="admin-email"
+              type="email"
+              placeholder="votre@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+            />
+          </div>
+          <div>
+            <Label htmlFor="admin-password">Mot de passe</Label>
+            <Input
+              id="admin-password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+          <Button type="submit" disabled={busy} className="w-full">
+            {busy ? "Connexion…" : "Se connecter"}
+          </Button>
+        </form>
         <div className="mt-4 text-center">
           <Link to="/stats">
             <Button type="button" variant="ghost" size="sm">
