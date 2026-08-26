@@ -605,65 +605,31 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
 }
 
 function Admin() {
-  const [status, setStatus] = useState<"loading" | "anon" | "authed">("loading");
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const check = async (u: { email?: string | null } | null | undefined) => {
-      if (!u) {
-        if (mounted) setStatus("anon");
-        return;
-      }
-      if (isAdminEmail(u.email)) {
-        if (mounted) {
-          setError(null);
-          setStatus("authed");
-        }
-        return;
-      }
-      await supabase.auth.signOut();
-      if (!mounted) return;
-      const msg = "Accès refusé : votre compte n'a pas les droits d'administration.";
-      toast.error(msg);
-      setError(msg);
-      setStatus("anon");
-    };
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (mounted) void check(data.user);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
-      if (event === "SIGNED_OUT") {
-        setStatus("anon");
-        return;
-      }
-      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        void check(session?.user);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  if (status === "loading") return null;
-  if (status !== "authed") return <LoginGate error={error} />;
-
   return (
-    <AdminDashboard
-      onLogout={async () => {
-        await supabase.auth.signOut();
-        setStatus("anon");
-      }}
-    />
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <Card className="w-full max-w-sm p-6 text-center">
+        <h1 className="text-xl font-semibold">Administration</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          L'administration est disponible sur la version Lovable de l'application.
+        </p>
+        <a
+          href="https://lovable.dev/projects/23e43f93-4187-432e-8134-8bdbb84a3c87"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Button className="mt-4 w-full">
+            Ouvrir dans Lovable
+          </Button>
+        </a>
+        <div className="mt-4">
+          <Link to="/">
+            <Button type="button" variant="ghost" size="sm">
+              Retour au test
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    </div>
   );
 }
 
