@@ -111,7 +111,7 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
       `Sois précis, appuie chaque affirmation sur les scores, garde un ton professionnel de psychiatre expert en analyse transactionnelle, environ 600 à 900 mots.`;
 
     const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
