@@ -143,3 +143,55 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
     if (!text) throw new Error("Réponse vide.");
     return { analysis: text };
   });
+
+/**
+ * Provisionne (ou réinitialise) le compte email/mot de passe d'un administrateur
+ * whitelisté, à partir du mot de passe partagé stocké côté serveur.
+ */
+export const provisionAdminAccount = createServerFn({ method: "POST" })
+  .inputValidator((input: { email: string; password: string }) =>
+    z
+      .object({
+        email: z.string().email().max(200),
+        password: z.string().min(1).max(200),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const email = data.email.trim().toLowerCase();
+    if (!ADMIN_EMAILS.includes(email)) throw new Error("Forbidden");
+
+    const expected = process.env["ADMIN_PASSWORD"];
+    if (!expected) throw new Error("Mot de passe administrateur non configuré.");
+    if (data.password.length !== expected.length || data.password !== expected) {
+      throw new Error("Identifiants invalides.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: list, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 200,
+    });
+    if (listError) throw listError;
+
+    const existing = list.users.find(
+      (u) => (u.email ?? "").toLowerCase() === email,
+    );
+
+    if (existing) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+        password: data.password,
+        email_confirm: true,
+      });
+      if (error) throw error;
+    } else {
+      const { error } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: data.password,
+        email_confirm: true,
+      });
+      if (error) throw error;
+    }
+
+    return { ok: true as const };
+  });
