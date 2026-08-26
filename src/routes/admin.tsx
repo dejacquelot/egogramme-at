@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 import { isAdminEmail } from "@/lib/admin-config";
 import {
@@ -178,10 +177,13 @@ function LoginGate({ error }: { error: string | null }) {
   const signIn = async () => {
     setBusy(true);
     try {
-      const res = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/admin`,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/admin`,
+        },
       });
-      if ("error" in res && res.error) {
+      if (error) {
         toast.error("Connexion impossible. Réessayez.");
         setBusy(false);
       }
