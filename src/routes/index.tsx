@@ -689,11 +689,11 @@ function ResultSection({
       <div className="mt-6 border-t border-border pt-6">
         {!showCallback ? (
           <Button variant="outline" onClick={() => setShowCallback(true)}>
-            Souhaitez-vous être rappelé·e pour débriefer votre égogramme ?
+            Souhaitez-vous être rappelé pour débriefer votre égogramme ?
           </Button>
         ) : (
           <div className="rounded-lg border border-border bg-muted/30 p-4">
-            <h3 className="text-base font-semibold">Être rappelé·e par un coach</h3>
+            <h3 className="text-base font-semibold">Être rappelé par un coach</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Laissez vos coordonnées pour un échange de 15 minutes avec un coach.
               Prénom, nom et numéro de téléphone sont obligatoires.
@@ -702,7 +702,7 @@ function ResultSection({
             {submitted ? (
               <p className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
                 Merci {firstName} ! Vos coordonnées ont bien été enregistrées —
-                vous serez rappelé·e sous peu.
+                vous serez rappelé sous peu.
               </p>
             ) : (
               <form onSubmit={handleSubmitContact} className="mt-4 space-y-3">
@@ -745,7 +745,7 @@ function ResultSection({
 
                 <div className="flex items-center gap-2 pt-1">
                   <Button type="submit" disabled={submitting}>
-                    {submitting ? "Envoi…" : "Demander à être rappelé·e"}
+                    {submitting ? "Envoi…" : "Demander à être rappelé"}
                   </Button>
                   <Button
                     type="button"
