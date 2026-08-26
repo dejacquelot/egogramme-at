@@ -204,6 +204,7 @@ function Index() {
   const total = Object.values(scores).reduce((a, b) => a + b, 0);
 
   const reset = () => setAnswers(Array(60).fill(undefined));
+  const checkAll = () => setAnswers(Array(60).fill(true));
 
   const maxScore = Math.max(...Object.values(scores), 1);
 
@@ -288,6 +289,9 @@ function Index() {
                 </Button>
               </Link>
             </div>
+            <Button variant="outline" size="sm" onClick={checkAll}>
+              Tout cocher ✅
+            </Button>
             <Button variant="outline" size="sm" onClick={reset}>
               Réinitialiser
             </Button>
