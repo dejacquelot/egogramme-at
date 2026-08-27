@@ -172,20 +172,18 @@ function GoogleIcon() {
   );
 }
 
-function LoginGate() {
-  const [busy, setBusy] = useState(false);
+function LoginGate({ onSuccess }: { onSuccess: () => void }) {
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  const signIn = async () => {
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/admin`,
-      },
-    });
-    if (error) {
-      toast.error("Connexion impossible. Réessayez.");
-      setBusy(false);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (login === "pinpin" && password === "lapin") {
+      localStorage.setItem("egogramme-admin", "true");
+      onSuccess();
+    } else {
+      setLoginError("Identifiants invalides.");
     }
   };
 
@@ -194,22 +192,27 @@ function LoginGate() {
       <Card className="w-full max-w-sm p-6">
         <h1 className="text-xl font-semibold">Administration</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Accès réservé aux comptes autorisés.
+          Acc&egrave;s r&eacute;serv&eacute; aux comptes autoris&eacute;s.
         </p>
-        <Button
-          onClick={signIn}
-          disabled={busy}
-          variant="outline"
-          className="mt-4 w-full gap-2"
-        >
-          <GoogleIcon />
-          {busy ? "Redirection..." : "Se connecter avec Google"}
-        </Button>
+        {loginError && (
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {loginError}
+          </p>
+        )}
+        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+          <div>
+            <Label htmlFor="admin-login">Login</Label>
+            <Input id="admin-login" type="text" value={login} onChange={(e) => setLogin(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="admin-pwd">Mot de passe</Label>
+            <Input id="admin-pwd" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
+          <Button type="submit" className="w-full">Se connecter</Button>
+        </form>
         <div className="mt-4 text-center">
           <Link to="/">
-            <Button type="button" variant="ghost" size="sm">
-              Retour au test
-            </Button>
+            <Button type="button" variant="ghost" size="sm">Retour au test</Button>
           </Link>
         </div>
       </Card>
@@ -566,48 +569,17 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
 }
 
 function Admin() {
-  const [status, setStatus] = useState<"loading" | "anon" | "authed">("loading");
+  const [authed, setAuthed] = useState(
+    typeof window !== "undefined" && localStorage.getItem("egogramme-admin") === "true",
+  );
 
-  useEffect(() => {
-    let mounted = true;
-
-    const check = (u: { email?: string | null } | null | undefined) => {
-      if (!u) {
-        if (mounted) setStatus("anon");
-        return;
-      }
-      if (isAdminEmail(u.email)) {
-        if (mounted) setStatus("authed");
-        return;
-      }
-      supabase.auth.signOut();
-      if (mounted) {
-        toast.error("Ce compte n'a pas les droits d'administration.");
-        setStatus("anon");
-      }
-    };
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (mounted) check(data.user);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
-      if (event === "SIGNED_OUT") { setStatus("anon"); return; }
-      if (event === "SIGNED_IN" || event === "USER_UPDATED") check(session?.user);
-    });
-
-    return () => { mounted = false; subscription.unsubscribe(); };
-  }, []);
-
-  if (status === "loading") return null;
-  if (status !== "authed") return <LoginGate />;
+  if (!authed) return <LoginGate onSuccess={() => setAuthed(true)} />;
 
   return (
     <AdminDashboard
-      onLogout={async () => {
-        await supabase.auth.signOut();
-        setStatus("anon");
+      onLogout={() => {
+        localStorage.removeItem("egogramme-admin");
+        setAuthed(false);
       }}
     />
   );
