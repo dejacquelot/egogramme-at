@@ -195,7 +195,7 @@ function LoginGate({ error }: { error: string | null }) {
         password: password.trim(),
       });
       if (signInErr) {
-        setLoginError("Identifiants invalides.");
+        setLoginError(`Erreur Supabase Auth: ${signInErr.message}`);
       }
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Connexion impossible.");
