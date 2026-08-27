@@ -159,9 +159,10 @@ export const provisionAdminAccount = createServerFn({ method: "POST" })
     const email = data.email.trim().toLowerCase();
     if (!ADMIN_EMAILS.includes(email)) throw new Error("Forbidden");
 
-    const expected = process.env["ADMIN_PASSWORD"];
+    const expected = (process.env["ADMIN_PASSWORD"] ?? "").trim();
     if (!expected) throw new Error("Mot de passe administrateur non configuré.");
-    if (data.password.length !== expected.length || data.password !== expected) {
+    const provided = data.password.trim();
+    if (provided !== expected) {
       throw new Error("Identifiants invalides.");
     }
 
