@@ -47,8 +47,9 @@ export const Route = createFileRoute("/api/public/save-result")({
           if (error) throw error;
           return Response.json({ ok: true, id: data.id, ipHash });
         } catch (e) {
-          console.error("save-result error", e);
-          return Response.json({ ok: false }, { status: 400 });
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("save-result error", msg);
+          return Response.json({ ok: false, error: msg }, { status: 400 });
         }
       },
     },

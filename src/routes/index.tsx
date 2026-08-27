@@ -223,8 +223,9 @@ function Index() {
         .then((r) => r.json())
         .then((j) => {
           if (j?.ok && j?.id) setResultId(j.id as string);
+          else if (j?.error) console.error("save-result:", j.error);
         })
-        .catch(() => {});
+        .catch((err) => console.error("save-result fetch:", err));
     }
     if (answeredCount < 60) {
       savedRef.current = false;
