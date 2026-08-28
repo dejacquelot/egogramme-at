@@ -100,6 +100,8 @@ function Stats() {
   const [resultRows, setResultRows] = useState<{ created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalResults, setTotalResults] = useState<number | null>(null);
+  const [totalShares, setTotalShares] = useState<number | null>(null);
+  const [totalTeams, setTotalTeams] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +122,7 @@ function Stats() {
       else if (period === "year") since.setUTCFullYear(since.getUTCFullYear() - cfg.buckets);
       const isoDate = since.toISOString();
 
-      const [visitsRes, resultsRes, resultsCountRes] = await Promise.all([
+      const [visitsRes, resultsRes, resultsCountRes, sharesCountRes, teamsCountRes] = await Promise.all([
         supabase
           .from("visits")
           .select("visit_date")
@@ -132,11 +134,15 @@ function Stats() {
           .gte("created_at", isoDate)
           .order("created_at", { ascending: true }),
         supabase.from("results").select("id", { count: "exact", head: true }),
+        supabase.from("share_events").select("id", { count: "exact", head: true }),
+        supabase.from("team_analyses").select("id", { count: "exact", head: true }),
       ]);
       if (cancelled) return;
       setRows((visitsRes.data as { visit_date: string }[] | null) ?? []);
       setResultRows((resultsRes.data as { created_at: string }[] | null) ?? []);
       setTotalResults(resultsCountRes.count ?? 0);
+      setTotalShares(sharesCountRes.count ?? 0);
+      setTotalTeams(teamsCountRes.count ?? 0);
       setLoading(false);
     })();
     return () => {
@@ -229,6 +235,22 @@ function Stats() {
               </div>
               <div className="text-2xl font-semibold tabular-nums">
                 {totalResults ?? "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Invitations partagées
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-yellow-600">
+                {totalShares ?? "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Analyses d'équipe
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-purple-600">
+                {totalTeams ?? "—"}
               </div>
             </div>
           </div>

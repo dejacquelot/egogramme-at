@@ -655,6 +655,7 @@ function ShareInviteButton() {
   const text = "Je viens de faire ce test et j'aimerais bien que tu le fasses aussi. On pourra ensuite découvrir comment on fonctionne ensemble 😊";
 
   const handleShare = async () => {
+    fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
     if (navigator.share) {
       try { await navigator.share({ title, text, url }); } catch {}
     } else {

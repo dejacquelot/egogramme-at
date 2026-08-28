@@ -122,6 +122,19 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
     };
     const text = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     if (!text) throw new Error("Réponse vide.");
+
+    // Save team analysis to database
+    const memberNames = rows.map((r, i) =>
+      [r.first_name, r.last_name].filter(Boolean).join(" ") ||
+      `Membre ${i + 1}`,
+    );
+    await supabaseAdmin.from("team_analyses").insert({
+      team_name: data.teamName || "",
+      member_ids: data.ids,
+      member_names: memberNames,
+      analysis: text,
+    });
+
     return { analysis: text };
   });
 

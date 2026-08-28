@@ -593,6 +593,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  type TeamAnalysisRow = {
+    id: string;
+    team_name: string;
+    member_names: string[];
+    analysis: string;
+    created_at: string;
+  };
+  const [teamAnalyses, setTeamAnalyses] = useState<TeamAnalysisRow[]>([]);
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+
   const saveName = async (row: ResultRow) => {
     setSavingId(row.id);
     setSaveError(null);
@@ -624,6 +634,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         const data = await listAdminResults();
         if (cancelled) return;
         setRows((data as unknown) as ResultRow[]);
+
+        // Load team analyses
+        const { data: taData } = await supabase
+          .from("team_analyses")
+          .select("id, team_name, member_names, analysis, created_at")
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (!cancelled) setTeamAnalyses((taData ?? []) as TeamAnalysisRow[]);
       } catch {
         if (!cancelled) setLoadError("Chargement impossible. Réessayez.");
       } finally {
@@ -1044,6 +1062,52 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             )}
           </div>
         </Card>
+
+        {teamAnalyses.length > 0 && (
+          <Card className="p-5">
+            <h2 className="text-lg font-semibold">
+              Analyses d'équipe enregistrées ({teamAnalyses.length})
+            </h2>
+            <div className="mt-4 space-y-3">
+              {teamAnalyses.map((ta) => (
+                <div key={ta.id} className="rounded-lg border border-border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="font-medium">
+                        {ta.team_name || "Équipe sans nom"}
+                      </span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {formatDate(ta.created_at)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {(ta.member_names ?? []).length} membre{(ta.member_names ?? []).length > 1 ? "s" : ""}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setExpandedTeamId(expandedTeamId === ta.id ? null : ta.id)
+                        }
+                      >
+                        {expandedTeamId === ta.id ? "Masquer" : "Voir l'analyse"}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {(ta.member_names ?? []).join(", ")}
+                  </p>
+                  {expandedTeamId === ta.id && (
+                    <div className="mt-3 border-t border-border pt-3">
+                      <MarkdownText text={ta.analysis} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </main>
     </div>
   );
