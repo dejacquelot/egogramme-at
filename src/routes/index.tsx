@@ -492,12 +492,7 @@ function ResultSection({
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
 
-  // Optional callback section (revealed by a button).
-  const [showCallback, setShowCallback] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+
 
   const dateLabel = useMemo(
     () => new Date().toLocaleDateString("fr-FR", { dateStyle: "long" }),
@@ -567,46 +562,7 @@ function ResultSection({
     }
   };
 
-  const handleSubmitContact = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    if (!firstName.trim() || !lastName.trim()) {
-      setFormError("Merci d'indiquer votre prénom et votre nom.");
-      return;
-    }
-    if (phone.trim().length < 4) {
-      setFormError("Merci d'indiquer un numéro de téléphone valide.");
-      return;
-    }
-    if (!resultId) {
-      setFormError("Votre résultat n'est pas encore enregistré, réessayez dans un instant.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/public/save-contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: resultId,
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          contact_requested: true,
-          phone: phone.trim(),
-        }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j?.ok) {
-        setFormError("Enregistrement impossible. Veuillez réessayer.");
-        return;
-      }
-      setSubmitted(true);
-    } catch {
-      setFormError("Enregistrement impossible. Veuillez réessayer.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+
 
   return (
     <Card className="p-6">
@@ -686,81 +642,6 @@ function ResultSection({
           </div>
         </div>
       )}
-
-      <div className="mt-6 border-t border-border pt-6">
-        {!showCallback ? (
-          <Button variant="outline" onClick={() => setShowCallback(true)}>
-            Souhaitez-vous être rappelé pour débriefer votre égogramme ?
-          </Button>
-        ) : (
-          <div className="rounded-lg border border-border bg-muted/30 p-4">
-            <h3 className="text-base font-semibold">Être rappelé par un coach</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Laissez vos coordonnées pour un échange de 15 minutes avec un coach.
-              Prénom, nom et numéro de téléphone sont obligatoires.
-            </p>
-
-            {submitted ? (
-              <p className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-                Merci {firstName} ! Vos coordonnées ont bien été enregistrées —
-                vous serez rappelé sous peu.
-              </p>
-            ) : (
-              <form onSubmit={handleSubmitContact} className="mt-4 space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="cb-firstName" className="text-xs">Prénom</Label>
-                    <Input
-                      id="cb-firstName"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      autoComplete="given-name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cb-lastName" className="text-xs">Nom</Label>
-                    <Input
-                      id="cb-lastName"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      autoComplete="family-name"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="cb-phone" className="text-xs">Téléphone</Label>
-                  <Input
-                    id="cb-phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    autoComplete="tel"
-                    placeholder="+33 6 12 34 56 78"
-                    required
-                  />
-                </div>
-
-                {formError && <p className="text-sm text-red-600">{formError}</p>}
-
-                <div className="flex items-center gap-2 pt-1">
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? "Envoi…" : "Demander à être rappelé"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setShowCallback(false)}
-                  >
-                    Annuler
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        )}
-      </div>
 
       <ShareInviteButton />
     </Card>
