@@ -12,6 +12,9 @@ import {
   downloadIndividualReportPdf,
   type CatKey,
 } from "@/lib/team-report";
+import { supabase } from "@/integrations/supabase/client";
+
+const ADMIN_EMAILS = ["dejacquelot@gmail.com", "auroredejacquelot@gmail.com"];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -165,6 +168,49 @@ const MAPPING: Record<CategoryKey, number[]> = {
 };
 
 function Index() {
+  // Auth state
+  type UserInfo = { email: string; firstName: string; lastName: string } | null;
+  const [user, setUser] = useState<UserInfo>(null);
+  const isAdmin = user !== null && ADMIN_EMAILS.includes(user.email.toLowerCase());
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        const meta = data.user.user_metadata ?? {};
+        setUser({
+          email: data.user.email ?? "",
+          firstName: (meta.given_name as string) ?? (meta.full_name as string)?.split(" ")[0] ?? "",
+          lastName: (meta.family_name as string) ?? (meta.full_name as string)?.split(" ").slice(1).join(" ") ?? "",
+        });
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const meta = session.user.user_metadata ?? {};
+        setUser({
+          email: session.user.email ?? "",
+          firstName: (meta.given_name as string) ?? (meta.full_name as string)?.split(" ")[0] ?? "",
+          lastName: (meta.family_name as string) ?? (meta.full_name as string)?.split(" ").slice(1).join(" ") ?? "",
+        });
+      } else {
+        setUser(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signInWithGoogle = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
   // answers[i] = true (Plutôt vrai) | false (Plutôt faux) | undefined
   const [answers, setAnswers] = useState<(boolean | undefined)[]>(
     () => Array(60).fill(undefined),
@@ -282,16 +328,43 @@ function Index() {
               </div>
               <Progress value={(answeredCount / 60) * 100} className="mt-1.5 h-2" />
             </div>
-            <div className="flex items-center gap-2">
-              <Link to="/stats">
-                <Button variant="outline" size="sm">
-                  Statistiques
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {user.firstName || user.email}
+                </span>
+                <Button variant="ghost" size="sm" onClick={signOut}>
+                  Déconnexion
                 </Button>
-              </Link>
-            </div>
-            <Button variant="outline" size="sm" onClick={checkAll}>
-              Tout cocher ✅
-            </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={signInWithGoogle} className="gap-1.5">
+                <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden="true">
+                  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+                  <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
+                  <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
+                  <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
+                </svg>
+                Se connecter
+              </Button>
+            )}
+            {isAdmin && (
+              <>
+                <Link to="/stats">
+                  <Button variant="outline" size="sm">
+                    Statistiques
+                  </Button>
+                </Link>
+                <Link to="/admin">
+                  <Button variant="outline" size="sm">
+                    Administration
+                  </Button>
+                </Link>
+                <Button variant="outline" size="sm" onClick={checkAll}>
+                  Tout cocher ✅
+                </Button>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={reset}>
               Réinitialiser
             </Button>
@@ -468,7 +541,7 @@ function Index() {
 
       {answeredCount === 60 && (
         <section className="mx-auto max-w-5xl px-4 pb-12">
-          <ResultSection scores={scores} resultId={resultId} />
+          <ResultSection scores={scores} resultId={resultId} userFirstName={user?.firstName} userLastName={user?.lastName} />
         </section>
       )}
     </div>
@@ -480,12 +553,22 @@ type Scores = Record<CategoryKey, number>;
 function ResultSection({
   scores,
   resultId,
+  userFirstName,
+  userLastName,
 }: {
   scores: Scores;
   resultId: string | null;
+  userFirstName?: string;
+  userLastName?: string;
 }) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [firstName, setFirstName] = useState(userFirstName ?? "");
+  const [lastName, setLastName] = useState(userLastName ?? "");
+
+  // Auto-fill from Google profile when user logs in
+  useEffect(() => {
+    if (userFirstName && !firstName) setFirstName(userFirstName);
+    if (userLastName && !lastName) setLastName(userLastName);
+  }, [userFirstName, userLastName]);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
