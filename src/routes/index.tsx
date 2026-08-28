@@ -734,7 +734,7 @@ function ShareInviteButton() {
   const [copied, setCopied] = useState(false);
   const url = typeof window !== "undefined" ? window.location.origin : "https://egogramme-at.vercel.app";
   const title = "Découvre ton profil relationnel";
-  const text = "Je viens de faire ce test qui m'a donné une analyse de mon profil relationnel. Il permet ensuite d'analyser comment on fonctionne ensemble et d'avoir des pistes d'amélioration. Ça me tenterait bien qu'on le fasse — ça prend 5 minutes 🤝";
+  const text = "Je viens de faire ce test qui m'a donné une analyse de mon profil relationnel. Il permet ensuite d'analyser comment on fonctionne entre nous et d'avoir des pistes de coaching. Ça me tenterait bien qu'on le fasse — ça prend 5 minutes 🤝";
 
   const handleShare = async () => {
     fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
