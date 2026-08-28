@@ -1,20 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { ADMIN_EMAILS, TEAM_ANALYSIS_LABELS } from "@/lib/admin-config";
-
-function assertAdmin(claims: Record<string, unknown>): string {
-  const email = String((claims as { email?: string }).email ?? "").toLowerCase();
-  if (!email || !ADMIN_EMAILS.includes(email)) {
-    throw new Error("Forbidden");
-  }
-  return email;
-}
+import { TEAM_ANALYSIS_LABELS } from "@/lib/admin-config";
 
 export const listAdminResults = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    assertAdmin(context.claims as Record<string, unknown>);
+  .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("results")
@@ -28,12 +17,10 @@ export const listAdminResults = createServerFn({ method: "GET" })
   });
 
 export const deleteAdminResult = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) =>
     z.object({ id: z.string().uuid() }).parse(input),
   )
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims as Record<string, unknown>);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("results").delete().eq("id", data.id);
     if (error) throw error;
@@ -41,7 +28,6 @@ export const deleteAdminResult = createServerFn({ method: "POST" })
   });
 
 export const updateAdminResultName = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string; first_name: string; last_name: string }) =>
     z
       .object({
@@ -51,8 +37,7 @@ export const updateAdminResultName = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims as Record<string, unknown>);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("results")
@@ -70,7 +55,6 @@ export const updateAdminResultName = createServerFn({ method: "POST" })
   });
 
 export const generateTeamAnalysis = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: { ids: string[]; teamName?: string }) =>
     z
       .object({
@@ -79,8 +63,7 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims as Record<string, unknown>);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("results")
