@@ -98,6 +98,8 @@ function Stats() {
   const [period, setPeriod] = useState<Period>("day");
   const [rows, setRows] = useState<{ visit_date: string }[]>([]);
   const [resultRows, setResultRows] = useState<{ created_at: string }[]>([]);
+  const [shareRows, setShareRows] = useState<{ created_at: string }[]>([]);
+  const [teamRows, setTeamRows] = useState<{ created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalResults, setTotalResults] = useState<number | null>(null);
   const [totalShares, setTotalShares] = useState<number | null>(null);
@@ -122,7 +124,7 @@ function Stats() {
       else if (period === "year") since.setUTCFullYear(since.getUTCFullYear() - cfg.buckets);
       const isoDate = since.toISOString();
 
-      const [visitsRes, resultsRes, resultsCountRes, sharesCountRes, teamsCountRes] = await Promise.all([
+      const [visitsRes, resultsRes, resultsCountRes, sharesCountRes, teamsCountRes, sharesRes, teamsRes] = await Promise.all([
         supabase
           .from("visits")
           .select("visit_date")
@@ -136,6 +138,16 @@ function Stats() {
         supabase.from("results").select("id", { count: "exact", head: true }),
         supabase.from("share_events").select("id", { count: "exact", head: true }),
         supabase.from("team_analyses").select("id", { count: "exact", head: true }),
+        supabase
+          .from("share_events")
+          .select("created_at")
+          .gte("created_at", isoDate)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("team_analyses")
+          .select("created_at")
+          .gte("created_at", isoDate)
+          .order("created_at", { ascending: true }),
       ]);
       if (cancelled) return;
       setRows((visitsRes.data as { visit_date: string }[] | null) ?? []);
@@ -143,6 +155,8 @@ function Stats() {
       setTotalResults(resultsCountRes.count ?? 0);
       setTotalShares(sharesCountRes.count ?? 0);
       setTotalTeams(teamsCountRes.count ?? 0);
+      setShareRows((sharesRes.data as { created_at: string }[] | null) ?? []);
+      setTeamRows((teamsRes.data as { created_at: string }[] | null) ?? []);
       setLoading(false);
     })();
     return () => {
@@ -155,9 +169,13 @@ function Stats() {
     const keys = buildBuckets(period, cfg.buckets);
     const visitorsMap = new Map<string, number>();
     const completedMap = new Map<string, number>();
+    const sharesMap = new Map<string, number>();
+    const teamsMap = new Map<string, number>();
     keys.forEach((k) => {
       visitorsMap.set(k, 0);
       completedMap.set(k, 0);
+      sharesMap.set(k, 0);
+      teamsMap.set(k, 0);
     });
     rows.forEach((r) => {
       const d = new Date(r.visit_date + "T00:00:00Z");
@@ -169,12 +187,24 @@ function Stats() {
       const key = bucketKey(d, period);
       if (completedMap.has(key)) completedMap.set(key, (completedMap.get(key) ?? 0) + 1);
     });
+    shareRows.forEach((r) => {
+      const d = new Date(r.created_at);
+      const key = bucketKey(d, period);
+      if (sharesMap.has(key)) sharesMap.set(key, (sharesMap.get(key) ?? 0) + 1);
+    });
+    teamRows.forEach((r) => {
+      const d = new Date(r.created_at);
+      const key = bucketKey(d, period);
+      if (teamsMap.has(key)) teamsMap.set(key, (teamsMap.get(key) ?? 0) + 1);
+    });
     return keys.map((k) => ({
       label: bucketLabel(k, period),
       visitors: visitorsMap.get(k) ?? 0,
       completed: completedMap.get(k) ?? 0,
+      shares: sharesMap.get(k) ?? 0,
+      teams: teamsMap.get(k) ?? 0,
     }));
-  }, [rows, resultRows, period]);
+  }, [rows, resultRows, shareRows, teamRows, period]);
 
   const totalVisitors = chartData.reduce((a, b) => a + b.visitors, 0);
   const totalCompleted = chartData.reduce((a, b) => a + b.completed, 0);
@@ -307,6 +337,24 @@ function Stats() {
                     dot={{ r: 3 }}
                     activeDot={{ r: 5 }}
                     name="Tests complétés"
+                  />
+                  <Line
+                   type="monotone"
+                   dataKey="shares"
+                   stroke="oklch(0.65 0.18 85)"
+                   strokeWidth={2.5}
+                   dot={{ r: 3 }}
+                   activeDot={{ r: 5 }}
+                   name="Invitations partagées"
+                  />
+                  <Line
+                   type="monotone"
+                   dataKey="teams"
+                   stroke="oklch(0.55 0.15 330)"
+                   strokeWidth={2.5}
+                   dot={{ r: 3 }}
+                   activeDot={{ r: 5 }}
+                   name="Analyses d'équipe"
                   />
                 </LineChart>
               </ResponsiveContainer>
