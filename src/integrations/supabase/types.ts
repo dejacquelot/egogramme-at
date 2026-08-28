@@ -68,6 +68,48 @@ export type Database = {
         }
         Relationships: []
       }
+      share_events: {
+        Row: {
+          id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      team_analyses: {
+        Row: {
+          id: string
+          team_name: string
+          member_ids: Json
+          member_names: Json
+          analysis: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          team_name?: string
+          member_ids: Json
+          member_names: Json
+          analysis?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          team_name?: string
+          member_ids?: Json
+          member_names?: Json
+          analysis?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
