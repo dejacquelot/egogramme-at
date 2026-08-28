@@ -569,6 +569,23 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
 }
 
 function Admin() {
+  const [status, setStatus] = useState<"loading" | "denied" | "ok">("loading");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user && isAdminEmail(data.user.email)) setStatus("ok");
+      else setStatus("denied");
+    });
+  }, []);
+
+  if (status === "loading") return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Chargement…</div>;
+  if (status === "denied") return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-center">
+      <p className="text-lg font-medium">Accès réservé à l'administrateur.</p>
+      <Link to="/"><Button variant="outline">← Retour au test</Button></Link>
+    </div>
+  );
+
   return <AdminDashboard onLogout={() => {}} />;
 }
 

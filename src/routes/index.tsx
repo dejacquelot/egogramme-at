@@ -14,7 +14,7 @@ import {
 } from "@/lib/team-report";
 import { supabase } from "@/integrations/supabase/client";
 
-const ADMIN_EMAILS = ["dejacquelot@gmail.com", "auroredejacquelot@gmail.com"];
+const ADMIN_EMAILS = ["dejacquelot@gmail.com"];
 
 export const Route = createFileRoute("/")({
   head: () => ({

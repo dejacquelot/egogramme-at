@@ -1,8 +1,6 @@
 /** Emails autorisés à accéder à l'espace d'administration. */
 export const ADMIN_EMAILS = [
   "dejacquelot@gmail.com",
-  "auroredejacquelot@gmail.com",
-  "pinpin",
 ];
 
 export function isAdminEmail(email?: string | null): boolean {

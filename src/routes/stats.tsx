@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { isAdminEmail } from "@/lib/admin-config";
 
 type Period = "day" | "week" | "month" | "quarter" | "year";
 
@@ -95,6 +96,26 @@ export const Route = createFileRoute("/stats")({
 });
 
 function Stats() {
+  const [authOk, setAuthOk] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setAuthOk(!!data.user && isAdminEmail(data.user.email));
+    });
+  }, []);
+
+  if (authOk === null) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Chargement…</div>;
+  if (!authOk) return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-center">
+      <p className="text-lg font-medium">Accès réservé à l'administrateur.</p>
+      <Link to="/"><Button variant="outline">← Retour au test</Button></Link>
+    </div>
+  );
+
+  return <StatsContent />;
+}
+
+function StatsContent() {
   const [period, setPeriod] = useState<Period>("day");
   const [rows, setRows] = useState<{ visit_date: string }[]>([]);
   const [resultRows, setResultRows] = useState<{ created_at: string }[]>([]);
