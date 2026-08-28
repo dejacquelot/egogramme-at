@@ -596,12 +596,15 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   type TeamAnalysisRow = {
     id: string;
     team_name: string;
+    member_ids: string[];
     member_names: string[];
     analysis: string;
     created_at: string;
   };
   const [teamAnalyses, setTeamAnalyses] = useState<TeamAnalysisRow[]>([]);
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+  const [taExporting, setTaExporting] = useState<string | null>(null);
+  const [taDeletingId, setTaDeletingId] = useState<string | null>(null);
 
   const saveName = async (row: ResultRow) => {
     setSavingId(row.id);
@@ -638,7 +641,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         // Load team analyses
         const { data: taData } = await supabase
           .from("team_analyses")
-          .select("id, team_name, member_names, analysis, created_at")
+          .select("id, team_name, member_ids, member_names, analysis, created_at")
           .order("created_at", { ascending: false })
           .limit(50);
         if (!cancelled) setTeamAnalyses((taData ?? []) as TeamAnalysisRow[]);
@@ -673,6 +676,18 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         data: { ids: teamIds, teamName: teamName.trim() || undefined },
       });
       setAnalysis(res.analysis);
+
+      // Add to local team analyses list immediately
+      const memberNames = teamRows.map((r, i) => memberName(r, i));
+      const newTa: TeamAnalysisRow = {
+        id: crypto.randomUUID(),
+        team_name: teamName.trim(),
+        member_ids: teamIds,
+        member_names: memberNames,
+        analysis: res.analysis,
+        created_at: new Date().toISOString(),
+      };
+      setTeamAnalyses((prev) => [newTa, ...prev]);
     } catch (e) {
       setAnalysisError(
         e instanceof Error && e.message && !/fetch/i.test(e.message)
@@ -1093,6 +1108,23 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       >
                         {expandedTeamId === ta.id ? "Masquer" : "Voir l'analyse"}
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        disabled={taDeletingId === ta.id}
+                        onClick={async () => {
+                          const ok = typeof window !== "undefined" &&
+                            window.confirm(`Supprimer l'analyse « ${ta.team_name || "Équipe sans nom"} » ?`);
+                          if (!ok) return;
+                          setTaDeletingId(ta.id);
+                          await supabase.from("team_analyses").delete().eq("id", ta.id);
+                          setTeamAnalyses((prev) => prev.filter((t) => t.id !== ta.id));
+                          setTaDeletingId(null);
+                        }}
+                      >
+                        {taDeletingId === ta.id ? "…" : "Supprimer"}
+                      </Button>
                     </div>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -1101,6 +1133,57 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   {expandedTeamId === ta.id && (
                     <div className="mt-3 border-t border-border pt-3">
                       <MarkdownText text={ta.analysis} />
+                      <div className="mt-4 flex flex-wrap justify-end gap-2">
+                        <Button
+                          size="sm"
+                          disabled={taExporting !== null}
+                          className="gap-1.5"
+                          onClick={async () => {
+                            setTaExporting(ta.id + "-pdf");
+                            try {
+                              const memberRows = rows.filter((r) => (ta.member_ids ?? []).includes(r.id));
+                              const avg = averageScores(memberRows);
+                              const members = (ta.member_names ?? []).map((name: string, i: number) => ({
+                                name,
+                                date: memberRows[i] ? formatDate(memberRows[i].created_at) : "",
+                                scores: memberRows[i]
+                                  ? (Object.fromEntries(CATEGORIES.map((c) => [c.key, memberRows[i].scores?.[c.key] ?? 0])) as Scores)
+                                  : ({ PN: 0, PNo: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores),
+                              }));
+                              await downloadTeamReportPdf({ teamName: ta.team_name, average: avg, members, analysis: ta.analysis });
+                            } catch { toast.error("Export PDF impossible."); }
+                            finally { setTaExporting(null); }
+                          }}
+                        >
+                          <FileDown className="h-4 w-4" />
+                          {taExporting === ta.id + "-pdf" ? "Génération…" : "Télécharger le rapport PDF"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={taExporting !== null}
+                          className="gap-1.5"
+                          onClick={async () => {
+                            setTaExporting(ta.id + "-img");
+                            try {
+                              const memberRows = rows.filter((r) => (ta.member_ids ?? []).includes(r.id));
+                              const avg = averageScores(memberRows);
+                              const members = (ta.member_names ?? []).map((name: string, i: number) => ({
+                                name,
+                                date: memberRows[i] ? formatDate(memberRows[i].created_at) : "",
+                                scores: memberRows[i]
+                                  ? (Object.fromEntries(CATEGORIES.map((c) => [c.key, memberRows[i].scores?.[c.key] ?? 0])) as Scores)
+                                  : ({ PN: 0, PNo: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores),
+                              }));
+                              await downloadTeamReportImage({ teamName: ta.team_name, average: avg, members, analysis: ta.analysis });
+                            } catch { toast.error("Export image impossible."); }
+                            finally { setTaExporting(null); }
+                          }}
+                        >
+                          <ImageDown className="h-4 w-4" />
+                          {taExporting === ta.id + "-img" ? "Génération…" : "Télécharger en image"}
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
