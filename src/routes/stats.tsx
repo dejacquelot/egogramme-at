@@ -124,7 +124,7 @@ function Stats() {
       else if (period === "year") since.setUTCFullYear(since.getUTCFullYear() - cfg.buckets);
       const isoDate = since.toISOString();
 
-      const [visitsRes, resultsRes, resultsCountRes, sharesCountRes, teamsCountRes, sharesRes, teamsRes] = await Promise.all([
+      const [visitsRes, resultsRes, resultsCountRes] = await Promise.all([
         supabase
           .from("visits")
           .select("visit_date")
@@ -136,27 +136,23 @@ function Stats() {
           .gte("created_at", isoDate)
           .order("created_at", { ascending: true }),
         supabase.from("results").select("id", { count: "exact", head: true }),
-        supabase.from("share_events").select("id", { count: "exact", head: true }),
-        supabase.from("team_analyses").select("id", { count: "exact", head: true }),
-        supabase
-          .from("share_events")
-          .select("created_at")
-          .gte("created_at", isoDate)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("team_analyses")
-          .select("created_at")
-          .gte("created_at", isoDate)
-          .order("created_at", { ascending: true }),
+      ]);
+
+      // These may fail if tables don't exist yet — don't block the page
+      const [sharesCountRes, teamsCountRes, sharesRes, teamsRes] = await Promise.all([
+        supabase.from("share_events").select("id", { count: "exact", head: true }).then((r) => r, () => ({ count: 0 })),
+        supabase.from("team_analyses").select("id", { count: "exact", head: true }).then((r) => r, () => ({ count: 0 })),
+        supabase.from("share_events").select("created_at").gte("created_at", isoDate).order("created_at", { ascending: true }).then((r) => r, () => ({ data: [] })),
+        supabase.from("team_analyses").select("created_at").gte("created_at", isoDate).order("created_at", { ascending: true }).then((r) => r, () => ({ data: [] })),
       ]);
       if (cancelled) return;
       setRows((visitsRes.data as { visit_date: string }[] | null) ?? []);
       setResultRows((resultsRes.data as { created_at: string }[] | null) ?? []);
       setTotalResults(resultsCountRes.count ?? 0);
-      setTotalShares(sharesCountRes.count ?? 0);
-      setTotalTeams(teamsCountRes.count ?? 0);
-      setShareRows((sharesRes.data as { created_at: string }[] | null) ?? []);
-      setTeamRows((teamsRes.data as { created_at: string }[] | null) ?? []);
+      setTotalShares((sharesCountRes as { count: number | null }).count ?? 0);
+      setTotalTeams((teamsCountRes as { count: number | null }).count ?? 0);
+      setShareRows(((sharesRes as { data: { created_at: string }[] | null }).data) ?? []);
+      setTeamRows(((teamsRes as { data: { created_at: string }[] | null }).data) ?? []);
       setLoading(false);
     })();
     return () => {
