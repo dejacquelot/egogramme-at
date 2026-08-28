@@ -761,6 +761,39 @@ function ResultSection({
           </div>
         )}
       </div>
+
+      <ShareInviteButton />
     </Card>
+  );
+}
+
+function ShareInviteButton() {
+  const [copied, setCopied] = useState(false);
+  const url = typeof window !== "undefined" ? window.location.origin : "https://egogramme-at.vercel.app";
+  const title = "Découvre ton profil et le mien";
+  const text = "Je viens de faire ce test et j'aimerais bien que tu le fasses aussi. On pourra ensuite découvrir comment on fonctionne ensemble 😊";
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title, text, url }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  return (
+    <div className="mt-6 border-t border-border pt-6 text-center">
+      <p className="mb-3 text-sm text-muted-foreground">
+        Découvrez ensuite votre façon de fonctionner ensemble.
+      </p>
+      <Button onClick={handleShare} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-base px-6 py-3">
+        💛 Inviter quelqu'un à faire le test
+      </Button>
+      {copied && (
+        <p className="mt-2 text-sm text-green-600 font-medium">Lien copié !</p>
+      )}
+    </div>
   );
 }
