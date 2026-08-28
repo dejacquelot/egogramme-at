@@ -116,6 +116,16 @@ function Stats() {
 }
 
 function StatsContent() {
+  const [userName, setUserName] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        const meta = data.user.user_metadata ?? {};
+        setUserName((meta.full_name as string) ?? data.user.email ?? "");
+      }
+    });
+  }, []);
   const [period, setPeriod] = useState<Period>("day");
   const [rows, setRows] = useState<{ visit_date: string }[]>([]);
   const [resultRows, setResultRows] = useState<{ created_at: string }[]>([]);
@@ -238,11 +248,20 @@ function StatsContent() {
               Fréquentation du site
             </h1>
           </div>
-          <Link to="/">
-            <Button variant="outline" size="sm">
-              ← Retour au test
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{userName}</span>
+            <Link to="/">
+              <Button variant="outline" size="sm">
+                ← Retour au test
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.href = "/";
+            }}>
+              Déconnexion
             </Button>
-          </Link>
+          </div>
         </div>
       </header>
 

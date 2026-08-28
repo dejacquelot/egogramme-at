@@ -586,10 +586,20 @@ function Admin() {
     </div>
   );
 
-  return <AdminDashboard onLogout={() => {}} />;
+  return <AdminDashboard />;
 }
 
-function AdminDashboard({ onLogout }: { onLogout: () => void }) {
+function AdminDashboard() {
+  const [userName, setUserName] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        const meta = data.user.user_metadata ?? {};
+        setUserName((meta.full_name as string) ?? data.user.email ?? "");
+      }
+    });
+  }, []);
   const [rows, setRows] = useState<ResultRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -781,11 +791,15 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{userName}</span>
             <Link to="/stats">
               <Button variant="outline" size="sm">← Statistiques</Button>
             </Link>
-            <Button variant="outline" size="sm" onClick={onLogout}>
-              Se déconnecter
+            <Button variant="outline" size="sm" onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.href = "/";
+            }}>
+              Déconnexion
             </Button>
           </div>
         </div>
