@@ -218,7 +218,7 @@ function Index() {
       fetch("/api/public/save-result", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scores }),
+        body: JSON.stringify({ scores, resultId }),
       })
         .then((r) => r.json())
         .then((j) => {
@@ -229,7 +229,6 @@ function Index() {
     }
     if (answeredCount < 60) {
       savedRef.current = false;
-      setResultId(null);
     }
   }, [answeredCount, scores]);
 

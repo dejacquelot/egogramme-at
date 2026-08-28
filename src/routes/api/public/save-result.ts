@@ -34,11 +34,24 @@ export const Route = createFileRoute("/api/public/save-result")({
         try {
           const body = await request.json();
           const scores = scoresSchema.parse(body?.scores);
+          const existingId = typeof body?.resultId === "string" ? body.resultId : null;
           const ip = getClientIp(request);
           const ipHash = hashIp(ip);
           const { supabaseAdmin } = await import(
             "@/integrations/supabase/client.server"
           );
+
+          if (existingId) {
+            // Update existing result
+            const { error } = await supabaseAdmin
+              .from("results")
+              .update({ scores, ip_hash: ipHash })
+              .eq("id", existingId);
+            if (error) throw error;
+            return Response.json({ ok: true, id: existingId, ipHash });
+          }
+
+          // Insert new result
           const { data, error } = await supabaseAdmin
             .from("results")
             .insert({ ip_hash: ipHash, scores })
