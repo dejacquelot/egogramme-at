@@ -569,20 +569,7 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
 }
 
 function Admin() {
-  const [authed, setAuthed] = useState(
-    typeof window !== "undefined" && localStorage.getItem("egogramme-admin") === "true",
-  );
-
-  if (!authed) return <LoginGate onSuccess={() => setAuthed(true)} />;
-
-  return (
-    <AdminDashboard
-      onLogout={() => {
-        localStorage.removeItem("egogramme-admin");
-        setAuthed(false);
-      }}
-    />
-  );
+  return <AdminDashboard onLogout={() => {}} />;
 }
 
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
