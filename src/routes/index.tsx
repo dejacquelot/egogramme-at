@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -270,28 +270,8 @@ function Index() {
     }
   }, []);
 
-  // Save result once when the 60 questions are answered
-  const savedRef = useRef(false);
+  // Save result only when analysis is generated (not on 60-question completion)
   const [resultId, setResultId] = useState<string | null>(null);
-  useEffect(() => {
-    if (answeredCount === 60 && !savedRef.current) {
-      savedRef.current = true;
-      fetch("/api/public/save-result", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scores, resultId, referred_by: referredBy }),
-      })
-        .then((r) => r.json())
-        .then((j) => {
-          if (j?.ok && j?.id) setResultId(j.id as string);
-          else if (j?.error) console.error("save-result:", j.error);
-        })
-        .catch((err) => console.error("save-result fetch:", err));
-    }
-    if (answeredCount < 60) {
-      savedRef.current = false;
-    }
-  }, [answeredCount, scores]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -556,7 +536,7 @@ function Index() {
 
       {answeredCount === 60 && (
         <section className="mx-auto max-w-5xl px-4 pb-12">
-          <ResultSection scores={scores} resultId={resultId} userFirstName={user?.firstName} userLastName={user?.lastName} />
+          <ResultSection scores={scores} resultId={resultId} setResultId={setResultId} referredBy={referredBy} userFirstName={user?.firstName} userLastName={user?.lastName} />
         </section>
       )}
     </div>
@@ -568,11 +548,15 @@ type Scores = Record<CategoryKey, number>;
 function ResultSection({
   scores,
   resultId,
+  setResultId,
+  referredBy,
   userFirstName,
   userLastName,
 }: {
   scores: Scores;
   resultId: string | null;
+  setResultId: (id: string) => void;
+  referredBy: string | null;
   userFirstName?: string;
   userLastName?: string;
 }) {
@@ -624,6 +608,14 @@ function ResultSection({
     }
     setLoading(true);
     try {
+      // Save result to DB on first generation
+      const saveRes = await fetch("/api/public/save-result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scores, resultId, referred_by: referredBy }),
+      }).then((r) => r.json());
+      if (saveRes?.ok && saveRes?.id) setResultId(saveRes.id as string);
+
       persistIdentity(false);
       const res = await generateIndividualAnalysis({
         data: { scores, firstName: firstName.trim() },
