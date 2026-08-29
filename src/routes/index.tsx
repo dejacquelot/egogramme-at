@@ -757,7 +757,7 @@ function ShareInviteButton({ resultId }: { resultId: string | null }) {
     if (navigator.share) {
       try { await navigator.share({ title, text, url }); } catch {}
     } else {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(`${text}\n\n${url}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     }
