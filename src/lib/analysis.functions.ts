@@ -54,7 +54,7 @@ export const generateIndividualAnalysis = createServerFn({ method: "POST" })
       `\nAppuie CHAQUE affirmation sur les scores chiffrés. Utilise un ton professionnel, bienveillant, engageant et sans jugement. Sois précis et concret, évite les généralités. Vise 800 à 1200 mots.`;
 
     const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
