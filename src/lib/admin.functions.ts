@@ -8,7 +8,7 @@ export const listAdminResults = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("results")
       .select(
-        "id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested",
+        "id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested, referred_by",
       )
       .order("created_at", { ascending: false })
       .limit(500);
@@ -87,14 +87,20 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("Clé IA manquante.");
 
     const prompt =
-      `Équipe${data.teamName ? ` « ${data.teamName} »` : ""} composée de ${members.length} personnes ayant passé un égogramme (analyse transactionnelle, scores de 0 à 10 par état du moi) :\n` +
+      `Équipe${data.teamName ? ` « ${data.teamName} »` : ""} composée de ${members.length} personnes ayant passé un égogramme (analyse transactionnelle selon Dusay, scores de 0 à 10 par état du moi) :\n` +
       members.join("\n") +
-      `\n\nRédige une analyse d'équipe structurée en markdown, en français, avec ces sections :\n` +
-      `## Portrait global de l'équipe\n## Cartographie des états du moi dominants et absents\n## Complémentarités et synergies\n## Risques relationnels et jeux psychologiques probables (triangle de Karpman, symbiose, méconnaissances)\n## Dynamiques de décision et de communication\n## Recommandations opérationnelles pour le manager/coach\n## Points de vigilance individuels (sans jugement, en nommant les personnes)\n` +
-      `Sois précis, appuie chaque affirmation sur les scores, garde un ton professionnel de psychiatre expert en analyse transactionnelle, environ 600 à 900 mots.`;
+      `\n\nRédige une analyse d'équipe approfondie en markdown, en français, avec ces sections :\n` +
+      `## 🎯 Portrait global de l'équipe\nSynthèse de la dynamique collective. Quel est le « profil dominant » de cette équipe ? Quelle culture relationnelle se dégage ? Position de vie collective probable.\n` +
+      `## 📊 Cartographie des états du moi\nTableau comparatif des profils. Qui porte quel état du moi pour le groupe ? Identifie les spécialisations implicites (le « parent » du groupe, le « rebelle », le « créatif », etc.).\n` +
+      `## 🤝 Complémentarités et synergies\nQuels binômes ou trinômes fonctionnent naturellement bien ensemble ? Pourquoi (transactions parallèles, complémentarité Parent/Enfant, etc.) ? Donne des exemples concrets de situations de travail.\n` +
+      `## ⚠️ Risques relationnels et jeux psychologiques\nIdentifie 3-4 jeux psychologiques probables ENTRE les membres (triangle de Karpman collectif). Qui risque de jouer quel rôle ? Quelles symbioses institutionnelles peuvent émerger ? Quelles méconnaissances de groupe ?\n` +
+      `## 💬 Dynamiques de communication et de décision\nComment cette équipe prend-elle ses décisions (consensus, autorité, évitement) ? Quels types de transactions dominent en réunion ? Qui parle à qui naturellement ? Quels circuits de communication sont manquants ?\n` +
+      `## 🛠️ Recommandations pour le coach/manager\nPropose 5-6 actions concrètes : ateliers, rituels d'équipe, changements de posture, exercices de développement. Pour chaque recommandation, précise l'objectif (quel état du moi développer chez qui) et la mise en œuvre pratique.\n` +
+      `## 👤 Points de vigilance individuels\nPour chaque membre, 2-3 lignes personnalisées : sa contribution clé au groupe, son risque principal, et une piste de développement prioritaire.\n` +
+      `\nAppuie CHAQUE affirmation sur les scores chiffrés des membres. Compare les profils entre eux. Sois précis, concret, engageant. Vise 1000 à 1500 mots.`;
 
     const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,7 +108,7 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
           system_instruction: {
             parts: [
               {
-                text: "Tu es psychiatre et superviseur, expert reconnu en analyse transactionnelle (Berne, Karpman, Kahler). Tu analyses des égogrammes d'équipe pour un coach professionnel. Tu écris en français, en markdown, sans disclaimer inutile.",
+                text: "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, John Dusay, Claude Steiner). Tu analyses des égogrammes d'équipe pour un coach professionnel. Tu maîtrises les dynamiques de groupe, les transactions croisées, les jeux systémiques, les positions de vie, les symbioses institutionnelles et les processus de groupe. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown. Tu illustres par des exemples concrets de situations d'équipe. Tu ne fais aucun disclaimer.",
               },
             ],
           },

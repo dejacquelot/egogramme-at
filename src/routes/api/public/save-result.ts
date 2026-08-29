@@ -35,6 +35,7 @@ export const Route = createFileRoute("/api/public/save-result")({
           const body = await request.json();
           const scores = scoresSchema.parse(body?.scores);
           const existingId = typeof body?.resultId === "string" ? body.resultId : null;
+          const referredBy = typeof body?.referred_by === "string" ? body.referred_by : null;
           const ip = getClientIp(request);
           const ipHash = hashIp(ip);
           const { supabaseAdmin } = await import(
@@ -52,9 +53,11 @@ export const Route = createFileRoute("/api/public/save-result")({
           }
 
           // Insert new result
+          const insertData: Record<string, unknown> = { ip_hash: ipHash, scores };
+          if (referredBy) insertData.referred_by = referredBy;
           const { data, error } = await supabaseAdmin
             .from("results")
-            .insert({ ip_hash: ipHash, scores })
+            .insert(insertData)
             .select("id")
             .single();
           if (error) throw error;

@@ -254,6 +254,21 @@ function Index() {
 
   const maxScore = Math.max(...Object.values(scores), 1);
 
+  // Capture referral param from URL
+  const [referredBy, setReferredBy] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) {
+        setReferredBy(ref);
+        // Clean URL without reloading
+        const url = new URL(window.location.href);
+        url.searchParams.delete("ref");
+        window.history.replaceState({}, "", url.pathname);
+      }
+    }
+  }, []);
 
   // Save result once when the 60 questions are answered
   const savedRef = useRef(false);
@@ -264,7 +279,7 @@ function Index() {
       fetch("/api/public/save-result", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scores, resultId }),
+        body: JSON.stringify({ scores, resultId, referred_by: referredBy }),
       })
         .then((r) => r.json())
         .then((j) => {
@@ -725,14 +740,15 @@ function ResultSection({
         </div>
       )}
 
-      <ShareInviteButton />
+      <ShareInviteButton resultId={resultId} />
     </Card>
   );
 }
 
-function ShareInviteButton() {
+function ShareInviteButton({ resultId }: { resultId: string | null }) {
   const [copied, setCopied] = useState(false);
-  const url = typeof window !== "undefined" ? window.location.origin : "https://egogramme-at.vercel.app";
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://egogramme-at.vercel.app";
+  const url = resultId ? `${baseUrl}?ref=${resultId}` : baseUrl;
   const title = "Découvre ton profil relationnel";
   const text = "Je viens de faire ce test qui m'a donné une analyse de mon profil relationnel. Il permet ensuite d'analyser comment on fonctionne entre nous et d'avoir des pistes de coaching. Ça me tenterait bien qu'on le fasse — ça prend 5 minutes 🤝";
 
@@ -748,15 +764,22 @@ function ShareInviteButton() {
   };
 
   return (
-    <div className="mt-6 border-t border-border pt-6 text-center">
-      <p className="mb-3 text-sm text-muted-foreground">
-        Découvrez ensuite votre façon de fonctionner ensemble.
+    <div className="mt-8 rounded-xl bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-200 p-6 text-center">
+      <p className="text-sm text-yellow-700 mb-1 font-medium">
+        Vous venez de découvrir votre profil — bravo ! 🎉
       </p>
-      <Button onClick={handleShare} className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-base px-6 py-3">
-        💛 Inviter quelqu'un à faire le test
-      </Button>
+      <p className="text-sm text-yellow-700 mb-4">
+        L'égogramme révèle aussi <strong>comment vous fonctionnez à plusieurs</strong> :
+        complémentarités, tensions, leviers relationnels.
+      </p>
+      <button onClick={handleShare} className="inline-flex items-center gap-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-base px-6 py-3 shadow-md transition-colors cursor-pointer">
+        💛 Invitez un ami, un collègue, votre manager ou votre équipe !
+      </button>
+      <p className="mt-3 text-xs text-yellow-600">
+        5 minutes · gratuit · 100 % confidentiel
+      </p>
       {copied && (
-        <p className="mt-2 text-sm text-green-600 font-medium">Lien copié !</p>
+        <p className="mt-2 text-sm text-green-600 font-medium">✅ Lien copié dans le presse-papier !</p>
       )}
     </div>
   );
