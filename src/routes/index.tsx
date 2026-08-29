@@ -755,6 +755,26 @@ function ShareInviteButton({ resultId }: { resultId: string | null }) {
     }
   };
 
+  const handleEmail = () => {
+    fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
+    const subject = encodeURIComponent(title);
+    const body = encodeURIComponent(`${text}\n\n${url}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
+  };
+
+  const handleOutlook = () => {
+    fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
+    const subject = encodeURIComponent(title);
+    const body = encodeURIComponent(`${text}\n\n${url}`);
+    window.open(`https://outlook.office.com/mail/deeplink/compose?subject=${subject}&body=${body}`, "_blank");
+  };
+
+  const handleWhatsApp = () => {
+    fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
+    const msg = encodeURIComponent(`${text}\n\n${url}`);
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  };
+
   return (
     <div className="mt-8 rounded-xl bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-200 p-6 text-center">
       <p className="text-sm text-yellow-700 mb-1 font-medium">
@@ -764,9 +784,20 @@ function ShareInviteButton({ resultId }: { resultId: string | null }) {
         L'égogramme révèle aussi <strong>comment vous fonctionnez à plusieurs</strong> :
         complémentarités, tensions, leviers relationnels.
       </p>
-      <button onClick={handleShare} className="inline-flex items-center gap-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-base px-6 py-3 shadow-md transition-colors cursor-pointer">
-        💛 Invitez un ami, un collègue, votre manager ou votre équipe !
-      </button>
+      <div className="flex flex-wrap justify-center gap-3">
+        <button onClick={handleEmail} className="inline-flex items-center gap-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
+          ✉️ Email
+        </button>
+        <button onClick={handleOutlook} className="inline-flex items-center gap-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
+          📧 Outlook
+        </button>
+        <button onClick={handleWhatsApp} className="inline-flex items-center gap-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
+          💬 WhatsApp
+        </button>
+        <button onClick={handleShare} className="inline-flex items-center gap-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-black font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
+          📋 Copier
+        </button>
+      </div>
       <p className="mt-3 text-xs text-yellow-600">
         5 minutes · gratuit · 100 % confidentiel
       </p>
