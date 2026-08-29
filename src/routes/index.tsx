@@ -780,9 +780,11 @@ function ShareInviteButton({ resultId }: { resultId: string | null }) {
       <p className="text-sm text-yellow-700 mb-1 font-medium">
         Vous venez de découvrir votre profil — bravo ! 🎉
       </p>
+      <p className="text-sm text-yellow-700 mb-2">
+        Chaque participant reçoit d'abord <strong>son analyse individuelle</strong> personnalisée.
+      </p>
       <p className="text-sm text-yellow-700 mb-4">
-        L'égogramme révèle aussi <strong>comment vous fonctionnez à plusieurs</strong> :
-        complémentarités, tensions, leviers relationnels.
+        Ensuite, des <strong>analyses collectives</strong> sont possibles pour comprendre comment vous fonctionnez à plusieurs : complémentarités, tensions, leviers relationnels.
       </p>
       <div className="flex flex-wrap justify-center gap-3">
         <button onClick={handleEmail} className="inline-flex items-center gap-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
