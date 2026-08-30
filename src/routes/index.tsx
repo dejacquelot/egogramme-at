@@ -205,7 +205,10 @@ function Index() {
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: { prompt: "select_account" },
+      },
     });
   };
 
@@ -873,7 +876,10 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
     }
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/mon-espace` },
+      options: {
+        redirectTo: `${window.location.origin}/mon-espace`,
+        queryParams: { prompt: "select_account" },
+      },
     });
   };
 
