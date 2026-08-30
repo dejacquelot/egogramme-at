@@ -13,6 +13,7 @@ import {
   type CatKey,
 } from "@/lib/team-report";
 import { supabase } from "@/integrations/supabase/client";
+import { completeInvitation, linkResultToUser } from "@/lib/invitation.functions";
 
 const ADMIN_EMAILS = ["dejacquelot@gmail.com"];
 
@@ -169,7 +170,7 @@ const MAPPING: Record<CategoryKey, number[]> = {
 
 function Index() {
   // Auth state
-  type UserInfo = { email: string; firstName: string; lastName: string } | null;
+  type UserInfo = { id: string; email: string; firstName: string; lastName: string } | null;
   const [user, setUser] = useState<UserInfo>(null);
   const isAdmin = user !== null && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
@@ -178,6 +179,7 @@ function Index() {
       if (data.user) {
         const meta = data.user.user_metadata ?? {};
         setUser({
+          id: data.user.id,
           email: data.user.email ?? "",
           firstName: (meta.given_name as string) ?? (meta.full_name as string)?.split(" ")[0] ?? "",
           lastName: (meta.family_name as string) ?? (meta.full_name as string)?.split(" ").slice(1).join(" ") ?? "",
@@ -188,6 +190,7 @@ function Index() {
       if (session?.user) {
         const meta = session.user.user_metadata ?? {};
         setUser({
+          id: session.user.id,
           email: session.user.email ?? "",
           firstName: (meta.given_name as string) ?? (meta.full_name as string)?.split(" ")[0] ?? "",
           lastName: (meta.family_name as string) ?? (meta.full_name as string)?.split(" ").slice(1).join(" ") ?? "",
@@ -254,17 +257,20 @@ function Index() {
 
   const maxScore = Math.max(...Object.values(scores), 1);
 
-  // Capture referral param from URL
+  // Capture referral and invitation params from URL
   const [referredBy, setReferredBy] = useState<string | null>(null);
+  const [invToken, setInvToken] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get("ref");
-      if (ref) {
-        setReferredBy(ref);
-        // Clean URL without reloading
+      const inv = params.get("inv");
+      if (ref) setReferredBy(ref);
+      if (inv) setInvToken(inv);
+      if (ref || inv) {
         const url = new URL(window.location.href);
         url.searchParams.delete("ref");
+        url.searchParams.delete("inv");
         window.history.replaceState({}, "", url.pathname);
       }
     }
@@ -536,7 +542,7 @@ function Index() {
 
       {answeredCount === 60 && (
         <section className="mx-auto max-w-5xl px-4 pb-12">
-          <ResultSection scores={scores} resultId={resultId} setResultId={setResultId} referredBy={referredBy} userFirstName={user?.firstName} userLastName={user?.lastName} />
+          <ResultSection scores={scores} resultId={resultId} setResultId={setResultId} referredBy={referredBy} invToken={invToken} user={user} userFirstName={user?.firstName} userLastName={user?.lastName} />
         </section>
       )}
     </div>
@@ -545,11 +551,15 @@ function Index() {
 
 type Scores = Record<CategoryKey, number>;
 
+type UserInfo = { id?: string; email: string; firstName: string; lastName: string } | null;
+
 function ResultSection({
   scores,
   resultId,
   setResultId,
   referredBy,
+  invToken,
+  user,
   userFirstName,
   userLastName,
 }: {
@@ -557,6 +567,8 @@ function ResultSection({
   resultId: string | null;
   setResultId: (id: string) => void;
   referredBy: string | null;
+  invToken: string | null;
+  user: UserInfo;
   userFirstName?: string;
   userLastName?: string;
 }) {
@@ -581,7 +593,7 @@ function ResultSection({
   );
   const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
 
-  const persistIdentity = async (id: string, contactRequested: boolean) => {
+  const persistIdentity = async (id: string) => {
     try {
       await fetch("/api/public/save-contact", {
         method: "POST",
@@ -590,8 +602,8 @@ function ResultSection({
           id,
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          contact_requested: contactRequested,
-          phone: contactRequested ? phone.trim() : null,
+          contact_requested: false,
+          phone: null,
         }),
       });
     } catch {
@@ -616,7 +628,17 @@ function ResultSection({
       const savedId = (saveRes?.ok && saveRes?.id) ? saveRes.id as string : resultId;
       if (savedId) {
         setResultId(savedId);
-        persistIdentity(savedId, false);
+        persistIdentity(savedId);
+
+        // Complete invitation if arrived via ?inv= link
+        if (invToken) {
+          completeInvitation({ data: { token: invToken, resultId: savedId } }).catch(() => {});
+        }
+
+        // Link result to user if already logged in
+        if (user?.id) {
+          linkResultToUser({ data: { resultId: savedId, userId: user.id } }).catch(() => {});
+        }
       }
 
       const res = await generateIndividualAnalysis({
@@ -734,6 +756,24 @@ function ResultSection({
         </div>
       )}
 
+      {analysis && !user && (
+        <RegistrationBlock resultId={resultId} />
+      )}
+
+      {analysis && user && (
+        <div className="mt-8 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-6 text-center">
+          <p className="text-sm text-blue-700 mb-1 font-medium">
+            Vous venez de découvrir votre profil — bravo ! 🎉
+          </p>
+          <p className="text-sm text-blue-700 mb-4">
+            Invitez des amis ou collègues et générez une <strong>analyse collective</strong> dès que 2 personnes ont répondu.
+          </p>
+          <Link to="/mon-espace" className="inline-flex items-center gap-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm px-6 py-3 shadow-md transition-colors">
+            👥 Accéder à Mon Espace
+          </Link>
+        </div>
+      )}
+
       <ShareInviteButton resultId={resultId} />
     </Card>
   );
@@ -777,6 +817,12 @@ function ShareInviteButton({ resultId }: { resultId: string | null }) {
     window.open(`https://wa.me/?text=${msg}`, "_blank");
   };
 
+  const handleSms = () => {
+    fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
+    const msg = encodeURIComponent(`${text}\n\n${url}`);
+    window.open(`sms:?body=${msg}`, "_blank");
+  };
+
   return (
     <div className="mt-8 rounded-xl bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-200 p-6 text-center">
       <p className="text-sm text-yellow-700 mb-1 font-medium">
@@ -798,6 +844,9 @@ function ShareInviteButton({ resultId }: { resultId: string | null }) {
         <button onClick={handleWhatsApp} className="inline-flex items-center gap-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
           💬 WhatsApp
         </button>
+        <button onClick={handleSms} className="inline-flex items-center gap-2 rounded-lg bg-orange-400 hover:bg-orange-500 text-white font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
+          📱 SMS
+        </button>
         <button onClick={handleShare} className="inline-flex items-center gap-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-black font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
           📋 Copier
         </button>
@@ -808,6 +857,65 @@ function ShareInviteButton({ resultId }: { resultId: string | null }) {
       {copied && (
         <p className="mt-2 text-sm text-green-600 font-medium">✅ Lien copié dans le presse-papier !</p>
       )}
+    </div>
+  );
+}
+
+function RegistrationBlock({ resultId }: { resultId: string | null }) {
+  const [rgpd, setRgpd] = useState(false);
+  const [registering, setRegistering] = useState(false);
+
+  const handleRegister = async () => {
+    if (!rgpd) return;
+    setRegistering(true);
+    if (resultId && typeof window !== "undefined") {
+      localStorage.setItem("egogramme_pending_result", resultId);
+    }
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/mon-espace` },
+    });
+  };
+
+  return (
+    <div className="mt-8 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 p-6">
+      <h3 className="text-base font-bold text-indigo-800 mb-2 text-center">
+        🔓 Créez votre compte pour aller plus loin
+      </h3>
+      <p className="text-sm text-indigo-700 mb-4 text-center">
+        Accédez à votre <strong>espace personnel</strong> pour inviter des amis ou collègues,
+        suivre qui a répondu, envoyer des relances et générer une <strong>analyse collective</strong>
+        dès que 2 personnes ont passé le test.
+      </p>
+
+      <div className="flex items-start gap-2 mb-4">
+        <input
+          type="checkbox"
+          id="rgpd-consent"
+          checked={rgpd}
+          onChange={(e) => setRgpd(e.target.checked)}
+          className="mt-1 h-4 w-4 accent-indigo-600 cursor-pointer"
+        />
+        <label htmlFor="rgpd-consent" className="text-xs text-indigo-700 cursor-pointer">
+          En créant mon compte, j'accepte le traitement et la sauvegarde de mes données d'égogramme.
+        </label>
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={handleRegister}
+          disabled={!rgpd || registering}
+          className="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-black font-medium text-sm px-6 py-3 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        >
+          <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
+            <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+            <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
+            <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
+            <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
+          </svg>
+          {registering ? "Connexion…" : "S'inscrire avec Google"}
+        </button>
+      </div>
     </div>
   );
 }
