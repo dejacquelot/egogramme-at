@@ -334,6 +334,11 @@ function Index() {
             </div>
             {user ? (
               <div className="flex items-center gap-2">
+                <Link to="/mon-espace">
+                  <Button variant="outline" size="sm">
+                    👥 Mon Espace
+                  </Button>
+                </Link>
                 <span className="text-xs text-muted-foreground">
                   {user.firstName || user.email}
                 </span>
