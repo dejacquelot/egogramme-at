@@ -18,6 +18,10 @@ import { completeInvitation, linkResultToUser } from "@/lib/invitation.functions
 const ADMIN_EMAILS = ["dejacquelot@gmail.com"];
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    ref: (typeof search.ref === "string" ? search.ref : undefined) as string | undefined,
+    inv: (typeof search.inv === "string" ? search.inv : undefined) as string | undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Test égogramme gratuit — mieux vous connaître pour mieux interagir" },
@@ -169,6 +173,9 @@ const MAPPING: Record<CategoryKey, number[]> = {
 };
 
 function Index() {
+  // Read search params from router
+  const { ref: routerRef, inv: routerInv } = Route.useSearch();
+
   // Auth state
   type UserInfo = { id: string; email: string; firstName: string; lastName: string } | null;
   const [user, setUser] = useState<UserInfo>(null);
@@ -261,21 +268,14 @@ function Index() {
   const maxScore = Math.max(...Object.values(scores), 1);
 
   // Capture referral and invitation params from URL
-  const [referredBy, setReferredBy] = useState<string | null>(null);
-  const [invToken, setInvToken] = useState<string | null>(null);
+  const [referredBy] = useState<string | null>(routerRef ?? null);
+  const [invToken] = useState<string | null>(routerInv ?? null);
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get("ref");
-      const inv = params.get("inv");
-      if (ref) setReferredBy(ref);
-      if (inv) setInvToken(inv);
-      if (ref || inv) {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("ref");
-        url.searchParams.delete("inv");
-        window.history.replaceState({}, "", url.pathname);
-      }
+    if (typeof window !== "undefined" && (routerRef || routerInv)) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("ref");
+      url.searchParams.delete("inv");
+      window.history.replaceState({}, "", url.pathname);
     }
   }, []);
 
