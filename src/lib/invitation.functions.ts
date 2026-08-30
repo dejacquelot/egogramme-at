@@ -1,6 +1,27 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+/** Fetch results by IDs (for report generation) */
+export const getResultsByIds = createServerFn({ method: "POST" })
+  .inputValidator((input: { ids: string[] }) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(20) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("results")
+      .select("id, scores, first_name, last_name, created_at")
+      .in("id", data.ids);
+    if (error) throw error;
+    return (rows ?? []) as Array<{
+      id: string;
+      scores: Record<string, number>;
+      first_name: string | null;
+      last_name: string | null;
+      created_at: string;
+    }>;
+  });
+
 /** Link a result to an authenticated user */
 export const linkResultToUser = createServerFn({ method: "POST" })
   .inputValidator((input: { resultId: string; userId: string }) =>

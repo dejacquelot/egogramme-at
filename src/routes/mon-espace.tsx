@@ -11,10 +11,18 @@ import {
   createInvitation,
   listMyInvitations,
   getMyResult,
+  getResultsByIds,
   remindInvitation,
   deleteInvitation,
 } from "@/lib/invitation.functions";
 import { generateTeamAnalysis } from "@/lib/admin.functions";
+import {
+  downloadTeamReportPdf,
+  downloadTeamReportImage,
+  type CatKey,
+  type ReportMember,
+  type ReportScores,
+} from "@/lib/team-report";
 
 export const Route = createFileRoute("/mon-espace")({
   head: () => ({
@@ -115,6 +123,9 @@ function Dashboard({ user }: { user: UserInfo }) {
   // Team analysis
   const [teamAnalysis, setTeamAnalysis] = useState<string | null>(null);
   const [generatingTeam, setGeneratingTeam] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<ReportMember[]>([]);
+  const [teamAverage, setTeamAverage] = useState<ReportScores | null>(null);
+  const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
 
   // Actions
   const [remindingId, setRemindingId] = useState<string | null>(null);
@@ -257,15 +268,51 @@ function Dashboard({ user }: { user: UserInfo }) {
     setGeneratingTeam(true);
     setTeamAnalysis(null);
     try {
-      const res = await generateTeamAnalysis({
-        data: { ids: resultIds, teamName: `Groupe de ${user.firstName}` },
-      });
+      const [res, memberRows] = await Promise.all([
+        generateTeamAnalysis({
+          data: { ids: resultIds, teamName: `Groupe de ${user.firstName}` },
+        }),
+        getResultsByIds({ data: { ids: resultIds } }),
+      ]);
       setTeamAnalysis(res.analysis);
+
+      // Build report members for PDF/image download
+      const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+      const members: ReportMember[] = memberRows.map((r) => ({
+        name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
+        date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
+        scores: Object.fromEntries(cats.map((c) => [c, r.scores[c] ?? 0])) as ReportScores,
+      }));
+      setTeamMembers(members);
+
+      const avg = Object.fromEntries(
+        cats.map((c) => [c, Math.round(members.reduce((s, m) => s + m.scores[c], 0) / members.length)]),
+      ) as ReportScores;
+      setTeamAverage(avg);
     } catch (e) {
       console.error("team analysis error:", e);
       setTeamAnalysis("Erreur lors de la génération. Réessayez.");
     } finally {
       setGeneratingTeam(false);
+    }
+  };
+
+  const handleTeamDownload = async (kind: "pdf" | "img") => {
+    if (!teamAnalysis || !teamAverage) return;
+    setDownloading(kind);
+    try {
+      const input = {
+        teamName: `Groupe de ${user.firstName}`,
+        average: teamAverage,
+        members: teamMembers,
+        analysis: teamAnalysis,
+      };
+      if (kind === "pdf") await downloadTeamReportPdf(input);
+      else await downloadTeamReportImage(input);
+    } catch (e) {
+      console.error("download error:", e);
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -472,6 +519,14 @@ function Dashboard({ user }: { user: UserInfo }) {
           <Card className="p-6">
             <h2 className="text-base font-semibold mb-4">🤝 Analyse collective</h2>
             <MarkdownText text={teamAnalysis} />
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button onClick={() => handleTeamDownload("pdf")} disabled={downloading !== null}>
+                {downloading === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
+              </Button>
+              <Button variant="outline" onClick={() => handleTeamDownload("img")} disabled={downloading !== null}>
+                {downloading === "img" ? "Préparation…" : "🖼️ Télécharger en image"}
+              </Button>
+            </div>
           </Card>
         )}
       </main>
