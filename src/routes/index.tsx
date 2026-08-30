@@ -782,12 +782,12 @@ function ResultSection({
         </div>
       )}
 
-      <ShareInviteButton resultId={resultId} />
+      <ShareInviteButton resultId={resultId} analysisGenerated={!!analysis} />
     </Card>
   );
 }
 
-function ShareInviteButton({ resultId }: { resultId: string | null }) {
+function ShareInviteButton({ resultId, analysisGenerated }: { resultId: string | null; analysisGenerated: boolean }) {
   const [copied, setCopied] = useState(false);
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://egogramme-at.vercel.app";
   const url = resultId ? `${baseUrl}?ref=${resultId}` : baseUrl;
@@ -833,15 +833,25 @@ function ShareInviteButton({ resultId }: { resultId: string | null }) {
 
   return (
     <div className="mt-8 rounded-xl bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-200 p-6 text-center">
-      <p className="text-sm text-yellow-700 mb-1 font-medium">
+      <p className="text-sm text-yellow-700 mb-2 font-medium">
         Vous venez de découvrir votre profil — bravo ! 🎉
       </p>
-      <p className="text-sm text-yellow-700 mb-2">
-        Chaque participant reçoit d'abord <strong>son analyse individuelle</strong> personnalisée.
-      </p>
-      <p className="text-sm text-yellow-700 mb-4">
-        Ensuite, des <strong>analyses collectives</strong> sont possibles pour comprendre comment vous fonctionnez à plusieurs : complémentarités, tensions, leviers relationnels.
-      </p>
+      {!analysisGenerated ? (
+        <>
+          <p className="text-sm text-yellow-700 mb-2">
+            Partagez votre expérience avec vos proches, votre conjoint, vos coéquipiers, votre bureau d'association.
+          </p>
+          <p className="text-sm text-yellow-700 mb-4">
+            Des <strong>analyses collectives</strong> sont possibles pour comprendre comment vous fonctionnez à plusieurs : complémentarités, tensions, leviers relationnels.
+            <br />Pour cela, <strong>créez votre compte</strong> après avoir généré votre analyse individuelle.
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-yellow-700 mb-4">
+          Chaque participant reçoit d'abord <strong>son analyse individuelle</strong> personnalisée.
+          Ensuite, des <strong>analyses collectives</strong> sont possibles pour comprendre comment vous fonctionnez à plusieurs.
+        </p>
+      )}
       <div className="flex flex-wrap justify-center gap-3">
         <button onClick={handleEmail} className="inline-flex items-center gap-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-sm px-5 py-3 shadow-md transition-colors cursor-pointer">
           ✉️ Email
