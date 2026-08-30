@@ -581,14 +581,13 @@ function ResultSection({
   );
   const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
 
-  const persistIdentity = async (contactRequested: boolean) => {
-    if (!resultId) return;
+  const persistIdentity = async (id: string, contactRequested: boolean) => {
     try {
       await fetch("/api/public/save-contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: resultId,
+          id,
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           contact_requested: contactRequested,
@@ -614,9 +613,12 @@ function ResultSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scores, resultId, referred_by: referredBy }),
       }).then((r) => r.json());
-      if (saveRes?.ok && saveRes?.id) setResultId(saveRes.id as string);
+      const savedId = (saveRes?.ok && saveRes?.id) ? saveRes.id as string : resultId;
+      if (savedId) {
+        setResultId(savedId);
+        persistIdentity(savedId, false);
+      }
 
-      persistIdentity(false);
       const res = await generateIndividualAnalysis({
         data: { scores, firstName: firstName.trim() },
       });
