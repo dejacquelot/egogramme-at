@@ -14,8 +14,8 @@ import {
 } from "@/lib/team-report";
 import { supabase } from "@/integrations/supabase/client";
 import { completeInvitation, linkResultToUser } from "@/lib/invitation.functions";
-
-const ADMIN_EMAILS = ["dejacquelot@gmail.com"];
+import { NavBar } from "@/components/nav-bar";
+import { isAdminEmail } from "@/lib/admin-config";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -179,7 +179,7 @@ function Index() {
   // Auth state
   type UserInfo = { id: string; email: string; firstName: string; lastName: string } | null;
   const [user, setUser] = useState<UserInfo>(null);
-  const isAdmin = user !== null && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const isAdmin = user !== null && isAdminEmail(user.email);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -284,6 +284,7 @@ function Index() {
 
   return (
     <div className="min-h-screen bg-background">
+      <NavBar isAdmin={isAdminEmail(user?.email)} />
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-5xl px-4 py-6">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -370,13 +371,10 @@ function Index() {
                   </Button>
                 </Link>
                 <Button variant="outline" size="sm" onClick={checkAll}>
-                  Tout cocher ✅
-                </Button>
-              </>
-            )}
-            <Button variant="outline" size="sm" onClick={reset}>
-              Réinitialiser
-            </Button>
+                      Tout cocher ✅
+                    </Button>
+                  </>
+                )}
           </div>
         </div>
       </header>
