@@ -23,6 +23,8 @@ import {
   type ReportMember,
   type ReportScores,
 } from "@/lib/team-report";
+import { NavBar } from "@/components/nav-bar";
+import { isAdminEmail } from "@/lib/admin-config";
 
 export const Route = createFileRoute("/mon-espace")({
   head: () => ({
@@ -334,6 +336,7 @@ function Dashboard({ user }: { user: UserInfo }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <NavBar isAdmin={isAdminEmail(user.email)} />
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-4xl px-4 py-4 flex items-center justify-between">

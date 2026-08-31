@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { isAdminEmail } from "@/lib/admin-config";
+import { NavBar } from "@/components/nav-bar";
 
 type Period = "day" | "week" | "month" | "quarter" | "year";
 
@@ -238,6 +239,7 @@ function StatsContent() {
 
   return (
     <div className="min-h-screen bg-background">
+      <NavBar isAdmin={true} />
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-6">
           <div>

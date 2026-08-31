@@ -23,6 +23,7 @@ import {
   type TeamReportInput,
 } from "@/lib/team-report";
 import { generateIndividualAnalysis as generateIndividualAnalysisFn } from "@/lib/analysis.functions";
+import { NavBar } from "@/components/nav-bar";
 
 
 
@@ -781,6 +782,7 @@ function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <NavBar isAdmin={true} />
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6">
           <div>
