@@ -93,6 +93,10 @@ function markdownToHtml(md: string): string {
   const isPipeLine = (l: string) => /\|/.test(l) && l.trim().includes("|");
   // Helper: is this a separator line like |:---|:---|
   const isSepLine = (l: string) => /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/.test(l.trim());
+  // Helper: is this an ASCII table border like +---+---+
+  const isAsciiBorder = (l: string) => /^\s*\+[-=+]+\+\s*$/.test(l.trim());
+  // Helper: is this an ASCII table data row like | cell | cell |
+  const isAsciiDataRow = (l: string) => /^\s*\|/.test(l) && !isSepLine(l);
 
   while (i < lines.length) {
     const line = lines[i];
@@ -107,6 +111,35 @@ function markdownToHtml(md: string): string {
       }
       out.push(renderKarpman(blockLines.join("\n")));
       i++;
+      continue;
+    }
+
+    // ASCII-art table: +---+---+ borders with | data | rows
+    if (isAsciiBorder(line)) {
+      const asciiLines: string[] = [];
+      while (i < lines.length) {
+        const cur = lines[i].trim();
+        if (isAsciiBorder(lines[i]) || isAsciiDataRow(lines[i])) {
+          asciiLines.push(lines[i]);
+          i++;
+        } else if (cur === "" && i + 1 < lines.length && (isAsciiBorder(lines[i + 1]) || isAsciiDataRow(lines[i + 1]))) {
+          i++;
+        } else {
+          break;
+        }
+      }
+      // Extract data rows (skip border lines)
+      const dataRows = asciiLines
+        .filter((l) => !isAsciiBorder(l))
+        .map((l) => l.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim()));
+      if (dataRows.length > 0) {
+        const [header, ...body] = dataRows;
+        const th = header.map((c) => `<th>${inlineMarkdown(c)}</th>`).join("");
+        const trs = body
+          .map((r) => "<tr>" + r.map((c) => `<td>${inlineMarkdown(c)}</td>`).join("") + "</tr>")
+          .join("");
+        out.push(`<table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`);
+      }
       continue;
     }
 
