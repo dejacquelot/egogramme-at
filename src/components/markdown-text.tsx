@@ -84,6 +84,15 @@ function markdownToHtml(md: string): string {
   // Strip ```html / ``` wrappers if IA wrapped output in a code block
   md = md.replace(/^```(?:html|markdown|md)?\n?/i, "").replace(/\n?```\s*$/i, "");
 
+  // Pre-pass: collapse blank lines between pipe-table rows so the table is contiguous
+  md = md.replace(/(^\|[^\n]*)\n\n(?=\|)/gm, "$1\n");
+  // Repeat until stable (handles multiple blanks between rows)
+  let prev = "";
+  while (prev !== md) {
+    prev = md;
+    md = md.replace(/(^\|[^\n]*)\n\n(?=\|)/gm, "$1\n");
+  }
+
   const out: string[] = [];
   const lines = md.split("\n");
   let i = 0;
