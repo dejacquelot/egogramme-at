@@ -284,7 +284,7 @@ function Index() {
 
   return (
     <div className="min-h-screen bg-background">
-      <NavBar isAdmin={isAdminEmail(user?.email)} />
+      <NavBar />
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-5xl px-4 py-6">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">

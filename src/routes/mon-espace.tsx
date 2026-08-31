@@ -336,7 +336,7 @@ function Dashboard({ user }: { user: UserInfo }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <NavBar isAdmin={isAdminEmail(user.email)} />
+      <NavBar />
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-4xl px-4 py-4 flex items-center justify-between">
