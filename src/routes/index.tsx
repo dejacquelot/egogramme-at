@@ -772,9 +772,11 @@ function ResultSection({
 function RegistrationBlock({ resultId }: { resultId: string | null }) {
   const [rgpd, setRgpd] = useState(false);
   const [registering, setRegistering] = useState(false);
-  const [magicEmail, setMagicEmail] = useState("");
-  const [magicSent, setMagicSent] = useState(false);
-  const [magicLoading, setMagicLoading] = useState(false);
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   const savePending = () => {
     if (resultId && typeof window !== "undefined") {
@@ -795,17 +797,32 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
     });
   };
 
-  const handleRegisterEmail = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rgpd || !magicEmail.trim()) return;
-    setMagicLoading(true);
+    if (!rgpd || !otpEmail.trim()) return;
+    setOtpLoading(true);
+    setOtpError("");
     savePending();
     const { error } = await supabase.auth.signInWithOtp({
-      email: magicEmail.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/mon-espace` },
+      email: otpEmail.trim(),
     });
-    setMagicLoading(false);
-    if (!error) setMagicSent(true);
+    setOtpLoading(false);
+    if (error) { setOtpError("Erreur d'envoi. Réessayez."); return; }
+    setOtpSent(true);
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode.trim()) return;
+    setOtpLoading(true);
+    setOtpError("");
+    const { error } = await supabase.auth.verifyOtp({
+      email: otpEmail.trim(),
+      token: otpCode.trim(),
+      type: "email",
+    });
+    setOtpLoading(false);
+    if (error) { setOtpError("Code invalide ou expiré."); return; }
   };
 
   return (
@@ -842,15 +859,39 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
           </label>
         </div>
 
-        {magicSent ? (
-          <div className="text-center py-2">
-            <p className="text-sm text-green-700 font-medium">
-              ✅ Lien de connexion envoyé à <strong>{magicEmail}</strong> !
+        {otpSent ? (
+          <form onSubmit={handleVerifyOtp} className="flex flex-col items-center gap-3 py-2">
+            <p className="text-sm text-indigo-700 font-medium">
+              📧 Code envoyé à <strong>{otpEmail}</strong>
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Vérifiez votre boîte mail (et les spams). Le lien vous connectera automatiquement.
-            </p>
-          </div>
+            <p className="text-xs text-muted-foreground">Saisissez le code à 6 chiffres reçu par email :</p>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="000000"
+              required
+              autoFocus
+              className="w-40 rounded-lg border border-gray-300 px-3 py-2.5 text-center tracking-[0.3em] font-mono text-xl"
+            />
+            {otpError && <p className="text-xs text-red-600">{otpError}</p>}
+            <button
+              type="submit"
+              disabled={otpLoading || otpCode.length < 6}
+              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {otpLoading ? "Vérification…" : "✓ Valider le code"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setOtpSent(false); setOtpCode(""); setOtpError(""); }}
+              className="text-xs text-indigo-600 hover:underline cursor-pointer"
+            >
+              ← Changer d'email
+            </button>
+          </form>
         ) : (
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap justify-center gap-2">
@@ -875,11 +916,11 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
               <div className="flex-1 border-t border-gray-300" />
             </div>
 
-            <form onSubmit={handleRegisterEmail} className="flex gap-2">
+            <form onSubmit={handleSendOtp} className="flex gap-2">
               <input
                 type="email"
-                value={magicEmail}
-                onChange={(e) => setMagicEmail(e.target.value)}
+                value={otpEmail}
+                onChange={(e) => setOtpEmail(e.target.value)}
                 placeholder="votre@email.com"
                 required
                 disabled={!rgpd}
@@ -887,12 +928,13 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
               />
               <button
                 type="submit"
-                disabled={!rgpd || magicLoading || !magicEmail.trim()}
+                disabled={!rgpd || otpLoading || !otpEmail.trim()}
                 className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
               >
-                {magicLoading ? "Envoi…" : "✉️ Recevoir le lien"}
+                {otpLoading ? "Envoi…" : "✉️ Recevoir le code"}
               </button>
             </form>
+            {otpError && <p className="text-xs text-red-600 text-center">{otpError}</p>}
           </div>
         )}
       </div>
