@@ -772,13 +772,20 @@ function ResultSection({
 function RegistrationBlock({ resultId }: { resultId: string | null }) {
   const [rgpd, setRgpd] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [magicEmail, setMagicEmail] = useState("");
+  const [magicSent, setMagicSent] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
 
-  const handleRegister = async () => {
-    if (!rgpd) return;
-    setRegistering(true);
+  const savePending = () => {
     if (resultId && typeof window !== "undefined") {
       localStorage.setItem("egogramme_pending_result", resultId);
     }
+  };
+
+  const handleRegisterGoogle = async () => {
+    if (!rgpd) return;
+    setRegistering(true);
+    savePending();
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -786,6 +793,19 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
         queryParams: { prompt: "select_account" },
       },
     });
+  };
+
+  const handleRegisterEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rgpd || !magicEmail.trim()) return;
+    setMagicLoading(true);
+    savePending();
+    const { error } = await supabase.auth.signInWithOtp({
+      email: magicEmail.trim(),
+      options: { emailRedirectTo: `${window.location.origin}/mon-espace` },
+    });
+    setMagicLoading(false);
+    if (!error) setMagicSent(true);
   };
 
   return (
@@ -822,21 +842,59 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
           </label>
         </div>
 
-        <div className="text-center">
-          <button
-            onClick={handleRegister}
-            disabled={!rgpd || registering}
-            className="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-black font-medium text-sm px-6 py-3 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
-              <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
-              <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
-              <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
-              <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
-            </svg>
-            {registering ? "Connexion…" : "Créer mon compte"}
-          </button>
-        </div>
+        {magicSent ? (
+          <div className="text-center py-2">
+            <p className="text-sm text-green-700 font-medium">
+              ✅ Lien de connexion envoyé à <strong>{magicEmail}</strong> !
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Vérifiez votre boîte mail (et les spams). Le lien vous connectera automatiquement.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                onClick={handleRegisterGoogle}
+                disabled={!rgpd || registering}
+                className="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-black font-medium text-sm px-5 py-2.5 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
+                  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+                  <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
+                  <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
+                  <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
+                </svg>
+                {registering ? "Connexion…" : "Créer avec Google"}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1 border-t border-gray-300" />
+              <span className="text-xs text-muted-foreground">ou par email</span>
+              <div className="flex-1 border-t border-gray-300" />
+            </div>
+
+            <form onSubmit={handleRegisterEmail} className="flex gap-2">
+              <input
+                type="email"
+                value={magicEmail}
+                onChange={(e) => setMagicEmail(e.target.value)}
+                placeholder="votre@email.com"
+                required
+                disabled={!rgpd}
+                className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={!rgpd || magicLoading || !magicEmail.trim()}
+                className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
+              >
+                {magicLoading ? "Envoi…" : "✉️ Recevoir le lien"}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );
