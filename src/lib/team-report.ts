@@ -5,7 +5,7 @@ export type ReportScores = Record<CatKey, number>;
 
 export const REPORT_CATEGORIES: { key: CatKey; label: string; short: string; color: string }[] = [
   { key: "PN", label: "Parent Nourricier", short: "PNr", color: "#e2825a" },
-  { key: "PNo", label: "Parent Normatif", short: "PNo", color: "#c98a2e" },
+  { key: "PNo", label: "Parent Normatif", short: "PNf", color: "#c98a2e" },
   { key: "A", label: "Adulte", short: "A", color: "#4a6fd0" },
   { key: "EL", label: "Enfant Libre", short: "EL", color: "#3fa863" },
   { key: "EAS", label: "Enfant Adapté Soumis", short: "EAS", color: "#8f68c2" },

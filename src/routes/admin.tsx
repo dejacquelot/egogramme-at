@@ -49,7 +49,7 @@ const CATEGORIES: {
   color: string;
 }[] = [
   { key: "PN", label: "Parent Nourricier", short: "PNr", color: "oklch(0.72 0.15 30)" },
-  { key: "PNo", label: "Parent Normatif", short: "PNo", color: "oklch(0.6 0.15 60)" },
+  { key: "PNo", label: "Parent Normatif", short: "PNf", color: "oklch(0.6 0.15 60)" },
   { key: "A", label: "Adulte", short: "A", color: "oklch(0.55 0.15 250)" },
   { key: "EL", label: "Enfant Libre", short: "EL", color: "oklch(0.7 0.17 140)" },
   { key: "EAS", label: "Enfant Adapté Soumis", short: "EAS", color: "oklch(0.6 0.13 310)" },

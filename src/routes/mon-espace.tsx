@@ -78,7 +78,7 @@ const CATEGORIES: {
   description: string;
 }[] = [
   { key: "PN", label: "Parent Nourricier", short: "PNr", color: "oklch(0.72 0.15 30)", description: "Bienveillant, protecteur, encourageant." },
-  { key: "PNo", label: "Parent Normatif", short: "PNo", color: "oklch(0.6 0.15 60)", description: "Cadre, règles, autorité, transmission de valeurs." },
+  { key: "PNo", label: "Parent Normatif", short: "PNf", color: "oklch(0.6 0.15 60)", description: "Cadre, règles, autorité, transmission de valeurs." },
   { key: "A", label: "Adulte", short: "A", color: "oklch(0.55 0.15 250)", description: "Rationnel, objectif, analytique, factuel." },
   { key: "EL", label: "Enfant Libre", short: "EL", color: "oklch(0.7 0.17 140)", description: "Spontané, créatif, expressif, joueur." },
   { key: "EAS", label: "Enfant Adapté Soumis", short: "EAS", color: "oklch(0.6 0.13 310)", description: "Conforme, poli, s'adapte aux attentes." },
@@ -672,7 +672,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                     <th className="py-2 pr-3 font-medium">Email</th>
                     <th className="py-2 pr-3 font-medium">Statut</th>
                    <th className="py-2 pr-3 font-medium text-center">PNr</th>
-                   <th className="py-2 pr-3 font-medium text-center">PNo</th>
+                   <th className="py-2 pr-3 font-medium text-center">PNf</th>
                    <th className="py-2 pr-3 font-medium text-center">A</th>
                    <th className="py-2 pr-3 font-medium text-center">EL</th>
                    <th className="py-2 pr-3 font-medium text-center">EAS</th>

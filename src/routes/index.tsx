@@ -129,7 +129,7 @@ const CATEGORIES: {
   {
     key: "PNo",
     label: "Parent Normatif",
-    short: "PNo",
+    short: "PNf",
     color: "oklch(0.6 0.15 60)",
     description: "Cadre, règles, autorité, transmission de valeurs.",
   },
