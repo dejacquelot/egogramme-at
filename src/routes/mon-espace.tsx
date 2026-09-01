@@ -233,6 +233,7 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [teamMembers, setTeamMembers] = useState<ReportMember[]>([]);
   const [teamAverage, setTeamAverage] = useState<ReportScores | null>(null);
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
+  const [invScores, setInvScores] = useState<Record<string, Record<string, number>>>({});
 
   // Actions
   const [remindingId, setRemindingId] = useState<string | null>(null);
@@ -274,6 +275,13 @@ function Dashboard({ user }: { user: UserInfo }) {
           try {
             const memberRows = await getResultsByIds({ data: { ids: resultIds } });
             const returnedIds = new Set(memberRows.map((r: any) => r.id));
+
+            // Build scores lookup by result_id
+            const scoresMap: Record<string, Record<string, number>> = {};
+            memberRows.forEach((r: any) => {
+              scoresMap[r.id] = r.scores;
+            });
+            setInvScores(scoresMap);
 
             // Detect completed invitations whose result was deleted
             const updatedInvs = invs.map((i: Invitation) => {
@@ -611,8 +619,14 @@ function Dashboard({ user }: { user: UserInfo }) {
                     <th className="py-2 pr-3 font-medium">Nom</th>
                     <th className="py-2 pr-3 font-medium">Email</th>
                     <th className="py-2 pr-3 font-medium">Statut</th>
-                    <th className="py-2 pr-3 font-medium">Date</th>
-                    <th className="py-2 font-medium text-right">Actions</th>
+                   <th className="py-2 pr-3 font-medium text-center">PNr</th>
+                   <th className="py-2 pr-3 font-medium text-center">PNo</th>
+                   <th className="py-2 pr-3 font-medium text-center">A</th>
+                   <th className="py-2 pr-3 font-medium text-center">EL</th>
+                   <th className="py-2 pr-3 font-medium text-center">EAS</th>
+                   <th className="py-2 pr-3 font-medium text-center">EAR</th>
+                   <th className="py-2 pr-3 font-medium">Date</th>
+                   <th className="py-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -629,6 +643,14 @@ function Dashboard({ user }: { user: UserInfo }) {
                           <span className="text-amber-600">⏳ En attente</span>
                         )}
                       </td>
+                      {["PN", "PNo", "A", "EL", "EAS", "EAR"].map((key) => {
+                        const s = inv.result_id && invScores[inv.result_id];
+                        return (
+                          <td key={key} className="py-2 pr-3 text-xs text-center tabular-nums">
+                            {s ? s[key] ?? "—" : "—"}
+                          </td>
+                        );
+                      })}
                       <td className="py-2 pr-3 text-xs whitespace-nowrap">
                         {formatDate(inv.created_at)}
                         {inv.reminded_at && (
