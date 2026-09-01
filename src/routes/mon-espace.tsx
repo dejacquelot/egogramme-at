@@ -276,23 +276,29 @@ function Dashboard({ user }: { user: UserInfo }) {
             const memberRows = await getResultsByIds({ data: { ids: resultIds } });
             const returnedIds = new Set(memberRows.map((r: any) => r.id));
 
-            // Build scores lookup by result_id
+            // Build scores lookup by result_id and detect results with missing scores
             const scoresMap: Record<string, Record<string, number>> = {};
+            const validIds = new Set<string>();
+            const scoreKeys = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
             memberRows.forEach((r: any) => {
-              scoresMap[r.id] = r.scores;
+              const hasScores = r.scores && scoreKeys.some((k) => typeof r.scores[k] === "number" && r.scores[k] > 0);
+              if (hasScores) {
+                scoresMap[r.id] = r.scores;
+                validIds.add(r.id);
+              }
             });
             setInvScores(scoresMap);
 
-            // Detect completed invitations whose result was deleted
+            // Detect completed invitations whose result was deleted or has no scores
             const updatedInvs = invs.map((i: Invitation) => {
-              if (i.status === "completed" && i.result_id && !returnedIds.has(i.result_id)) {
+              if (i.status === "completed" && i.result_id && !validIds.has(i.result_id)) {
                 return { ...i, status: "deleted" };
               }
               return i;
             });
             setInvitations(updatedInvs);
 
-            const validMembers = memberRows.filter((r: any) => returnedIds.has(r.id));
+            const validMembers = memberRows.filter((r: any) => validIds.has(r.id));
             const members: ReportMember[] = validMembers.map((r: any) => ({
               name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
               date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
