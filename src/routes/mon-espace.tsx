@@ -13,6 +13,7 @@ import {
   getMyResult,
   getResultsByIds,
   remindInvitation,
+  resetInvitation,
   deleteInvitation,
 } from "@/lib/invitation.functions";
 import { generateTeamAnalysis } from "@/lib/admin.functions";
@@ -272,16 +273,30 @@ function Dashboard({ user }: { user: UserInfo }) {
           const resultIds = [result.id, ...completed.map((i: Invitation) => i.result_id!).filter(Boolean)];
           try {
             const memberRows = await getResultsByIds({ data: { ids: resultIds } });
-            const members: ReportMember[] = memberRows.map((r: any) => ({
+            const returnedIds = new Set(memberRows.map((r: any) => r.id));
+
+            // Detect completed invitations whose result was deleted
+            const updatedInvs = invs.map((i: Invitation) => {
+              if (i.status === "completed" && i.result_id && !returnedIds.has(i.result_id)) {
+                return { ...i, status: "deleted" };
+              }
+              return i;
+            });
+            setInvitations(updatedInvs);
+
+            const validMembers = memberRows.filter((r: any) => returnedIds.has(r.id));
+            const members: ReportMember[] = validMembers.map((r: any) => ({
               name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
               date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
               scores: Object.fromEntries(cats.map((c) => [c, r.scores[c] ?? 0])) as ReportScores,
             }));
             setTeamMembers(members);
-            const avg = Object.fromEntries(
-              cats.map((c) => [c, Math.round(members.reduce((s, m) => s + m.scores[c], 0) / members.length)]),
-            ) as ReportScores;
-            setTeamAverage(avg);
+            if (members.length >= 2) {
+              const avg = Object.fromEntries(
+                cats.map((c) => [c, Math.round(members.reduce((s, m) => s + m.scores[c], 0) / members.length)]),
+              ) as ReportScores;
+              setTeamAverage(avg);
+            }
           } catch (e) {
             console.error("compute team avg error:", e);
           }
@@ -296,6 +311,7 @@ function Dashboard({ user }: { user: UserInfo }) {
 
   const completedInvitations = invitations.filter((i) => i.status === "completed");
   const pendingInvitations = invitations.filter((i) => i.status === "pending");
+  const deletedInvitations = invitations.filter((i) => i.status === "deleted");
 
   const handleInvite = async (channel: "email" | "outlook" | "whatsapp" | "sms" | "copy") => {
     if (!invName.trim() && !invEmail.trim()) return;
@@ -354,10 +370,18 @@ function Dashboard({ user }: { user: UserInfo }) {
   const handleRemind = async (inv: Invitation) => {
     setRemindingId(inv.id);
     try {
-      await remindInvitation({ data: { invitationId: inv.id } });
-      setInvitations((prev) =>
-        prev.map((i) => (i.id === inv.id ? { ...i, reminded_at: new Date().toISOString() } : i)),
-      );
+      if (inv.status === "deleted") {
+        // Reset invitation back to pending since the result was deleted
+        await resetInvitation({ data: { invitationId: inv.id } });
+        setInvitations((prev) =>
+          prev.map((i) => (i.id === inv.id ? { ...i, status: "pending", result_id: null, reminded_at: new Date().toISOString() } : i)),
+        );
+      } else {
+        await remindInvitation({ data: { invitationId: inv.id } });
+        setInvitations((prev) =>
+          prev.map((i) => (i.id === inv.id ? { ...i, reminded_at: new Date().toISOString() } : i)),
+        );
+      }
 
       const url = `${baseUrl}?inv=${inv.token}`;
       const inviterName = [user.firstName, user.lastName].filter(Boolean).join(" ");
@@ -599,6 +623,8 @@ function Dashboard({ user }: { user: UserInfo }) {
                       <td className="py-2 pr-3 text-xs">
                         {inv.status === "completed" ? (
                           <span className="text-green-600 font-medium">✅ Répondu</span>
+                        ) : inv.status === "deleted" ? (
+                          <span className="text-red-500 font-medium">🗑️ Supprimé</span>
                         ) : (
                           <span className="text-amber-600">⏳ En attente</span>
                         )}
@@ -612,7 +638,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                         )}
                       </td>
                       <td className="py-2 text-right space-x-1">
-                        {inv.status === "pending" && (
+                        {(inv.status === "pending" || inv.status === "deleted") && (
                           <Button
                             size="sm"
                             variant="ghost"

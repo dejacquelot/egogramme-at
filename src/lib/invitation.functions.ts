@@ -139,6 +139,21 @@ export const deleteInvitation = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Reset a deleted/completed invitation back to pending (e.g. when result was deleted) */
+export const resetInvitation = createServerFn({ method: "POST" })
+  .inputValidator((input: { invitationId: string }) =>
+    z.object({ invitationId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("invitations")
+      .update({ status: "pending", result_id: null, reminded_at: new Date().toISOString() } as Record<string, unknown>)
+      .eq("id", data.invitationId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
 /** Complete invitation when invitee finishes test */
 export const completeInvitation = createServerFn({ method: "POST" })
   .inputValidator((input: { token: string; resultId: string }) =>
