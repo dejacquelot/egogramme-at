@@ -975,9 +975,9 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
           <label htmlFor="rgpd-consent" className="text-xs text-gray-700 cursor-pointer">
             J'accepte que mes réponses et mon profil soient enregistrés dans mon espace personnel.
             {" "}
-            <Link to="/confidentialite" className="text-indigo-600 underline hover:text-indigo-800">
+            <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline hover:text-indigo-800">
               Consultez notre politique de confidentialité
-            </Link>.
+            </a>.
           </label>
         </div>
 

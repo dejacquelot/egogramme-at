@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { NavBar } from "@/components/nav-bar";
 
 export const Route = createFileRoute("/confidentialite")({
@@ -129,12 +129,6 @@ function Confidentialite() {
               vous serez informé(e) lors de votre prochaine connexion.
             </p>
           </section>
-        </div>
-
-        <div className="mt-10 pt-6 border-t border-border text-center">
-          <Link to="/" className="text-indigo-600 underline text-sm hover:text-indigo-800">
-            ← Retour au test
-          </Link>
         </div>
       </main>
     </div>
