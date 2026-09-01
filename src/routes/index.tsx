@@ -766,20 +766,6 @@ function ResultSection({
         <RegistrationBlock resultId={resultId} />
       )}
 
-      {analysis && user && (
-        <div className="mt-8 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-6 text-center">
-          <p className="text-sm text-blue-700 mb-1 font-medium">
-            Vous venez de découvrir votre profil — bravo ! 🎉
-          </p>
-          <p className="text-sm text-blue-700 mb-4">
-            Invitez des amis ou collègues et générez une <strong>analyse collective</strong> dès que 2 personnes ont répondu.
-          </p>
-          <Link to="/mon-espace" className="inline-flex items-center gap-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm px-6 py-3 shadow-md transition-colors">
-            👥 Accéder à Mon Espace
-          </Link>
-        </div>
-      )}
-
       <ShareInviteButton resultId={resultId} analysisGenerated={!!analysis} />
     </Card>
   );
