@@ -474,7 +474,7 @@ function Dashboard({ user }: { user: UserInfo }) {
   };
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+    new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
   if (loadingData) {
     return (
