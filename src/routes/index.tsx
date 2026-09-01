@@ -772,11 +772,6 @@ function ResultSection({
 function RegistrationBlock({ resultId }: { resultId: string | null }) {
   const [rgpd, setRgpd] = useState(false);
   const [registering, setRegistering] = useState(false);
-  const [otpEmail, setOtpEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError] = useState("");
 
   const savePending = () => {
     if (resultId && typeof window !== "undefined") {
@@ -795,34 +790,6 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
         ...(provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
       },
     });
-  };
-
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rgpd || !otpEmail.trim()) return;
-    setOtpLoading(true);
-    setOtpError("");
-    savePending();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: otpEmail.trim(),
-    });
-    setOtpLoading(false);
-    if (error) { setOtpError("Erreur d'envoi. Réessayez."); return; }
-    setOtpSent(true);
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode.trim()) return;
-    setOtpLoading(true);
-    setOtpError("");
-    const { error } = await supabase.auth.verifyOtp({
-      email: otpEmail.trim(),
-      token: otpCode.trim(),
-      type: "email",
-    });
-    setOtpLoading(false);
-    if (error) { setOtpError("Code invalide ou expiré."); return; }
   };
 
   return (
@@ -859,42 +826,7 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
           </label>
         </div>
 
-        {otpSent ? (
-          <form onSubmit={handleVerifyOtp} className="flex flex-col items-center gap-3 py-2">
-            <p className="text-sm text-indigo-700 font-medium">
-              📧 Code envoyé à <strong>{otpEmail}</strong>
-            </p>
-            <p className="text-xs text-muted-foreground">Saisissez le code à 6 chiffres reçu par email :</p>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="000000"
-              required
-              autoFocus
-              className="w-40 rounded-lg border border-gray-300 px-3 py-2.5 text-center tracking-[0.3em] font-mono text-xl"
-            />
-            {otpError && <p className="text-xs text-red-600">{otpError}</p>}
-            <button
-              type="submit"
-              disabled={otpLoading || otpCode.length < 6}
-              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {otpLoading ? "Vérification…" : "✓ Valider le code"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setOtpSent(false); setOtpCode(""); setOtpError(""); }}
-              className="text-xs text-indigo-600 hover:underline cursor-pointer"
-            >
-              ← Changer d'email
-            </button>
-          </form>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
               <button
                 onClick={() => handleRegisterOAuth("google")}
                 disabled={!rgpd || registering}
@@ -929,34 +861,6 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
                 LinkedIn
               </button>
             </div>
-
-            <div className="flex items-center gap-2">
-              <div className="flex-1 border-t border-gray-300" />
-              <span className="text-xs text-muted-foreground">ou par email</span>
-              <div className="flex-1 border-t border-gray-300" />
-            </div>
-
-            <form onSubmit={handleSendOtp} className="flex gap-2">
-              <input
-                type="email"
-                value={otpEmail}
-                onChange={(e) => setOtpEmail(e.target.value)}
-                placeholder="votre@email.com"
-                required
-                disabled={!rgpd}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={!rgpd || otpLoading || !otpEmail.trim()}
-                className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
-              >
-                {otpLoading ? "Envoi…" : "✉️ Recevoir le code"}
-              </button>
-            </form>
-            {otpError && <p className="text-xs text-red-600 text-center">{otpError}</p>}
-          </div>
-        )}
       </div>
     </div>
   );

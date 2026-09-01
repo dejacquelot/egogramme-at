@@ -69,40 +69,6 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
     });
   };
 
-  const [showEmailForm, setShowEmailForm] = useState(false);
-  const [otpEmail, setOtpEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError] = useState("");
-
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpEmail.trim()) return;
-    setOtpLoading(true);
-    setOtpError("");
-    const { error } = await supabase.auth.signInWithOtp({
-      email: otpEmail.trim(),
-    });
-    setOtpLoading(false);
-    if (error) { setOtpError("Erreur d'envoi. Réessayez."); return; }
-    setOtpSent(true);
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode.trim()) return;
-    setOtpLoading(true);
-    setOtpError("");
-    const { error } = await supabase.auth.verifyOtp({
-      email: otpEmail.trim(),
-      token: otpCode.trim(),
-      type: "email",
-    });
-    setOtpLoading(false);
-    if (error) { setOtpError("Code invalide ou expiré."); return; }
-    setShowEmailForm(false);
-  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -180,69 +146,6 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
                 </svg>
                 <span className="hidden sm:inline">LinkedIn</span>
               </button>
-              <button
-                onClick={() => setShowEmailForm(!showEmailForm)}
-                className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 text-sm font-medium text-white transition-colors cursor-pointer"
-              >
-                ✉️ <span className="hidden sm:inline">Email</span>
-              </button>
-              {showEmailForm && (
-                <div className="absolute right-0 top-full mt-2 w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-lg z-50">
-                  {!otpSent ? (
-                    <form onSubmit={handleSendOtp} className="flex flex-col gap-2">
-                      <p className="text-xs text-muted-foreground">Recevez un code de connexion par email :</p>
-                      <input
-                        type="email"
-                        value={otpEmail}
-                        onChange={(e) => setOtpEmail(e.target.value)}
-                        placeholder="votre@email.com"
-                        required
-                        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
-                      />
-                      {otpError && <p className="text-xs text-red-600">{otpError}</p>}
-                      <button
-                        type="submit"
-                        disabled={otpLoading}
-                        className="rounded-md bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 text-sm font-medium text-white transition-colors disabled:opacity-50 cursor-pointer"
-                      >
-                        {otpLoading ? "Envoi…" : "Envoyer le code"}
-                      </button>
-                    </form>
-                  ) : (
-                    <form onSubmit={handleVerifyOtp} className="flex flex-col gap-2">
-                      <p className="text-xs text-muted-foreground">
-                        Code envoyé à <strong>{otpEmail}</strong>
-                      </p>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                        placeholder="000000"
-                        required
-                        autoFocus
-                        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-center tracking-[0.3em] font-mono text-lg"
-                      />
-                      {otpError && <p className="text-xs text-red-600">{otpError}</p>}
-                      <button
-                        type="submit"
-                        disabled={otpLoading || otpCode.length < 6}
-                        className="rounded-md bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 text-sm font-medium text-white transition-colors disabled:opacity-50 cursor-pointer"
-                      >
-                        {otpLoading ? "Vérification…" : "✓ Valider le code"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setOtpSent(false); setOtpCode(""); setOtpError(""); }}
-                        className="text-xs text-indigo-600 hover:underline cursor-pointer"
-                      >
-                        ← Changer d'email
-                      </button>
-                    </form>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </div>
