@@ -962,43 +962,54 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
   };
 
   return (
-    <div className="mt-8 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 p-6">
-      <h3 className="text-base font-bold text-indigo-800 mb-2 text-center">
-        🔓 Créez votre compte pour aller plus loin
+    <div className="mt-8 rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 p-6">
+      <h3 className="text-lg font-bold text-orange-800 mb-2 text-center">
+        🔥 Votre profil est intéressant… mais il ne raconte que la moitié de l'histoire.
       </h3>
-      <p className="text-sm text-indigo-700 mb-4 text-center">
-        Accédez à votre <strong>espace personnel</strong> pour inviter des amis ou collègues,
-        suivre qui a répondu, envoyer des relances et générer une <strong>analyse collective</strong>
-        dès que 2 personnes ont passé le test.
+      <p className="text-sm text-orange-700 mb-3 text-center">
+        Découvrez comment votre profil fonctionne avec celui d'une personne importante pour vous.
+      </p>
+      <p className="text-center text-lg mb-4">
+        👩‍❤️‍👨 Couple &nbsp; 👨‍👩‍👧 Famille &nbsp; 🧑‍🤝‍🧑 Ami &nbsp; 💼 Collègue
       </p>
 
-      <div className="flex items-start gap-2 mb-4">
-        <input
-          type="checkbox"
-          id="rgpd-consent"
-          checked={rgpd}
-          onChange={(e) => setRgpd(e.target.checked)}
-          className="mt-1 h-4 w-4 accent-indigo-600 cursor-pointer"
-        />
-        <label htmlFor="rgpd-consent" className="text-xs text-indigo-700 cursor-pointer">
-          En créant mon compte, j'accepte le traitement et la sauvegarde de mes données d'égogramme.
-        </label>
-      </div>
+      <div className="rounded-lg bg-white/70 border border-indigo-200 p-5 mt-4">
+        <p className="text-sm text-indigo-800 font-semibold mb-3 text-center">
+          💾 Enregistrer mon profil pour conserver mes résultats et générer des analyses à plusieurs.
+        </p>
 
-      <div className="text-center">
-        <button
-          onClick={handleRegister}
-          disabled={!rgpd || registering}
-          className="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-black font-medium text-sm px-6 py-3 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-        >
-          <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
-            <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
-            <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
-            <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
-            <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
-          </svg>
-          {registering ? "Connexion…" : "S'inscrire avec Google"}
-        </button>
+        <div className="flex items-start gap-2 mb-4">
+          <input
+            type="checkbox"
+            id="rgpd-consent"
+            checked={rgpd}
+            onChange={(e) => setRgpd(e.target.checked)}
+            className="mt-1 h-4 w-4 accent-indigo-600 cursor-pointer"
+          />
+          <label htmlFor="rgpd-consent" className="text-xs text-gray-700 cursor-pointer">
+            J'accepte que mes réponses et mon profil soient enregistrés dans mon espace personnel.
+            {" "}
+            <Link to="/confidentialite" className="text-indigo-600 underline hover:text-indigo-800">
+              Consultez notre politique de confidentialité
+            </Link>.
+          </label>
+        </div>
+
+        <div className="text-center">
+          <button
+            onClick={handleRegister}
+            disabled={!rgpd || registering}
+            className="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-black font-medium text-sm px-6 py-3 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
+              <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+              <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
+              <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
+              <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
+            </svg>
+            {registering ? "Connexion…" : "Créer mon compte"}
+          </button>
+        </div>
       </div>
     </div>
   );
