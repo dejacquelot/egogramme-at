@@ -17,9 +17,12 @@ import {
   deleteInvitation,
 } from "@/lib/invitation.functions";
 import { generateTeamAnalysis } from "@/lib/admin.functions";
+import { generateIndividualAnalysis } from "@/lib/analysis.functions";
 import {
   downloadTeamReportPdf,
   downloadTeamReportImage,
+  downloadIndividualReportPdf,
+  downloadIndividualReportImage,
   type CatKey,
   type ReportMember,
   type ReportScores,
@@ -234,6 +237,11 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [teamAverage, setTeamAverage] = useState<ReportScores | null>(null);
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
   const [invScores, setInvScores] = useState<Record<string, Record<string, number>>>({});
+
+  // Individual analysis
+  const [individualAnalysis, setIndividualAnalysis] = useState<string | null>(null);
+  const [generatingIndiv, setGeneratingIndiv] = useState(false);
+  const [downloadingIndiv, setDownloadingIndiv] = useState<"pdf" | "img" | null>(null);
 
   // Actions
   const [remindingId, setRemindingId] = useState<string | null>(null);
@@ -482,6 +490,44 @@ function Dashboard({ user }: { user: UserInfo }) {
     }
   };
 
+  const handleGenerateIndividual = async () => {
+    if (!myResult) return;
+    setGeneratingIndiv(true);
+    setIndividualAnalysis(null);
+    try {
+      const res = await generateIndividualAnalysis({
+        data: { scores: myResult.scores, firstName: user.firstName || "Utilisateur" },
+      });
+      setIndividualAnalysis(res.analysis);
+    } catch (e) {
+      console.error("individual analysis error:", e);
+      setIndividualAnalysis("Erreur lors de la génération. Réessayez.");
+    } finally {
+      setGeneratingIndiv(false);
+    }
+  };
+
+  const handleIndivDownload = async (kind: "pdf" | "img") => {
+    if (!individualAnalysis || !myResult) return;
+    setDownloadingIndiv(kind);
+    try {
+      const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Résultat individuel";
+      const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+      const input = {
+        name: fullName,
+        date: new Date(myResult.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
+        scores: Object.fromEntries(cats.map((c) => [c, myResult.scores[c] ?? 0])) as ReportScores,
+        analysis: individualAnalysis,
+      };
+      if (kind === "pdf") await downloadIndividualReportPdf(input);
+      else await downloadIndividualReportImage(input);
+    } catch (e) {
+      console.error("indiv download error:", e);
+    } finally {
+      setDownloadingIndiv(null);
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.href = "/";
@@ -692,17 +738,42 @@ function Dashboard({ user }: { user: UserInfo }) {
               </table>
             </div>
 
-            {/* Generate team analysis */}
-            {myResult && completedInvitations.length >= 1 && (
+            {/* Generate analyses */}
+            {myResult && (
               <div className="mt-6 pt-4 border-t border-border">
-                <p className="text-sm text-muted-foreground mb-3">
-                  🎯 {completedInvitations.length + 1} profils disponibles (vous + {completedInvitations.length} invité{completedInvitations.length > 1 ? "s" : ""})
-                </p>
-                <Button onClick={handleGenerateTeam} disabled={generatingTeam}>
-                  {generatingTeam ? "Génération en cours…" : "🤝 Générer l'analyse collective"}
-                </Button>
+                {completedInvitations.length >= 1 && (
+                  <p className="text-sm text-muted-foreground mb-3">
+                    🎯 {completedInvitations.length + 1} profils disponibles (vous + {completedInvitations.length} invité{completedInvitations.length > 1 ? "s" : ""})
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={handleGenerateIndividual} disabled={generatingIndiv}>
+                    {generatingIndiv ? "Génération en cours…" : "📊 Générer mon analyse individuelle"}
+                  </Button>
+                  {completedInvitations.length >= 1 && (
+                    <Button onClick={handleGenerateTeam} disabled={generatingTeam}>
+                      {generatingTeam ? "Génération en cours…" : "🤝 Générer l'analyse collective"}
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
+          </Card>
+        )}
+
+        {/* Individual Analysis Result */}
+        {individualAnalysis && (
+          <Card className="p-6">
+            <h2 className="text-base font-semibold mb-4">📊 Mon analyse individuelle</h2>
+            <MarkdownText text={individualAnalysis} />
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button onClick={() => handleIndivDownload("pdf")} disabled={downloadingIndiv !== null}>
+                {downloadingIndiv === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
+              </Button>
+              <Button variant="outline" onClick={() => handleIndivDownload("img")} disabled={downloadingIndiv !== null}>
+                {downloadingIndiv === "img" ? "Préparation…" : "🖼️ Télécharger en image"}
+              </Button>
+            </div>
           </Card>
         )}
 
