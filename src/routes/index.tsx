@@ -209,15 +209,6 @@ function Index() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin,
-        queryParams: { prompt: "select_account" },
-      },
-    });
-  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -347,17 +338,7 @@ function Index() {
                   Déconnexion
                 </Button>
               </div>
-            ) : (
-              <Button variant="outline" size="sm" onClick={signInWithGoogle} className="gap-1.5">
-                <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden="true">
-                  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
-                  <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
-                  <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
-                  <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
-                </svg>
-                Se connecter
-              </Button>
-            )}
+            ) : null}
             {isAdmin && (
               <>
                 <Link to="/stats">
@@ -779,7 +760,7 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
     }
   };
 
-  const handleRegisterOAuth = async (provider: "google" | "facebook" | "linkedin_oidc") => {
+  const handleRegisterOAuth = async (provider: "google" | "linkedin_oidc") => {
     if (!rgpd) return;
     setRegistering(true);
     savePending();
@@ -839,16 +820,6 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
                   <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
                 </svg>
                 Google
-              </button>
-              <button
-                onClick={() => handleRegisterOAuth("facebook")}
-                disabled={!rgpd || registering}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium text-sm px-5 py-2.5 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white" aria-hidden="true">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-                Facebook
               </button>
               <button
                 onClick={() => handleRegisterOAuth("linkedin_oidc")}

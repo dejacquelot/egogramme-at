@@ -59,7 +59,7 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
       ? BASE_LINKS
       : [];
 
-  const handleOAuth = async (provider: "google" | "facebook" | "linkedin_oidc") => {
+  const handleOAuth = async (provider: "google" | "linkedin_oidc") => {
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -127,15 +127,6 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
                   <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
                 </svg>
                 <span className="hidden sm:inline">Google</span>
-              </button>
-              <button
-                onClick={() => handleOAuth("facebook")}
-                className="inline-flex items-center gap-1.5 rounded-md bg-[#1877F2] hover:bg-[#166FE5] px-3 py-1.5 text-sm font-medium text-white transition-colors cursor-pointer"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-white" aria-hidden="true">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-                <span className="hidden sm:inline">Facebook</span>
               </button>
               <button
                 onClick={() => handleOAuth("linkedin_oidc")}
