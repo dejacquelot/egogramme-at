@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/admin-config";
+import teamLogo from "@/assets/team-performance-logo.png";
 
 type NavBarProps = {
   isAdmin?: boolean; // override optionnel (pages admin)
@@ -80,7 +81,10 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/90 backdrop-blur-sm shadow-sm">
       <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-2">
-        <span className="mr-4 text-sm font-bold text-gray-700 tracking-tight">Égogramme</span>
+        <Link to="/" className="mr-4 flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <img src={teamLogo} alt="Team Performance" className="h-7 w-7 rounded" />
+          <span className="text-sm font-bold text-gray-700 tracking-tight">Égogramme</span>
+        </Link>
 
         <div className="flex flex-1 items-center gap-1">
           {links.map((link) => {
