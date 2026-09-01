@@ -196,3 +196,49 @@ export const provisionAdminAccount = createServerFn({ method: "POST" })
 
     return { ok: true as const };
   });
+
+/** List all registered users with their invitations */
+export const listAdminUsers = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Fetch all auth users
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (authError) throw authError;
+
+    // Fetch all invitations
+    const { data: invitations, error: invError } = await supabaseAdmin
+      .from("invitations")
+      .select("id, inviter_user_id, invitee_name, invitee_email, status, result_id, created_at, reminded_at")
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    if (invError) throw invError;
+
+    // Build users list
+    const users = authData.users.map((u) => {
+      const meta = u.user_metadata ?? {};
+      const userInvitations = (invitations ?? []).filter((i: any) => i.inviter_user_id === u.id);
+
+      return {
+        id: u.id,
+        email: u.email ?? "",
+        firstName: (meta.given_name as string) ?? (meta.full_name as string)?.split(" ")[0] ?? "",
+        lastName: (meta.family_name as string) ?? (meta.full_name as string)?.split(" ").slice(1).join(" ") ?? "",
+        avatarUrl: (meta.avatar_url as string) ?? null,
+        createdAt: u.created_at,
+        lastSignInAt: u.last_sign_in_at ?? null,
+        invitations: userInvitations.map((i: any) => ({
+          id: i.id,
+          inviteeName: i.invitee_name,
+          inviteeEmail: i.invitee_email,
+          status: i.status,
+          createdAt: i.created_at,
+        })),
+      };
+    });
+
+    return users.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  });

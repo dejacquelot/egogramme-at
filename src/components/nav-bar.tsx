@@ -14,6 +14,7 @@ const BASE_LINKS = [
 
 const ADMIN_EXTRA = [
   { to: "/stats", label: "📊 Statistiques" },
+  { to: "/utilisateurs", label: "👥 Utilisateurs" },
   { to: "/admin", label: "⚙️ Administration" },
 ] as const;
 
