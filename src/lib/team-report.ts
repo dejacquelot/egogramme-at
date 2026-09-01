@@ -34,7 +34,9 @@ type Block =
   | { type: "space"; h: number }
   | { type: "rule" }
   | { type: "bars"; scores: ReportScores; title: string; maxLabel?: string }
-  | { type: "members"; members: ReportMember[] };
+  | { type: "members"; members: ReportMember[] }
+  | { type: "table"; headers: string[]; rows: string[][] }
+  | { type: "karpman"; persecuteur: string; sauveur: string; victime: string };
 
 function loadLogo(): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -70,16 +72,115 @@ function stripMd(s: string) {
 
 function analysisToBlocks(analysis: string): Block[] {
   const out: Block[] = [];
-  for (const raw of analysis.split("\n")) {
-    const line = raw.trim();
-    if (!line) continue;
+  // Normalize line endings
+  const text = analysis.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = text.split("\n");
+  let i = 0;
+
+  const isPipeLine = (l: string) => l.includes("|") && l.trim().startsWith("|");
+  const isSepLine = (l: string) => /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/.test(l.trim());
+  const isAsciiBorder = (l: string) => /^\s*\+[-=+]+\+\s*$/.test(l.trim());
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) { i++; continue; }
+
+    // :::karpman block
+    if (line === ":::karpman") {
+      const kLines: string[] = [];
+      i++;
+      while (i < lines.length && lines[i].trim() !== ":::") {
+        kLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip :::
+      const get = (role: string) => {
+        const found = kLines.find((l) => l.trim().toLowerCase().startsWith(role.toLowerCase() + ":"));
+        return found ? stripMd(found.slice(found.indexOf(":") + 1).trim()) : role;
+      };
+      out.push({
+        type: "karpman",
+        persecuteur: get("Persécuteur") || get("Persecuteur"),
+        sauveur: get("Sauveur"),
+        victime: get("Victime"),
+      });
+      continue;
+    }
+
+    // ASCII-art table (+---+---+)
+    if (isAsciiBorder(lines[i])) {
+      const asciiLines: string[] = [];
+      while (i < lines.length) {
+        if (isAsciiBorder(lines[i]) || (lines[i].includes("|") && !isAsciiBorder(lines[i]))) {
+          asciiLines.push(lines[i]);
+          i++;
+        } else if (lines[i].trim() === "" && i + 1 < lines.length && (isAsciiBorder(lines[i + 1]) || lines[i + 1].includes("|"))) {
+          i++;
+        } else {
+          break;
+        }
+      }
+      const dataRows = asciiLines
+        .filter((l) => !isAsciiBorder(l) && l.includes("|"))
+        .map((l) => l.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => stripMd(c.trim())));
+      if (dataRows.length > 1) {
+        out.push({ type: "table", headers: dataRows[0], rows: dataRows.slice(1) });
+      }
+      continue;
+    }
+
+    // Pipe table (| col1 | col2 |)
+    if (isPipeLine(lines[i])) {
+      const tableLines: string[] = [];
+      while (i < lines.length) {
+        if (isPipeLine(lines[i]) || isSepLine(lines[i])) {
+          tableLines.push(lines[i]);
+          i++;
+        } else if (lines[i].trim() === "" && i + 1 < lines.length && (isPipeLine(lines[i + 1]) || isSepLine(lines[i + 1]))) {
+          i++; // skip blank line between table rows
+        } else {
+          break;
+        }
+      }
+      const dataRows = tableLines
+        .filter((l) => !isSepLine(l))
+        .map((l) => l.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => stripMd(c.trim())));
+      if (dataRows.length > 1) {
+        out.push({ type: "table", headers: dataRows[0], rows: dataRows.slice(1) });
+      }
+      continue;
+    }
+
+    // Heading
     if (/^#{1,6}\s/.test(line)) {
       out.push({ type: "h2", text: stripMd(line.replace(/^#+\s*/, "")) });
-    } else if (/^[-*]\s+/.test(line)) {
-      out.push({ type: "li", text: stripMd(line.replace(/^[-*]\s+/, "")) });
-    } else {
-      out.push({ type: "p", text: stripMd(line) });
+      i++;
+      continue;
     }
+
+    // List item
+    if (/^[-*]\s+/.test(line)) {
+      out.push({ type: "li", text: stripMd(line.replace(/^[-*]\s+/, "")) });
+      i++;
+      continue;
+    }
+
+    // Numbered list
+    if (/^\d+\.\s+/.test(line)) {
+      out.push({ type: "li", text: stripMd(line.replace(/^\d+\.\s+/, "")) });
+      i++;
+      continue;
+    }
+
+    // Code block markers — skip
+    if (line.startsWith("```")) {
+      i++;
+      continue;
+    }
+
+    // Regular paragraph
+    out.push({ type: "p", text: stripMd(line) });
+    i++;
   }
   return out;
 }
@@ -217,6 +318,176 @@ function drawMembers(
   });
 }
 
+const TABLE_ROW_H = 18;
+const TABLE_PAD = 4;
+
+function tableHeight(ctx: CanvasRenderingContext2D, b: { headers: string[]; rows: string[][] }, w: number): number {
+  const colW = w / b.headers.length;
+  let h = TABLE_ROW_H + 4; // header row + separator
+  for (const row of b.rows) {
+    let maxLines = 1;
+    font(ctx, 9);
+    for (const cell of row) {
+      const lines = wrap(ctx, cell, colW - TABLE_PAD * 2);
+      maxLines = Math.max(maxLines, lines.length);
+    }
+    h += maxLines * 13 + TABLE_PAD;
+  }
+  return h + 10; // bottom margin
+}
+
+function drawTable(
+  ctx: CanvasRenderingContext2D,
+  headers: string[],
+  rows: string[][],
+  x: number,
+  y: number,
+  w: number,
+) {
+  const cols = headers.length;
+  const colW = w / cols;
+
+  // Header row
+  ctx.fillStyle = "#e8ecf2";
+  ctx.fillRect(x, y, w, TABLE_ROW_H);
+  font(ctx, 9, "700");
+  ctx.fillStyle = INK;
+  headers.forEach((h, ci) => {
+    ctx.fillText(h, x + ci * colW + TABLE_PAD, y + 13, colW - TABLE_PAD * 2);
+  });
+
+  // Header bottom line
+  ctx.strokeStyle = NAVY;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y + TABLE_ROW_H);
+  ctx.lineTo(x + w, y + TABLE_ROW_H);
+  ctx.stroke();
+
+  let ry = y + TABLE_ROW_H + 2;
+
+  rows.forEach((row, ri) => {
+    font(ctx, 9);
+    // Calculate max lines in this row
+    let maxLines = 1;
+    const cellLines: string[][] = [];
+    for (let ci = 0; ci < cols; ci++) {
+      const cell = ci < row.length ? row[ci] : "";
+      const lines = wrap(ctx, cell, colW - TABLE_PAD * 2);
+      cellLines.push(lines);
+      maxLines = Math.max(maxLines, lines.length);
+    }
+    const rowH = maxLines * 13 + TABLE_PAD;
+
+    // Alternating row background
+    if (ri % 2 === 1) {
+      ctx.fillStyle = "#f6f8fb";
+      ctx.fillRect(x, ry, w, rowH);
+    }
+
+    // Cell text
+    ctx.fillStyle = "#333c4d";
+    font(ctx, 9);
+    cellLines.forEach((lines, ci) => {
+      lines.forEach((l, li) => {
+        ctx.fillText(l, x + ci * colW + TABLE_PAD, ry + 11 + li * 13, colW - TABLE_PAD * 2);
+      });
+    });
+
+    // Row bottom line
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, ry + rowH);
+    ctx.lineTo(x + w, ry + rowH);
+    ctx.stroke();
+
+    ry += rowH;
+  });
+
+  // Vertical column lines
+  ctx.strokeStyle = LINE;
+  ctx.lineWidth = 0.5;
+  for (let ci = 1; ci < cols; ci++) {
+    ctx.beginPath();
+    ctx.moveTo(x + ci * colW, y);
+    ctx.lineTo(x + ci * colW, ry);
+    ctx.stroke();
+  }
+  // Outer border
+  ctx.strokeStyle = "#c0c8d6";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, ry - y);
+}
+
+const KARPMAN_H = 130;
+
+function drawKarpman(
+  ctx: CanvasRenderingContext2D,
+  persecuteur: string,
+  sauveur: string,
+  victime: string,
+  x: number,
+  y: number,
+  w: number,
+) {
+  const cx = x + w / 2;
+  const topY = y + 10;
+  const botY = y + KARPMAN_H - 20;
+  const leftX = x + w * 0.15;
+  const rightX = x + w * 0.85;
+
+  // Title
+  font(ctx, 11, "700");
+  ctx.fillStyle = "#92400e";
+  ctx.textAlign = "center";
+  ctx.fillText("🔺 Triangle de Karpman", cx, topY);
+
+  // Triangle lines
+  ctx.strokeStyle = "#f59e0b";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, topY + 12);
+  ctx.lineTo(leftX + 30, botY - 20);
+  ctx.lineTo(rightX - 30, botY - 20);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Draw role boxes
+  const boxW = 130;
+  const boxH = 32;
+  const drawRoleBox = (bx: number, by: number, emoji: string, role: string, name: string) => {
+    ctx.fillStyle = "#fef3c7";
+    ctx.strokeStyle = "#f59e0b";
+    ctx.lineWidth = 1;
+    roundRect(ctx, bx - boxW / 2, by, boxW, boxH, 6);
+    ctx.fill();
+    ctx.stroke();
+    font(ctx, 9, "700");
+    ctx.fillStyle = "#92400e";
+    ctx.textAlign = "center";
+    ctx.fillText(`${emoji} ${role}`, bx, by + 12);
+    font(ctx, 8);
+    ctx.fillStyle = "#78350f";
+    ctx.fillText(name, bx, by + 25);
+  };
+
+  // Persécuteur at top
+  drawRoleBox(cx, topY + 16, "⚔️", "Persécuteur", persecuteur);
+  // Victime bottom-left
+  drawRoleBox(leftX + 30, botY - 16, "😢", "Victime", victime);
+  // Sauveur bottom-right
+  drawRoleBox(rightX - 30, botY - 16, "🤲", "Sauveur", sauveur);
+
+  // Circulation arrows label
+  font(ctx, 7);
+  ctx.fillStyle = "#78350f";
+  ctx.textAlign = "center";
+  ctx.fillText("↗ ← → ↖ (les rôles circulent)", cx, botY + 4);
+
+  ctx.textAlign = "left";
+}
+
 function blockHeight(ctx: CanvasRenderingContext2D, b: Block, w: number): number {
   switch (b.type) {
     case "space":
@@ -227,6 +498,10 @@ function blockHeight(ctx: CanvasRenderingContext2D, b: Block, w: number): number
       return BARS_H;
     case "members":
       return membersHeight(b.members);
+    case "table":
+      return tableHeight(ctx, b, w);
+    case "karpman":
+      return KARPMAN_H;
     case "h1":
       font(ctx, 22, "700");
       return wrap(ctx, b.text, w).length * 30 + 8;
@@ -265,6 +540,12 @@ function drawBlock(ctx: CanvasRenderingContext2D, b: Block, x: number, y: number
       return;
     case "members":
       drawMembers(ctx, b.members, x, y, w);
+      return;
+    case "table":
+      drawTable(ctx, b.headers, b.rows, x, y, w);
+      return;
+    case "karpman":
+      drawKarpman(ctx, b.persecuteur, b.sauveur, b.victime, x, y, w);
       return;
     case "h1": {
       font(ctx, 22, "700");
