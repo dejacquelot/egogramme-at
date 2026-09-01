@@ -66,6 +66,110 @@ const SCORE_LABELS: Record<string, string> = {
   EAR: "Enfant Adapté Rebelle",
 };
 
+const CATEGORIES: {
+  key: string;
+  label: string;
+  short: string;
+  color: string;
+  description: string;
+}[] = [
+  { key: "PN", label: "Parent Nourricier", short: "PNr", color: "oklch(0.72 0.15 30)", description: "Bienveillant, protecteur, encourageant." },
+  { key: "PNo", label: "Parent Normatif", short: "PNo", color: "oklch(0.6 0.15 60)", description: "Cadre, règles, autorité, transmission de valeurs." },
+  { key: "A", label: "Adulte", short: "A", color: "oklch(0.55 0.15 250)", description: "Rationnel, objectif, analytique, factuel." },
+  { key: "EL", label: "Enfant Libre", short: "EL", color: "oklch(0.7 0.17 140)", description: "Spontané, créatif, expressif, joueur." },
+  { key: "EAS", label: "Enfant Adapté Soumis", short: "EAS", color: "oklch(0.6 0.13 310)", description: "Conforme, poli, s'adapte aux attentes." },
+  { key: "EAR", label: "Enfant Adapté Rebelle", short: "EAR", color: "oklch(0.6 0.2 20)", description: "Oppositionnel, provocateur, contestataire." },
+];
+
+function EgogrammeChart({ title, scores, subtitle }: { title: string; scores: Record<string, number>; subtitle?: string }) {
+  const total = CATEGORIES.reduce((s, c) => s + (scores[c.key] ?? 0), 0);
+  const maxScore = Math.max(...CATEGORIES.map((c) => scores[c.key] ?? 0));
+
+  return (
+    <Card className="p-5 flex-1 min-w-0">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-base font-semibold">{title}</h2>
+        <span className="text-xs text-muted-foreground">Σ = {total}</span>
+      </div>
+
+      {/* Bar chart */}
+      <div className="mt-4">
+        <div className="flex gap-2">
+          {/* Y axis */}
+          <div className="flex h-52 flex-col-reverse justify-between py-1 pr-1 text-[10px] tabular-nums text-muted-foreground">
+            {Array.from({ length: 11 }, (_, n) => (
+              <span key={n} className="leading-none">{n}</span>
+            ))}
+          </div>
+          {/* Chart area */}
+          <div className="relative flex-1">
+            {/* Gridlines */}
+            <div className="absolute inset-0 flex flex-col-reverse justify-between">
+              {Array.from({ length: 11 }, (_, n) => (
+                <div key={n} className={"border-t " + (n === 0 ? "border-foreground/40" : "border-border/60")} />
+              ))}
+            </div>
+            {/* Bars */}
+            <div className="relative flex h-52 items-end gap-1">
+              {CATEGORIES.map((cat) => {
+                const score = scores[cat.key] ?? 0;
+                const heightPct = (score / 10) * 100;
+                const isMax = score === maxScore && score > 0;
+                return (
+                  <div key={cat.key} className="flex h-full flex-1 flex-col items-center justify-end">
+                    <div className="relative flex w-full items-end justify-center" style={{ height: `${heightPct}%` }}>
+                      <div className="absolute -top-5 text-xs font-semibold tabular-nums text-foreground">{score}</div>
+                      <div
+                        className="w-full rounded-t-md transition-all duration-500 ease-out"
+                        style={{
+                          height: "100%",
+                          backgroundColor: cat.color,
+                          minHeight: score > 0 ? "3px" : "0",
+                          outline: isMax ? "2px solid var(--foreground)" : undefined,
+                          outlineOffset: isMax ? "1px" : undefined,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        {/* X axis labels */}
+        <div className="mt-2 flex gap-1 pl-5">
+          {CATEGORIES.map((cat) => (
+            <div key={cat.key} className="flex-1 text-center text-[10px] font-semibold text-foreground" title={cat.label}>
+              {cat.short}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <ul className="mt-4 space-y-1.5">
+        {CATEGORIES.map((cat) => (
+          <li key={cat.key} className="flex items-start gap-2 text-[11px]">
+            <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cat.color }} />
+            <div className="flex-1">
+              <div className="flex justify-between gap-2">
+                <span className="font-medium text-foreground">{cat.label}</span>
+                <span className="tabular-nums text-muted-foreground">{scores[cat.key] ?? 0}/10</span>
+              </div>
+              <p className="text-muted-foreground">{cat.description}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-3 border-t border-border pt-2 text-[10px] text-muted-foreground">
+        D'après Michel Josien, « Techniques de communication interpersonnelle », Les Éditions d'Organisation.
+      </p>
+      {subtitle && <p className="mt-1 text-[10px] text-muted-foreground">{subtitle}</p>}
+    </Card>
+  );
+}
+
 function MonEspace() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -160,6 +264,28 @@ function Dashboard({ user }: { user: UserInfo }) {
         ]);
         setMyResult(result);
         setInvitations(invs);
+
+        // Compute team average if there are completed invitations
+        const completed = invs.filter((i: Invitation) => i.status === "completed" && i.result_id);
+        if (result && completed.length > 0) {
+          const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+          const resultIds = [result.id, ...completed.map((i: Invitation) => i.result_id!).filter(Boolean)];
+          try {
+            const memberRows = await getResultsByIds({ data: { ids: resultIds } });
+            const members: ReportMember[] = memberRows.map((r: any) => ({
+              name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
+              date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
+              scores: Object.fromEntries(cats.map((c) => [c, r.scores[c] ?? 0])) as ReportScores,
+            }));
+            setTeamMembers(members);
+            const avg = Object.fromEntries(
+              cats.map((c) => [c, Math.round(members.reduce((s, m) => s + m.scores[c], 0) / members.length)]),
+            ) as ReportScores;
+            setTeamAverage(avg);
+          } catch (e) {
+            console.error("compute team avg error:", e);
+          }
+        }
       } catch (e) {
         console.error("load data error:", e);
       } finally {
@@ -360,21 +486,30 @@ function Dashboard({ user }: { user: UserInfo }) {
       <main className="mx-auto max-w-4xl px-4 py-8 space-y-8">
         {/* My Profile */}
         {myResult && (
-          <Card className="p-6">
-            <h2 className="text-base font-semibold mb-4">📊 Mon profil</h2>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-              {Object.entries(SCORE_LABELS).map(([key, label]) => (
-                <div key={key} className="text-center">
-                  <div className="text-xs text-muted-foreground mb-1">{key}</div>
-                  <div className="text-2xl font-bold">{myResult.scores[key] ?? 0}</div>
-                  <div className="text-[10px] text-muted-foreground">{label}</div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Test passé le {formatDate(myResult.created_at)}
-            </p>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <EgogrammeChart
+              title="Votre égogramme"
+              scores={myResult.scores}
+              subtitle={`Test passé le ${formatDate(myResult.created_at)}`}
+            />
+            {teamAverage ? (
+              <EgogrammeChart
+                title="Votre égogramme d'équipe"
+                scores={teamAverage}
+                subtitle={`Moyenne de ${teamMembers.length} profil${teamMembers.length > 1 ? "s" : ""}`}
+              />
+            ) : (
+              <Card className="p-5 flex-1 flex flex-col items-center justify-center text-center">
+                <h2 className="text-base font-semibold mb-3">Votre égogramme d'équipe</h2>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Invitez au moins une personne pour voir l'égogramme d'équipe.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  La moyenne des scores de votre groupe apparaîtra ici.
+                </p>
+              </Card>
+            )}
+          </div>
         )}
 
         {!myResult && (
