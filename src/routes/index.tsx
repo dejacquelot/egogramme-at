@@ -209,12 +209,12 @@ function Index() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWith = async (provider: "google" | "apple") => {
+  const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
-      provider,
+      provider: "google",
       options: {
         redirectTo: window.location.origin,
-        ...(provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
+        queryParams: { prompt: "select_account" },
       },
     });
   };
@@ -348,23 +348,15 @@ function Index() {
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
-                <Button variant="outline" size="sm" onClick={() => signInWith("google")} className="gap-1.5">
-                  <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden="true">
-                    <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
-                    <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
-                    <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
-                    <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
-                  </svg>
-                  Google
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => signInWith("apple")} className="gap-1.5 bg-black text-white hover:bg-gray-800 hover:text-white">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                  </svg>
-                  Apple
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={signInWithGoogle} className="gap-1.5">
+                <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden="true">
+                  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+                  <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
+                  <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
+                  <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
+                </svg>
+                Se connecter
+              </Button>
             )}
             {isAdmin && (
               <>
@@ -781,17 +773,17 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
   const [rgpd, setRgpd] = useState(false);
   const [registering, setRegistering] = useState(false);
 
-  const handleRegister = async (provider: "google" | "apple") => {
+  const handleRegister = async () => {
     if (!rgpd) return;
     setRegistering(true);
     if (resultId && typeof window !== "undefined") {
       localStorage.setItem("egogramme_pending_result", resultId);
     }
     await supabase.auth.signInWithOAuth({
-      provider,
+      provider: "google",
       options: {
         redirectTo: `${window.location.origin}/mon-espace`,
-        ...(provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
+        queryParams: { prompt: "select_account" },
       },
     });
   };
@@ -830,9 +822,9 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
           </label>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className="text-center">
           <button
-            onClick={() => handleRegister("google")}
+            onClick={handleRegister}
             disabled={!rgpd || registering}
             className="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-black font-medium text-sm px-6 py-3 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
@@ -842,17 +834,7 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
               <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
               <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
             </svg>
-            {registering ? "Connexion…" : "Créer avec Google"}
-          </button>
-          <button
-            onClick={() => handleRegister("apple")}
-            disabled={!rgpd || registering}
-            className="inline-flex items-center gap-2 rounded-lg bg-black hover:bg-gray-800 text-white font-medium text-sm px-6 py-3 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-              <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-            </svg>
-            {registering ? "Connexion…" : "Créer avec Apple"}
+            {registering ? "Connexion…" : "Créer mon compte"}
           </button>
         </div>
       </div>
