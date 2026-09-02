@@ -224,10 +224,10 @@ export const listAdminUsers = createServerFn({ method: "GET" })
       .limit(5000);
     if (invError) throw invError;
 
-    const { data: teamAnalyses, error: teamError } = await supabaseAdmin
+    const { data: teamAnalyses } = await supabaseAdmin
       .from("team_analyses")
-      .select("id, creator_user_id");
-    if (teamError) throw teamError;
+      .select("id, creator_user_id")
+      .then((r) => r, () => ({ data: [] as { id: string; creator_user_id: string | null }[] }));
     const teamByUser = new Map<string, number>();
     (teamAnalyses ?? []).forEach((ta: any) => {
       const uid = String(ta.creator_user_id ?? "");
@@ -280,12 +280,12 @@ export const listAdminStatsData = createServerFn({ method: "GET" })
       .limit(10000);
     if (invitationsError) throw invitationsError;
 
-    const { data: teamAnalyses, error: teamAnalysesError } = await supabaseAdmin
+    const { data: teamAnalyses } = await supabaseAdmin
       .from("team_analyses")
       .select("id, created_at, creator_user_id")
       .order("created_at", { ascending: true })
-      .limit(10000);
-    if (teamAnalysesError) throw teamAnalysesError;
+      .limit(10000)
+      .then((r) => r, () => ({ data: [] as { id: string; created_at: string; creator_user_id: string | null }[] }));
 
     return {
       users: authData.users.map((user) => ({
