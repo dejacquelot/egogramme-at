@@ -118,22 +118,59 @@ export const getMyResult = createServerFn({ method: "POST" })
     return result as { id: string; scores: Record<string, number>; first_name: string | null; last_name: string | null; created_at: string } | null;
   });
 
-/** Update scores for a result linked to an invitation */
-export const updateResultScores = createServerFn({ method: "POST" })
-  .inputValidator((input: { resultId: string; scores: Record<string, number> }) =>
-    z.object({ resultId: z.string().uuid(), scores: scoresSchema }).parse(input),
+/** Create or update provisional scores for an invitation that has not been answered yet */
+export const saveInvitationScores = createServerFn({ method: "POST" })
+  .inputValidator((input: { invitationId: string; scores: Record<string, number> }) =>
+    z.object({ invitationId: z.string().uuid(), scores: scoresSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: updated, error } = await supabaseAdmin
+    const { data: invitation, error: invitationError } = await supabaseAdmin
+      .from("invitations")
+      .select("id, invitee_name, status, result_id")
+      .eq("id", data.invitationId)
+      .maybeSingle();
+    if (invitationError) throw invitationError;
+    if (!invitation) throw new Error("Invitation introuvable.");
+    if (invitation.status === "completed") {
+      throw new Error("Cette invitation a déjà été répondue et n'est plus éditable.");
+    }
+
+    if (invitation.result_id) {
+      const { data: updated, error } = await supabaseAdmin
+        .from("results")
+        .update({ scores: data.scores } as Record<string, unknown>)
+        .eq("id", invitation.result_id)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!updated) throw new Error("Résultat introuvable.");
+      return { ok: true, resultId: updated.id as string };
+    }
+
+    const [firstName, ...lastNameParts] = String(invitation.invitee_name ?? "").trim().split(/\s+/).filter(Boolean);
+    const insertData: Record<string, unknown> = {
+      scores: data.scores,
+      first_name: firstName || null,
+      last_name: lastNameParts.join(" ") || null,
+    };
+    const { data: result, error: insertError } = await supabaseAdmin
       .from("results")
-      .update({ scores: data.scores } as Record<string, unknown>)
-      .eq("id", data.resultId)
+      .insert(insertData)
+      .select("id")
+      .single();
+    if (insertError) throw insertError;
+
+    const { data: linkedInvitation, error: updateInvitationError } = await supabaseAdmin
+      .from("invitations")
+      .update({ result_id: result.id } as Record<string, unknown>)
+      .eq("id", data.invitationId)
+      .neq("status", "completed")
       .select("id")
       .maybeSingle();
-    if (error) throw error;
-    if (!updated) throw new Error("Résultat introuvable.");
-    return { ok: true };
+    if (updateInvitationError) throw updateInvitationError;
+    if (!linkedInvitation) throw new Error("Cette invitation a déjà été répondue et n'est plus éditable.");
+    return { ok: true, resultId: result.id as string };
   });
 
 /** Update reminded_at */

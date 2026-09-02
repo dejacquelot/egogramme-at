@@ -12,7 +12,7 @@ import {
   listMyInvitations,
   getMyResult,
   getResultsByIds,
-  updateResultScores,
+  saveInvitationScores,
   remindInvitation,
   resetInvitation,
   deleteInvitation,
@@ -280,11 +280,11 @@ function Dashboard({ user }: { user: UserInfo }) {
         setMyResult(result);
         setInvitations(invs);
 
-        // Compute team average if there are completed invitations
-        const completed = invs.filter((i: Invitation) => i.status === "completed" && i.result_id);
-        if (result && completed.length > 0) {
+        // Compute team average if there are answered or manually filled invitations
+        const invitationsWithScores = invs.filter((i: Invitation) => i.result_id);
+        if (result && invitationsWithScores.length > 0) {
           const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
-          const resultIds = [result.id, ...completed.map((i: Invitation) => i.result_id!).filter(Boolean)];
+          const resultIds = [result.id, ...invitationsWithScores.map((i: Invitation) => i.result_id!).filter(Boolean)];
           try {
             const memberRows = await getResultsByIds({ data: { ids: resultIds } });
             const returnedIds = new Set(memberRows.map((r: any) => r.id));
@@ -339,13 +339,14 @@ function Dashboard({ user }: { user: UserInfo }) {
   const completedInvitations = invitations.filter((i) => i.status === "completed");
   const pendingInvitations = invitations.filter((i) => i.status === "pending");
   const deletedInvitations = invitations.filter((i) => i.status === "deleted");
+  const invitationsWithScores = invitations.filter((i) => i.result_id && i.status !== "deleted");
 
   const refreshTeamFromInvitations = async (nextInvitations: Invitation[]) => {
     if (!myResult) return;
     const resultIds = [
       myResult.id,
       ...nextInvitations
-        .filter((i) => i.status === "completed" && i.result_id)
+        .filter((i) => i.result_id && i.status !== "deleted")
         .map((i) => i.result_id!),
     ];
     if (resultIds.length < 2) {
@@ -387,10 +388,10 @@ function Dashboard({ user }: { user: UserInfo }) {
   };
 
   const handleSaveScores = async (inv: Invitation) => {
-    if (!inv.result_id) return;
+    if (inv.status === "completed") return;
     setSavingScoresId(inv.id);
     try {
-      const existing = invScores[inv.result_id] ?? {};
+      const existing = inv.result_id ? (invScores[inv.result_id] ?? {}) : {};
       const draft = scoreDrafts[inv.id] ?? {};
       const entries = SCORE_KEYS.map((key) => {
         const raw = draft[key] ?? (existing[key] === undefined ? "" : String(existing[key]));
@@ -401,13 +402,13 @@ function Dashboard({ user }: { user: UserInfo }) {
         return [key, value] as const;
       });
       const scores = Object.fromEntries(entries) as ReportScores;
-      await updateResultScores({ data: { resultId: inv.result_id, scores } });
-      setInvScores((prev) => ({ ...prev, [inv.result_id!]: scores }));
+      const res = await saveInvitationScores({ data: { invitationId: inv.id, scores } });
+      setInvScores((prev) => ({ ...prev, [res.resultId]: scores }));
       setScoreDrafts((prev) => ({
         ...prev,
         [inv.id]: Object.fromEntries(SCORE_KEYS.map((key) => [key, String(scores[key])])) as Record<string, string>,
       }));
-      const nextInvitations = invitations.map((i) => (i.id === inv.id ? { ...i, status: "completed" } : i));
+      const nextInvitations = invitations.map((i) => (i.id === inv.id ? { ...i, result_id: res.resultId } : i));
       setInvitations(nextInvitations);
       await refreshTeamFromInvitations(nextInvitations);
     } catch (e) {
@@ -520,7 +521,7 @@ function Dashboard({ user }: { user: UserInfo }) {
 
   const handleGenerateTeam = async () => {
     if (!myResult) return;
-    const resultIds = [myResult.id, ...completedInvitations.map((i) => i.result_id!).filter(Boolean)];
+    const resultIds = [myResult.id, ...invitationsWithScores.map((i) => i.result_id!).filter(Boolean)];
     if (resultIds.length < 2) return;
     setGeneratingTeam(true);
     setTeamAnalysis(null);
@@ -774,6 +775,8 @@ function Dashboard({ user }: { user: UserInfo }) {
                           <span className="text-green-600 font-medium">✅ Répondu</span>
                         ) : inv.status === "deleted" ? (
                           <span className="text-red-500 font-medium">🗑️ Supprimé</span>
+                        ) : inv.result_id ? (
+                          <span className="text-indigo-600 font-medium">✍️ Saisi</span>
                         ) : (
                           <span className="text-amber-600">⏳ En attente</span>
                         )}
@@ -781,7 +784,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                       {SCORE_KEYS.map((key) => {
                         const s = inv.result_id ? invScores[inv.result_id] : undefined;
                         const value = scoreDrafts[inv.id]?.[key] ?? (s?.[key] === undefined ? "" : String(s[key]));
-                        const editable = Boolean(inv.result_id);
+                        const editable = inv.status === "pending";
                         return (
                           <td key={key} className="py-2 pr-3 text-xs text-center tabular-nums">
                             {editable ? (
@@ -794,6 +797,8 @@ function Dashboard({ user }: { user: UserInfo }) {
                                 onChange={(e) => handleScoreChange(inv, key, e.target.value)}
                                 className="mx-auto h-8 w-14 px-1 text-center text-xs"
                               />
+                            ) : s ? (
+                              s[key] ?? "—"
                             ) : (
                               "—"
                             )}
@@ -809,7 +814,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                         )}
                       </td>
                       <td className="py-2 text-right space-x-1">
-                        {inv.result_id && (
+                        {inv.status === "pending" && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -848,16 +853,16 @@ function Dashboard({ user }: { user: UserInfo }) {
             {/* Generate analyses */}
             {myResult && (
               <div className="mt-6 pt-4 border-t border-border">
-                {completedInvitations.length >= 1 && (
+                {invitationsWithScores.length >= 1 && (
                   <p className="text-sm text-muted-foreground mb-3">
-                    🎯 {completedInvitations.length + 1} profils disponibles (vous + {completedInvitations.length} invité{completedInvitations.length > 1 ? "s" : ""})
+                    🎯 {invitationsWithScores.length + 1} profils disponibles (vous + {invitationsWithScores.length} invité{invitationsWithScores.length > 1 ? "s" : ""})
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={handleGenerateIndividual} disabled={generatingIndiv}>
                     {generatingIndiv ? "Génération en cours…" : "📊 Générer mon analyse individuelle"}
                   </Button>
-                  {completedInvitations.length >= 1 && (
+                  {invitationsWithScores.length >= 1 && (
                     <Button onClick={handleGenerateTeam} disabled={generatingTeam}>
                       {generatingTeam ? "Génération en cours…" : "🤝 Générer l'analyse collective"}
                     </Button>
