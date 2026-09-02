@@ -10,8 +10,10 @@ import { generateIndividualAnalysis } from "@/lib/analysis.functions";
 import {
   downloadIndividualReportImage,
   downloadIndividualReportPdf,
+  buildIndividualReportUploads,
   type CatKey,
 } from "@/lib/team-report";
+import { storeReportFiles } from "@/lib/report.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { completeInvitation, linkResultToUser } from "@/lib/invitation.functions";
 import { NavBar } from "@/components/nav-bar";
@@ -571,6 +573,8 @@ function ResultSection({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
+  const [indivUrls, setIndivUrls] = useState<{ pdfUrl: string; imageUrl: string } | null>(null);
+  const [storing, setStoring] = useState(false);
 
 
 
@@ -605,6 +609,7 @@ function ResultSection({
       return;
     }
     setLoading(true);
+    setIndivUrls(null);
     try {
       // Save result to DB on first generation
       const saveRes = await fetch("/api/public/save-result", {
@@ -632,6 +637,27 @@ function ResultSection({
         data: { scores, firstName: firstName.trim() },
       });
       setAnalysis(res.analysis);
+
+      // Store the generated PDF + image in Supabase Storage
+      if (savedId) {
+        try {
+          setStoring(true);
+          const uploads = await buildIndividualReportUploads({
+            name: fullName || "Résultat individuel",
+            date: dateLabel,
+            scores: scores as Record<CatKey, number>,
+            analysis: res.analysis,
+          });
+          const urls = await storeReportFiles({
+            data: { kind: "individual", refId: savedId, ...uploads },
+          });
+          setIndivUrls(urls);
+        } catch (storeErr) {
+          console.error("store individual report error:", storeErr);
+        } finally {
+          setStoring(false);
+        }
+      }
     } catch (e) {
       setError(
         e instanceof Error && e.message
@@ -706,12 +732,14 @@ function ResultSection({
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={handleGenerate} disabled={loading}>
+        <Button onClick={handleGenerate} disabled={loading || storing || indivUrls !== null}>
           {loading
             ? "Génération de l'analyse…"
-            : analysis
-              ? "Régénérer mon analyse"
-              : "Générer mon analyse"}
+            : storing
+              ? "Enregistrement…"
+              : indivUrls
+                ? "✅ Analyse générée"
+                : "Générer mon analyse"}
         </Button>
       </div>
 
@@ -729,16 +757,33 @@ function ResultSection({
           </div>
 
           <div className="mt-6 flex flex-wrap gap-2">
-            <Button onClick={() => handleDownload("pdf")} disabled={downloading !== null}>
-              {downloading === "pdf" ? "Préparation…" : "Télécharger le rapport PDF"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleDownload("img")}
-              disabled={downloading !== null}
-            >
-              {downloading === "img" ? "Préparation…" : "Télécharger en image"}
-            </Button>
+            {indivUrls ? (
+              <>
+                <Button asChild>
+                  <a href={indivUrls.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                    Télécharger le rapport PDF
+                  </a>
+                </Button>
+                <Button asChild variant="outline">
+                  <a href={indivUrls.imageUrl} target="_blank" rel="noopener noreferrer" download>
+                    Télécharger en image
+                  </a>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={() => handleDownload("pdf")} disabled={downloading !== null || storing}>
+                  {storing ? "Enregistrement…" : downloading === "pdf" ? "Préparation…" : "Télécharger le rapport PDF"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleDownload("img")}
+                  disabled={downloading !== null || storing}
+                >
+                  {downloading === "img" ? "Préparation…" : "Télécharger en image"}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

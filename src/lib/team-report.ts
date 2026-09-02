@@ -854,3 +854,84 @@ export async function downloadTeamReportImage(input: TeamReportInput) {
   pages.forEach((c, i) => ctx.drawImage(c, 0, i * (H * SCALE + gap)));
   triggerDownload(out.toDataURL("image/png"), `${fileBase(input.teamName)}.png`);
 }
+
+// --- Persistence helpers: build the report as uploadable base64 blobs -------
+
+function composeImageCanvas(pages: HTMLCanvasElement[]) {
+  const out = document.createElement("canvas");
+  const gap = 24 * SCALE;
+  out.width = W * SCALE;
+  out.height = pages.length * H * SCALE + gap * (pages.length - 1);
+  const ctx = out.getContext("2d")!;
+  ctx.fillStyle = "#e6eaf1";
+  ctx.fillRect(0, 0, out.width, out.height);
+  pages.forEach((c, i) => ctx.drawImage(c, 0, i * (H * SCALE + gap)));
+  return out;
+}
+
+async function canvasesToPdfBlob(pages: HTMLCanvasElement[]): Promise<Blob> {
+  const { default: JsPDF } = await import("jspdf");
+  const pdf = new JsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+  const pw = pdf.internal.pageSize.getWidth();
+  const ph = pdf.internal.pageSize.getHeight();
+  pages.forEach((c, i) => {
+    if (i > 0) pdf.addPage();
+    pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pw, ph);
+  });
+  return pdf.output("blob");
+}
+
+function canvasesToImageBlob(pages: HTMLCanvasElement[]): Promise<Blob> {
+  const out = composeImageCanvas(pages);
+  return new Promise((resolve, reject) =>
+    out.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Image non générée"))),
+      "image/png",
+    ),
+  );
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Lecture du fichier échouée"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+export type EncodedReport = { base: string; pdfBase64: string; imageBase64: string };
+
+export async function buildIndividualReportUploads(
+  input: IndividualReportInput,
+): Promise<EncodedReport> {
+  const pages = await renderIndividualReportPages(input);
+  const [pdf, image] = await Promise.all([
+    canvasesToPdfBlob(pages),
+    canvasesToImageBlob(pages),
+  ]);
+  const [pdfBase64, imageBase64] = await Promise.all([
+    blobToBase64(pdf),
+    blobToBase64(image),
+  ]);
+  return { base: individualFileBase(input.name), pdfBase64, imageBase64 };
+}
+
+export async function buildTeamReportUploads(
+  input: TeamReportInput,
+): Promise<EncodedReport> {
+  const pages = await renderTeamReportPages(input);
+  const [pdf, image] = await Promise.all([
+    canvasesToPdfBlob(pages),
+    canvasesToImageBlob(pages),
+  ]);
+  const [pdfBase64, imageBase64] = await Promise.all([
+    blobToBase64(pdf),
+    blobToBase64(image),
+  ]);
+  return { base: fileBase(input.teamName), pdfBase64, imageBase64 };
+}

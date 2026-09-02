@@ -24,10 +24,13 @@ import {
   downloadTeamReportImage,
   downloadIndividualReportPdf,
   downloadIndividualReportImage,
+  buildIndividualReportUploads,
+  buildTeamReportUploads,
   type CatKey,
   type ReportMember,
   type ReportScores,
 } from "@/lib/team-report";
+import { storeReportFiles } from "@/lib/report.functions";
 import { NavBar } from "@/components/nav-bar";
 import { isAdminEmail } from "@/lib/admin-config";
 
@@ -239,6 +242,8 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [teamMembers, setTeamMembers] = useState<ReportMember[]>([]);
   const [teamAverage, setTeamAverage] = useState<ReportScores | null>(null);
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
+  const [teamUrls, setTeamUrls] = useState<{ pdfUrl: string; imageUrl: string } | null>(null);
+  const [storingTeam, setStoringTeam] = useState(false);
   const [invScores, setInvScores] = useState<Record<string, Record<string, number>>>({});
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, Record<string, string>>>({});
   const [savingScoresId, setSavingScoresId] = useState<string | null>(null);
@@ -247,6 +252,8 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [individualAnalysis, setIndividualAnalysis] = useState<string | null>(null);
   const [generatingIndiv, setGeneratingIndiv] = useState(false);
   const [downloadingIndiv, setDownloadingIndiv] = useState<"pdf" | "img" | null>(null);
+  const [indivUrls, setIndivUrls] = useState<{ pdfUrl: string; imageUrl: string } | null>(null);
+  const [storingIndiv, setStoringIndiv] = useState(false);
 
   // Actions
   const [remindingId, setRemindingId] = useState<string | null>(null);
@@ -525,6 +532,7 @@ function Dashboard({ user }: { user: UserInfo }) {
     if (resultIds.length < 2) return;
     setGeneratingTeam(true);
     setTeamAnalysis(null);
+    setTeamUrls(null);
     try {
       const [res, memberRows] = await Promise.all([
         generateTeamAnalysis({
@@ -547,6 +555,27 @@ function Dashboard({ user }: { user: UserInfo }) {
         cats.map((c) => [c, Math.round(members.reduce((s, m) => s + m.scores[c], 0) / members.length)]),
       ) as ReportScores;
       setTeamAverage(avg);
+
+      // Store the generated PDF + image in Supabase Storage
+      if (res.teamAnalysisId) {
+        try {
+          setStoringTeam(true);
+          const uploads = await buildTeamReportUploads({
+            teamName: `Groupe de ${user.firstName}`,
+            average: avg,
+            members,
+            analysis: res.analysis,
+          });
+          const urls = await storeReportFiles({
+            data: { kind: "team", refId: res.teamAnalysisId, ...uploads },
+          });
+          setTeamUrls(urls);
+        } catch (storeErr) {
+          console.error("store team report error:", storeErr);
+        } finally {
+          setStoringTeam(false);
+        }
+      }
     } catch (e) {
       console.error("team analysis error:", e);
       setTeamAnalysis("Erreur lors de la génération. Réessayez.");
@@ -578,11 +607,33 @@ function Dashboard({ user }: { user: UserInfo }) {
     if (!myResult) return;
     setGeneratingIndiv(true);
     setIndividualAnalysis(null);
+    setIndivUrls(null);
     try {
       const res = await generateIndividualAnalysis({
         data: { scores: myResult.scores, firstName: user.firstName || "Utilisateur" },
       });
       setIndividualAnalysis(res.analysis);
+
+      // Store the generated PDF + image in Supabase Storage
+      try {
+        setStoringIndiv(true);
+        const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Résultat individuel";
+        const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+        const uploads = await buildIndividualReportUploads({
+          name: fullName,
+          date: new Date(myResult.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
+          scores: Object.fromEntries(cats.map((c) => [c, myResult.scores[c] ?? 0])) as ReportScores,
+          analysis: res.analysis,
+        });
+        const urls = await storeReportFiles({
+          data: { kind: "individual", refId: myResult.id, ...uploads },
+        });
+        setIndivUrls(urls);
+      } catch (storeErr) {
+        console.error("store individual report error:", storeErr);
+      } finally {
+        setStoringIndiv(false);
+      }
     } catch (e) {
       console.error("individual analysis error:", e);
       setIndividualAnalysis("Erreur lors de la génération. Réessayez.");
@@ -859,12 +910,30 @@ function Dashboard({ user }: { user: UserInfo }) {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={handleGenerateIndividual} disabled={generatingIndiv}>
-                    {generatingIndiv ? "Génération en cours…" : "📊 Générer mon analyse individuelle"}
+                  <Button
+                    onClick={handleGenerateIndividual}
+                    disabled={generatingIndiv || storingIndiv || indivUrls !== null}
+                  >
+                    {generatingIndiv
+                      ? "Génération en cours…"
+                      : storingIndiv
+                        ? "Enregistrement…"
+                        : indivUrls
+                          ? "✅ Analyse individuelle générée"
+                          : "📊 Générer mon analyse individuelle"}
                   </Button>
                   {invitationsWithScores.length >= 1 && (
-                    <Button onClick={handleGenerateTeam} disabled={generatingTeam}>
-                      {generatingTeam ? "Génération en cours…" : "🤝 Générer l'analyse collective"}
+                    <Button
+                      onClick={handleGenerateTeam}
+                      disabled={generatingTeam || storingTeam || teamUrls !== null}
+                    >
+                      {generatingTeam
+                        ? "Génération en cours…"
+                        : storingTeam
+                          ? "Enregistrement…"
+                          : teamUrls
+                            ? "✅ Analyse collective générée"
+                            : "🤝 Générer l'analyse collective"}
                     </Button>
                   )}
                 </div>
@@ -879,12 +948,29 @@ function Dashboard({ user }: { user: UserInfo }) {
             <h2 className="text-base font-semibold mb-4">📊 Mon analyse individuelle</h2>
             <MarkdownText text={individualAnalysis} />
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button onClick={() => handleIndivDownload("pdf")} disabled={downloadingIndiv !== null}>
-                {downloadingIndiv === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
-              </Button>
-              <Button variant="outline" onClick={() => handleIndivDownload("img")} disabled={downloadingIndiv !== null}>
-                {downloadingIndiv === "img" ? "Préparation…" : "🖼️ Télécharger en image"}
-              </Button>
+              {indivUrls ? (
+                <>
+                  <Button asChild>
+                    <a href={indivUrls.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                      📄 Télécharger en PDF
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <a href={indivUrls.imageUrl} target="_blank" rel="noopener noreferrer" download>
+                      🖼️ Télécharger en image
+                    </a>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={() => handleIndivDownload("pdf")} disabled={downloadingIndiv !== null || storingIndiv}>
+                    {storingIndiv ? "Enregistrement…" : downloadingIndiv === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
+                  </Button>
+                  <Button variant="outline" onClick={() => handleIndivDownload("img")} disabled={downloadingIndiv !== null || storingIndiv}>
+                    {downloadingIndiv === "img" ? "Préparation…" : "🖼️ Télécharger en image"}
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
         )}
@@ -895,12 +981,29 @@ function Dashboard({ user }: { user: UserInfo }) {
             <h2 className="text-base font-semibold mb-4">🤝 Analyse collective</h2>
             <MarkdownText text={teamAnalysis} />
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button onClick={() => handleTeamDownload("pdf")} disabled={downloading !== null}>
-                {downloading === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
-              </Button>
-              <Button variant="outline" onClick={() => handleTeamDownload("img")} disabled={downloading !== null}>
-                {downloading === "img" ? "Préparation…" : "🖼️ Télécharger en image"}
-              </Button>
+              {teamUrls ? (
+                <>
+                  <Button asChild>
+                    <a href={teamUrls.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                      📄 Télécharger en PDF
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <a href={teamUrls.imageUrl} target="_blank" rel="noopener noreferrer" download>
+                      🖼️ Télécharger en image
+                    </a>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={() => handleTeamDownload("pdf")} disabled={downloading !== null || storingTeam}>
+                    {storingTeam ? "Enregistrement…" : downloading === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
+                  </Button>
+                  <Button variant="outline" onClick={() => handleTeamDownload("img")} disabled={downloading !== null || storingTeam}>
+                    {downloading === "img" ? "Préparation…" : "🖼️ Télécharger en image"}
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
         )}

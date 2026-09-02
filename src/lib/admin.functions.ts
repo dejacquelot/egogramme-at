@@ -135,15 +135,20 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
       [r.first_name, r.last_name].filter(Boolean).join(" ") ||
       `Membre ${i + 1}`,
     );
-    await supabaseAdmin.from("team_analyses").insert({
-      team_name: data.teamName || "",
-      member_ids: data.ids,
-      member_names: memberNames,
-      analysis: text,
-      creator_user_id: data.creatorUserId ?? null,
-    });
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("team_analyses")
+      .insert({
+        team_name: data.teamName || "",
+        member_ids: data.ids,
+        member_names: memberNames,
+        analysis: text,
+        creator_user_id: data.creatorUserId ?? null,
+      })
+      .select("id")
+      .single();
+    if (insertError) throw insertError;
 
-    return { analysis: text };
+    return { analysis: text, teamAnalysisId: inserted?.id ?? null };
   });
 
 /**
