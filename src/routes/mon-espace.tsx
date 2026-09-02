@@ -528,7 +528,7 @@ function Dashboard({ user }: { user: UserInfo }) {
     try {
       const [res, memberRows] = await Promise.all([
         generateTeamAnalysis({
-          data: { ids: resultIds, teamName: `Groupe de ${user.firstName}` },
+          data: { ids: resultIds, teamName: `Groupe de ${user.firstName}`, creatorUserId: user.id },
         }),
         getResultsByIds({ data: { ids: resultIds } }),
       ]);

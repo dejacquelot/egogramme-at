@@ -55,11 +55,12 @@ export const updateAdminResultName = createServerFn({ method: "POST" })
   });
 
 export const generateTeamAnalysis = createServerFn({ method: "POST" })
-  .inputValidator((input: { ids: string[]; teamName?: string }) =>
+  .inputValidator((input: { ids: string[]; teamName?: string; creatorUserId?: string }) =>
     z
       .object({
         ids: z.array(z.string().uuid()).min(2).max(20),
         teamName: z.string().max(120).optional(),
+        creatorUserId: z.string().uuid().optional(),
       })
       .parse(input),
   )
@@ -139,6 +140,7 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
       member_ids: data.ids,
       member_names: memberNames,
       analysis: text,
+      creator_user_id: data.creatorUserId ?? null,
     });
 
     return { analysis: text };
@@ -217,6 +219,17 @@ export const listAdminUsers = createServerFn({ method: "GET" })
       .limit(5000);
     if (invError) throw invError;
 
+    const { data: teamAnalyses, error: teamError } = await supabaseAdmin
+      .from("team_analyses")
+      .select("id, creator_user_id");
+    if (teamError) throw teamError;
+    const teamByUser = new Map<string, number>();
+    (teamAnalyses ?? []).forEach((ta: any) => {
+      const uid = String(ta.creator_user_id ?? "");
+      if (!uid) return;
+      teamByUser.set(uid, (teamByUser.get(uid) ?? 0) + 1);
+    });
+
     // Build users list
     const users = authData.users.map((u) => {
       const meta = u.user_metadata ?? {};
@@ -230,6 +243,7 @@ export const listAdminUsers = createServerFn({ method: "GET" })
         avatarUrl: (meta.avatar_url as string) ?? null,
         createdAt: u.created_at,
         lastSignInAt: u.last_sign_in_at ?? null,
+        teamAnalysesCount: teamByUser.get(u.id) ?? 0,
         invitations: userInvitations.map((i: any) => ({
           id: i.id,
           inviteeName: i.invitee_name,
@@ -261,6 +275,13 @@ export const listAdminStatsData = createServerFn({ method: "GET" })
       .limit(10000);
     if (invitationsError) throw invitationsError;
 
+    const { data: teamAnalyses, error: teamAnalysesError } = await supabaseAdmin
+      .from("team_analyses")
+      .select("id, created_at, creator_user_id")
+      .order("created_at", { ascending: true })
+      .limit(10000);
+    if (teamAnalysesError) throw teamAnalysesError;
+
     return {
       users: authData.users.map((user) => ({
         id: user.id,
@@ -270,5 +291,12 @@ export const listAdminStatsData = createServerFn({ method: "GET" })
         id: inv.id as string,
         created_at: inv.created_at as string,
       })),
+      teamAnalysesByUsers: (teamAnalyses ?? [])
+        .filter((ta: any) => Boolean(ta.creator_user_id))
+        .map((ta: any) => ({
+          id: ta.id as string,
+          created_at: ta.created_at as string,
+          creator_user_id: ta.creator_user_id as string,
+        })),
     };
   });

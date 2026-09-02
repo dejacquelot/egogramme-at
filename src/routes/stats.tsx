@@ -151,6 +151,7 @@ function StatsContent() {
   const [accountRows, setAccountRows] = useState<{ created_at: string }[]>([]);
   const [invitationRows, setInvitationRows] = useState<{ created_at: string }[]>([]);
   const [teamRows, setTeamRows] = useState<{ created_at: string }[]>([]);
+  const [teamByUsersRows, setTeamByUsersRows] = useState<{ created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalResults, setTotalResults] = useState<number | null>(null);
   const [totalAccounts, setTotalAccounts] = useState<number | null>(null);
@@ -194,14 +195,18 @@ function StatsContent() {
 
       // These may fail if tables don't exist yet — don't block the page
       const [adminStatsRes, teamsCountRes, teamsRes] = await Promise.all([
-        listAdminStatsData().then((r) => r, () => ({ users: [], invitations: [] })),
+        listAdminStatsData().then((r) => r, () => ({ users: [], invitations: [], teamAnalysesByUsers: [] })),
         supabase.from("team_analyses").select("id", { count: "exact", head: true })
           .then((r) => r, () => ({ count: 0 })),
         supabase.from("team_analyses").select("created_at").gte("created_at", isoDate)
           .order("created_at", { ascending: true }).then((r) => r, () => ({ data: [] })),
       ]);
       if (cancelled) return;
-      const adminStats = adminStatsRes as { users: { created_at: string }[]; invitations: { created_at: string }[] };
+      const adminStats = adminStatsRes as {
+        users: { created_at: string }[];
+        invitations: { created_at: string }[];
+        teamAnalysesByUsers: { created_at: string }[];
+      };
       setRows((visitsRes.data as { visit_date: string; created_at: string }[] | null) ?? []);
       setResultRows((resultsRes.data as { created_at: string; ip_hash: string }[] | null) ?? []);
       setTotalResults(resultsCountRes.count ?? 0);
@@ -211,6 +216,9 @@ function StatsContent() {
       setAccountRows(adminStats.users.filter((user) => new Date(user.created_at) >= since));
       setInvitationRows(
         adminStats.invitations.filter((invitation) => new Date(invitation.created_at) >= since),
+      );
+      setTeamByUsersRows(
+        adminStats.teamAnalysesByUsers.filter((row) => new Date(row.created_at) >= since),
       );
       setTeamRows(((teamsRes as { data: { created_at: string }[] | null }).data) ?? []);
       setLoading(false);
@@ -228,12 +236,14 @@ function StatsContent() {
     const accountsMap = new Map<string, number>();
     const invitationsMap = new Map<string, number>();
     const teamsMap = new Map<string, number>();
+    const teamsByUsersMap = new Map<string, number>();
     keys.forEach((k) => {
       visitorsMap.set(k, 0);
       completedMap.set(k, 0);
       accountsMap.set(k, 0);
       invitationsMap.set(k, 0);
       teamsMap.set(k, 0);
+      teamsByUsersMap.set(k, 0);
     });
     rows.forEach((r) => {
       const d = period === "hour" ? new Date(r.created_at) : new Date(r.visit_date + "T00:00:00Z");
@@ -260,6 +270,11 @@ function StatsContent() {
       const key = bucketKey(d, period);
       if (teamsMap.has(key)) teamsMap.set(key, (teamsMap.get(key) ?? 0) + 1);
     });
+    teamByUsersRows.forEach((r) => {
+      const d = new Date(r.created_at);
+      const key = bucketKey(d, period);
+      if (teamsByUsersMap.has(key)) teamsByUsersMap.set(key, (teamsByUsersMap.get(key) ?? 0) + 1);
+    });
     return keys.map((k) => ({
       label: bucketLabel(k, period),
       visitors: visitorsMap.get(k) ?? 0,
@@ -267,13 +282,15 @@ function StatsContent() {
       accounts: accountsMap.get(k) ?? 0,
       invitations: invitationsMap.get(k) ?? 0,
       teams: teamsMap.get(k) ?? 0,
+      teamsByUsers: teamsByUsersMap.get(k) ?? 0,
     }));
-  }, [rows, resultRows, accountRows, invitationRows, teamRows, period]);
+  }, [rows, resultRows, accountRows, invitationRows, teamRows, teamByUsersRows, period]);
 
   const totalVisitors = chartData.reduce((a, b) => a + b.visitors, 0);
   const totalCompleted = chartData.reduce((a, b) => a + b.completed, 0);
   const periodAccounts = chartData.reduce((a, b) => a + b.accounts, 0);
   const periodInvitations = chartData.reduce((a, b) => a + b.invitations, 0);
+  const periodTeamsByUsers = chartData.reduce((a, b) => a + b.teamsByUsers, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -377,10 +394,10 @@ function StatsContent() {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">
-                Analyses d'équipe
+                Tests collectifs générés (période)
               </div>
-              <div className="text-2xl font-semibold tabular-nums text-purple-600">
-                {totalTeams ?? "—"}
+              <div className="text-2xl font-semibold tabular-nums text-fuchsia-600">
+                {periodTeamsByUsers}
               </div>
             </div>
           </div>
@@ -458,12 +475,12 @@ function StatsContent() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="teams"
-                    stroke="oklch(0.55 0.15 330)"
+                    dataKey="teamsByUsers"
+                    stroke="oklch(0.62 0.22 340)"
                     strokeWidth={2.5}
                     dot={{ r: 3 }}
                     activeDot={{ r: 5 }}
-                    name="Analyses d'équipe"
+                    name="Tests collectifs générés (Mon Espace)"
                   />
                 </LineChart>
               </ResponsiveContainer>

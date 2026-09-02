@@ -24,6 +24,7 @@ type AdminUser = {
   avatarUrl: string | null;
   createdAt: string;
   lastSignInAt: string | null;
+  teamAnalysesCount: number;
   invitations: {
     id: string;
     inviteeName: string | null;
@@ -108,6 +109,7 @@ function Utilisateurs() {
                 <th className="py-2 pr-3 font-medium">Inscrit le</th>
                 <th className="py-2 pr-3 font-medium">Dernière connexion</th>
                 <th className="py-2 pr-3 font-medium text-center">Invitations</th>
+                <th className="py-2 pr-3 font-medium text-center">Tests collectifs</th>
                 <th className="py-2 font-medium text-right">Détails</th>
               </tr>
             </thead>
@@ -145,6 +147,9 @@ function Utilisateurs() {
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
+                    </td>
+                    <td className="py-2 pr-3 text-xs text-center">
+                      <span className="font-semibold">{u.teamAnalysesCount ?? 0}</span>
                     </td>
                     <td className="py-2 text-right">
                       <button
