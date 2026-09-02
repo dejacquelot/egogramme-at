@@ -24,13 +24,13 @@ export const Route = createFileRoute("/")({
   }),
   head: () => ({
     meta: [
-      { title: "Test égogramme gratuit — mieux vous connaître pour mieux interagir" },
+      { title: "- Test égogramme gratuit — mieux vous connaître pour mieux interagir -" },
       {
         name: "description",
         content:
           "Révélez votre mode de fonctionnement relationnel en moins de 5 minutes. Test d'égogramme interactif basé sur l'analyse transactionnelle.",
       },
-      { property: "og:title", content: "Test égogramme gratuit — mieux vous connaître pour mieux interagir" },
+      { property: "og:title", content: "- Test égogramme gratuit — mieux vous connaître pour mieux interagir -" },
       {
         property: "og:description",
         content:
@@ -279,7 +279,7 @@ function Index() {
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-5xl px-4 py-6">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            Test égogramme gratuit — mieux vous connaître pour mieux interagir
+            - Test égogramme gratuit — mieux vous connaître pour mieux interagir -
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Révélez votre mode de fonctionnement relationnel
