@@ -15,8 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { isAdminEmail } from "@/lib/admin-config";
 import { NavBar } from "@/components/nav-bar";
+import { listAdminStatsData } from "@/lib/admin.functions";
 
-type Period = "day" | "week" | "month" | "quarter" | "year";
+type Period = "hour" | "day" | "week" | "month" | "quarter" | "year";
 
 const PERIODS: {
   key: Period;
@@ -24,6 +25,7 @@ const PERIODS: {
   days: number;
   buckets: number;
 }[] = [
+  { key: "hour", label: "Aujourd'hui (heure par heure)", days: 1, buckets: 24 },
   { key: "day", label: "Par jour (30 j)", days: 30, buckets: 30 },
   { key: "week", label: "Par semaine (12 sem.)", days: 7 * 12, buckets: 12 },
   { key: "month", label: "Par mois (12 mois)", days: 31 * 12, buckets: 12 },
@@ -32,6 +34,13 @@ const PERIODS: {
 ];
 
 function bucketKey(date: Date, period: Period): string {
+  if (period === "hour") {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const h = String(date.getHours()).padStart(2, "0");
+    return `${y}-${m}-${d}-${h}`;
+  }
   const y = date.getUTCFullYear();
   const m = date.getUTCMonth();
   const d = date.getUTCDate();
@@ -50,6 +59,7 @@ function bucketKey(date: Date, period: Period): string {
 }
 
 function bucketLabel(key: string, period: Period): string {
+  if (period === "hour") return `${key.slice(-2)}h`;
   if (period === "day") {
     const [, m, d] = key.split("-");
     return `${d}/${m}`;
@@ -68,6 +78,14 @@ function bucketLabel(key: string, period: Period): string {
 function buildBuckets(period: Period, count: number): string[] {
   const now = new Date();
   const keys: string[] = [];
+  if (period === "hour") {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    for (let hour = 0; hour < count; hour++) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour);
+      keys.push(bucketKey(d, period));
+    }
+    return keys;
+  }
   for (let i = count - 1; i >= 0; i--) {
     const d = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
@@ -128,13 +146,15 @@ function StatsContent() {
     });
   }, []);
   const [period, setPeriod] = useState<Period>("day");
-  const [rows, setRows] = useState<{ visit_date: string }[]>([]);
-  const [resultRows, setResultRows] = useState<{ created_at: string }[]>([]);
-  const [shareRows, setShareRows] = useState<{ created_at: string }[]>([]);
+  const [rows, setRows] = useState<{ visit_date: string; created_at: string }[]>([]);
+  const [resultRows, setResultRows] = useState<{ created_at: string; ip_hash: string }[]>([]);
+  const [accountRows, setAccountRows] = useState<{ created_at: string }[]>([]);
+  const [invitationRows, setInvitationRows] = useState<{ created_at: string }[]>([]);
   const [teamRows, setTeamRows] = useState<{ created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalResults, setTotalResults] = useState<number | null>(null);
-  const [totalShares, setTotalShares] = useState<number | null>(null);
+  const [totalAccounts, setTotalAccounts] = useState<number | null>(null);
+  const [totalInvitations, setTotalInvitations] = useState<number | null>(null);
   const [totalTeams, setTotalTeams] = useState<number | null>(null);
 
   useEffect(() => {
@@ -142,13 +162,10 @@ function StatsContent() {
     (async () => {
       setLoading(true);
       const cfg = PERIODS.find((p) => p.key === period)!;
-      const since = new Date(
-        Date.UTC(
-          new Date().getUTCFullYear(),
-          new Date().getUTCMonth(),
-          new Date().getUTCDate(),
-        ),
-      );
+      const now = new Date();
+      const since = period === "hour"
+        ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
       if (period === "day") since.setUTCDate(since.getUTCDate() - cfg.days);
       else if (period === "week") since.setUTCDate(since.getUTCDate() - cfg.days);
       else if (period === "month") since.setUTCMonth(since.getUTCMonth() - cfg.buckets);
@@ -159,31 +176,42 @@ function StatsContent() {
       const [visitsRes, resultsRes, resultsCountRes] = await Promise.all([
         supabase
           .from("visits")
-          .select("visit_date")
-          .gte("visit_date", isoDate.slice(0, 10))
-          .order("visit_date", { ascending: true }),
+          .select("visit_date, created_at")
+          .gte(
+            period === "hour" ? "created_at" : "visit_date",
+            period === "hour" ? isoDate : isoDate.slice(0, 10),
+          )
+          .order(period === "hour" ? "created_at" : "visit_date", { ascending: true }),
         supabase
           .from("results")
-          .select("created_at")
+          .select("created_at, ip_hash")
           .gte("created_at", isoDate)
+          .not("ip_hash", "like", "manual-invitation-%")
           .order("created_at", { ascending: true }),
-        supabase.from("results").select("id", { count: "exact", head: true }),
+        supabase.from("results").select("id", { count: "exact", head: true })
+          .not("ip_hash", "like", "manual-invitation-%"),
       ]);
 
       // These may fail if tables don't exist yet — don't block the page
-      const [sharesCountRes, teamsCountRes, sharesRes, teamsRes] = await Promise.all([
-        supabase.from("share_events").select("id", { count: "exact", head: true }).then((r) => r, () => ({ count: 0 })),
-        supabase.from("team_analyses").select("id", { count: "exact", head: true }).then((r) => r, () => ({ count: 0 })),
-        supabase.from("share_events").select("created_at").gte("created_at", isoDate).order("created_at", { ascending: true }).then((r) => r, () => ({ data: [] })),
-        supabase.from("team_analyses").select("created_at").gte("created_at", isoDate).order("created_at", { ascending: true }).then((r) => r, () => ({ data: [] })),
+      const [adminStatsRes, teamsCountRes, teamsRes] = await Promise.all([
+        listAdminStatsData().then((r) => r, () => ({ users: [], invitations: [] })),
+        supabase.from("team_analyses").select("id", { count: "exact", head: true })
+          .then((r) => r, () => ({ count: 0 })),
+        supabase.from("team_analyses").select("created_at").gte("created_at", isoDate)
+          .order("created_at", { ascending: true }).then((r) => r, () => ({ data: [] })),
       ]);
       if (cancelled) return;
-      setRows((visitsRes.data as { visit_date: string }[] | null) ?? []);
-      setResultRows((resultsRes.data as { created_at: string }[] | null) ?? []);
+      const adminStats = adminStatsRes as { users: { created_at: string }[]; invitations: { created_at: string }[] };
+      setRows((visitsRes.data as { visit_date: string; created_at: string }[] | null) ?? []);
+      setResultRows((resultsRes.data as { created_at: string; ip_hash: string }[] | null) ?? []);
       setTotalResults(resultsCountRes.count ?? 0);
-      setTotalShares((sharesCountRes as { count: number | null }).count ?? 0);
+      setTotalAccounts(adminStats.users.length);
+      setTotalInvitations(adminStats.invitations.length);
       setTotalTeams((teamsCountRes as { count: number | null }).count ?? 0);
-      setShareRows(((sharesRes as { data: { created_at: string }[] | null }).data) ?? []);
+      setAccountRows(adminStats.users.filter((user) => new Date(user.created_at) >= since));
+      setInvitationRows(
+        adminStats.invitations.filter((invitation) => new Date(invitation.created_at) >= since),
+      );
       setTeamRows(((teamsRes as { data: { created_at: string }[] | null }).data) ?? []);
       setLoading(false);
     })();
@@ -197,16 +225,18 @@ function StatsContent() {
     const keys = buildBuckets(period, cfg.buckets);
     const visitorsMap = new Map<string, number>();
     const completedMap = new Map<string, number>();
-    const sharesMap = new Map<string, number>();
+    const accountsMap = new Map<string, number>();
+    const invitationsMap = new Map<string, number>();
     const teamsMap = new Map<string, number>();
     keys.forEach((k) => {
       visitorsMap.set(k, 0);
       completedMap.set(k, 0);
-      sharesMap.set(k, 0);
+      accountsMap.set(k, 0);
+      invitationsMap.set(k, 0);
       teamsMap.set(k, 0);
     });
     rows.forEach((r) => {
-      const d = new Date(r.visit_date + "T00:00:00Z");
+      const d = period === "hour" ? new Date(r.created_at) : new Date(r.visit_date + "T00:00:00Z");
       const key = bucketKey(d, period);
       if (visitorsMap.has(key)) visitorsMap.set(key, (visitorsMap.get(key) ?? 0) + 1);
     });
@@ -215,10 +245,15 @@ function StatsContent() {
       const key = bucketKey(d, period);
       if (completedMap.has(key)) completedMap.set(key, (completedMap.get(key) ?? 0) + 1);
     });
-    shareRows.forEach((r) => {
+    accountRows.forEach((r) => {
       const d = new Date(r.created_at);
       const key = bucketKey(d, period);
-      if (sharesMap.has(key)) sharesMap.set(key, (sharesMap.get(key) ?? 0) + 1);
+      if (accountsMap.has(key)) accountsMap.set(key, (accountsMap.get(key) ?? 0) + 1);
+    });
+    invitationRows.forEach((r) => {
+      const d = new Date(r.created_at);
+      const key = bucketKey(d, period);
+      if (invitationsMap.has(key)) invitationsMap.set(key, (invitationsMap.get(key) ?? 0) + 1);
     });
     teamRows.forEach((r) => {
       const d = new Date(r.created_at);
@@ -229,13 +264,16 @@ function StatsContent() {
       label: bucketLabel(k, period),
       visitors: visitorsMap.get(k) ?? 0,
       completed: completedMap.get(k) ?? 0,
-      shares: sharesMap.get(k) ?? 0,
+      accounts: accountsMap.get(k) ?? 0,
+      invitations: invitationsMap.get(k) ?? 0,
       teams: teamsMap.get(k) ?? 0,
     }));
-  }, [rows, resultRows, shareRows, teamRows, period]);
+  }, [rows, resultRows, accountRows, invitationRows, teamRows, period]);
 
   const totalVisitors = chartData.reduce((a, b) => a + b.visitors, 0);
   const totalCompleted = chartData.reduce((a, b) => a + b.completed, 0);
+  const periodAccounts = chartData.reduce((a, b) => a + b.accounts, 0);
+  const periodInvitations = chartData.reduce((a, b) => a + b.invitations, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -307,10 +345,34 @@ function StatsContent() {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">
-                Invitations partagées
+                Comptes créés (période)
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-blue-600">
+                {periodAccounts}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Comptes créés (total)
+              </div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {totalAccounts ?? "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Invitations envoyées (période)
               </div>
               <div className="text-2xl font-semibold tabular-nums text-yellow-600">
-                {totalShares ?? "—"}
+                {periodInvitations}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Invitations envoyées (total)
+              </div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {totalInvitations ?? "—"}
               </div>
             </div>
             <div>
@@ -377,22 +439,31 @@ function StatsContent() {
                     name="Tests complétés"
                   />
                   <Line
-                   type="monotone"
-                   dataKey="shares"
-                   stroke="oklch(0.65 0.18 85)"
-                   strokeWidth={2.5}
-                   dot={{ r: 3 }}
-                   activeDot={{ r: 5 }}
-                   name="Invitations partagées"
+                    type="monotone"
+                    dataKey="accounts"
+                    stroke="oklch(0.58 0.18 230)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                    name="Comptes créés"
                   />
                   <Line
-                   type="monotone"
-                   dataKey="teams"
-                   stroke="oklch(0.55 0.15 330)"
-                   strokeWidth={2.5}
-                   dot={{ r: 3 }}
-                   activeDot={{ r: 5 }}
-                   name="Analyses d'équipe"
+                    type="monotone"
+                    dataKey="invitations"
+                    stroke="oklch(0.65 0.18 85)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                    name="Invitations envoyées"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="teams"
+                    stroke="oklch(0.55 0.15 330)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                    name="Analyses d'équipe"
                   />
                 </LineChart>
               </ResponsiveContainer>

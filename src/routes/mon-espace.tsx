@@ -633,7 +633,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       <NavBar />
       {/* Header */}
       <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-4xl px-4 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold">Mon Espace Égogramme</h1>
             <p className="text-xs text-muted-foreground">
@@ -651,7 +651,7 @@ function Dashboard({ user }: { user: UserInfo }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 space-y-8">
         {/* My Profile */}
         {myResult && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

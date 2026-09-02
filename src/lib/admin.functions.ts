@@ -242,3 +242,33 @@ export const listAdminUsers = createServerFn({ method: "GET" })
 
     return users.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   });
+
+/** Admin stats data that needs service-role access (auth users + invitations) */
+export const listAdminStatsData = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (authError) throw authError;
+
+    const { data: invitations, error: invitationsError } = await supabaseAdmin
+      .from("invitations")
+      .select("id, created_at")
+      .order("created_at", { ascending: true })
+      .limit(10000);
+    if (invitationsError) throw invitationsError;
+
+    return {
+      users: authData.users.map((user) => ({
+        id: user.id,
+        created_at: user.created_at,
+      })),
+      invitations: (invitations ?? []).map((inv) => ({
+        id: inv.id as string,
+        created_at: inv.created_at as string,
+      })),
+    };
+  });
