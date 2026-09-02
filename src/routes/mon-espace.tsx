@@ -12,6 +12,7 @@ import {
   listMyInvitations,
   getMyResult,
   getResultsByIds,
+  updateResultScores,
   remindInvitation,
   resetInvitation,
   deleteInvitation,
@@ -69,6 +70,8 @@ const SCORE_LABELS: Record<string, string> = {
   EAS: "Enfant Adapté Soumis",
   EAR: "Enfant Adapté Rebelle",
 };
+
+const SCORE_KEYS: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
 
 const CATEGORIES: {
   key: string;
@@ -237,6 +240,8 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [teamAverage, setTeamAverage] = useState<ReportScores | null>(null);
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
   const [invScores, setInvScores] = useState<Record<string, Record<string, number>>>({});
+  const [scoreDrafts, setScoreDrafts] = useState<Record<string, Record<string, string>>>({});
+  const [savingScoresId, setSavingScoresId] = useState<string | null>(null);
 
   // Individual analysis
   const [individualAnalysis, setIndividualAnalysis] = useState<string | null>(null);
@@ -334,6 +339,84 @@ function Dashboard({ user }: { user: UserInfo }) {
   const completedInvitations = invitations.filter((i) => i.status === "completed");
   const pendingInvitations = invitations.filter((i) => i.status === "pending");
   const deletedInvitations = invitations.filter((i) => i.status === "deleted");
+
+  const refreshTeamFromInvitations = async (nextInvitations: Invitation[]) => {
+    if (!myResult) return;
+    const resultIds = [
+      myResult.id,
+      ...nextInvitations
+        .filter((i) => i.status === "completed" && i.result_id)
+        .map((i) => i.result_id!),
+    ];
+    if (resultIds.length < 2) {
+      setTeamMembers([]);
+      setTeamAverage(null);
+      return;
+    }
+
+    const memberRows = await getResultsByIds({ data: { ids: resultIds } });
+    const validMembers = memberRows.filter((r) =>
+      SCORE_KEYS.some((key) => typeof r.scores?.[key] === "number"),
+    );
+    const members: ReportMember[] = validMembers.map((r) => ({
+      name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
+      date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
+      scores: Object.fromEntries(SCORE_KEYS.map((c) => [c, r.scores[c] ?? 0])) as ReportScores,
+    }));
+    setTeamMembers(members);
+    if (members.length >= 2) {
+      setTeamAverage(
+        Object.fromEntries(
+          SCORE_KEYS.map((c) => [c, Math.round(members.reduce((s, m) => s + m.scores[c], 0) / members.length)]),
+        ) as ReportScores,
+      );
+    } else {
+      setTeamAverage(null);
+    }
+  };
+
+  const handleScoreChange = (inv: Invitation, key: CatKey, value: string) => {
+    const normalized = value.replace(/\D/g, "").slice(0, 2);
+    setScoreDrafts((prev) => ({
+      ...prev,
+      [inv.id]: {
+        ...prev[inv.id],
+        [key]: normalized,
+      },
+    }));
+  };
+
+  const handleSaveScores = async (inv: Invitation) => {
+    if (!inv.result_id) return;
+    setSavingScoresId(inv.id);
+    try {
+      const existing = invScores[inv.result_id] ?? {};
+      const draft = scoreDrafts[inv.id] ?? {};
+      const entries = SCORE_KEYS.map((key) => {
+        const raw = draft[key] ?? (existing[key] === undefined ? "" : String(existing[key]));
+        const value = Number(raw);
+        if (raw === "" || !Number.isInteger(value) || value < 0 || value > 10) {
+          throw new Error("Chaque score doit être un nombre entier entre 0 et 10.");
+        }
+        return [key, value] as const;
+      });
+      const scores = Object.fromEntries(entries) as ReportScores;
+      await updateResultScores({ data: { resultId: inv.result_id, scores } });
+      setInvScores((prev) => ({ ...prev, [inv.result_id!]: scores }));
+      setScoreDrafts((prev) => ({
+        ...prev,
+        [inv.id]: Object.fromEntries(SCORE_KEYS.map((key) => [key, String(scores[key])])) as Record<string, string>,
+      }));
+      const nextInvitations = invitations.map((i) => (i.id === inv.id ? { ...i, status: "completed" } : i));
+      setInvitations(nextInvitations);
+      await refreshTeamFromInvitations(nextInvitations);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur lors de l'enregistrement des scores.");
+      console.error("save scores error:", e);
+    } finally {
+      setSavingScoresId(null);
+    }
+  };
 
   const handleInvite = async (channel: "email" | "outlook" | "whatsapp" | "sms" | "copy") => {
     if (!invName.trim() && !invEmail.trim()) return;
@@ -695,11 +778,25 @@ function Dashboard({ user }: { user: UserInfo }) {
                           <span className="text-amber-600">⏳ En attente</span>
                         )}
                       </td>
-                      {["PN", "PNo", "A", "EL", "EAS", "EAR"].map((key) => {
-                        const s = inv.result_id && invScores[inv.result_id];
+                      {SCORE_KEYS.map((key) => {
+                        const s = inv.result_id ? invScores[inv.result_id] : undefined;
+                        const value = scoreDrafts[inv.id]?.[key] ?? (s?.[key] === undefined ? "" : String(s[key]));
+                        const editable = Boolean(inv.result_id);
                         return (
                           <td key={key} className="py-2 pr-3 text-xs text-center tabular-nums">
-                            {s ? s[key] ?? "—" : "—"}
+                            {editable ? (
+                              <Input
+                                type="number"
+                                min={0}
+                                max={10}
+                                step={1}
+                                value={value}
+                                onChange={(e) => handleScoreChange(inv, key, e.target.value)}
+                                className="mx-auto h-8 w-14 px-1 text-center text-xs"
+                              />
+                            ) : (
+                              "—"
+                            )}
                           </td>
                         );
                       })}
@@ -712,6 +809,16 @@ function Dashboard({ user }: { user: UserInfo }) {
                         )}
                       </td>
                       <td className="py-2 text-right space-x-1">
+                        {inv.result_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSaveScores(inv)}
+                            disabled={savingScoresId === inv.id}
+                          >
+                            {savingScoresId === inv.id ? "…" : "💾 Enregistrer"}
+                          </Button>
+                        )}
                         {(inv.status === "pending" || inv.status === "deleted") && (
                           <Button
                             size="sm"

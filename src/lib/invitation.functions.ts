@@ -1,6 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+const scoresSchema = z.object({
+  PN: z.number().int().min(0).max(10),
+  PNo: z.number().int().min(0).max(10),
+  A: z.number().int().min(0).max(10),
+  EL: z.number().int().min(0).max(10),
+  EAS: z.number().int().min(0).max(10),
+  EAR: z.number().int().min(0).max(10),
+});
+
 /** Fetch results by IDs (for report generation) */
 export const getResultsByIds = createServerFn({ method: "POST" })
   .inputValidator((input: { ids: string[] }) =>
@@ -107,6 +116,24 @@ export const getMyResult = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw error;
     return result as { id: string; scores: Record<string, number>; first_name: string | null; last_name: string | null; created_at: string } | null;
+  });
+
+/** Update scores for a result linked to an invitation */
+export const updateResultScores = createServerFn({ method: "POST" })
+  .inputValidator((input: { resultId: string; scores: Record<string, number> }) =>
+    z.object({ resultId: z.string().uuid(), scores: scoresSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated, error } = await supabaseAdmin
+      .from("results")
+      .update({ scores: data.scores } as Record<string, unknown>)
+      .eq("id", data.resultId)
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    if (!updated) throw new Error("Résultat introuvable.");
+    return { ok: true };
   });
 
 /** Update reminded_at */
