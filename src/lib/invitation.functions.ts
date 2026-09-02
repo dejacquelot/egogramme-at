@@ -150,6 +150,7 @@ export const saveInvitationScores = createServerFn({ method: "POST" })
 
     const [firstName, ...lastNameParts] = String(invitation.invitee_name ?? "").trim().split(/\s+/).filter(Boolean);
     const insertData: Record<string, unknown> = {
+      ip_hash: `manual-invitation-${data.invitationId}`,
       scores: data.scores,
       first_name: firstName || null,
       last_name: lastNameParts.join(" ") || null,
