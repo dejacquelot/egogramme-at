@@ -49,24 +49,34 @@ export const linkResultToUser = createServerFn({ method: "POST" })
 /** Create an invitation */
 export const createInvitation = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { inviterUserId: string; inviterResultId: string; inviteeName?: string; inviteeEmail?: string }) =>
+    (input: { inviterUserId: string; inviterResultId: string; inviteeFirstName?: string; inviteeLastName?: string; inviteeName?: string; inviteeEmail?: string }) =>
       z
         .object({
           inviterUserId: z.string().uuid(),
           inviterResultId: z.string().uuid(),
-          inviteeName: z.string().max(120).optional(),
+          inviteeFirstName: z.string().max(120).optional(),
+          inviteeLastName: z.string().max(120).optional(),
+          inviteeName: z.string().max(240).optional(),
           inviteeEmail: z.string().max(200).optional(),
         })
         .parse(input),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const firstName = data.inviteeFirstName?.trim() || null;
+    const lastName = data.inviteeLastName?.trim() || null;
+    const combined =
+      data.inviteeName?.trim() ||
+      [firstName, lastName].filter(Boolean).join(" ") ||
+      null;
     const { data: inv, error } = await supabaseAdmin
       .from("invitations")
       .insert({
         inviter_user_id: data.inviterUserId,
         inviter_result_id: data.inviterResultId,
-        invitee_name: data.inviteeName || null,
+        invitee_first_name: firstName,
+        invitee_last_name: lastName,
+        invitee_name: combined,
         invitee_email: data.inviteeEmail || null,
       } as Record<string, unknown>)
       .select("id, token")
@@ -84,13 +94,15 @@ export const listMyInvitations = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: invitations, error } = await supabaseAdmin
       .from("invitations")
-      .select("id, token, invitee_name, invitee_email, status, result_id, created_at, reminded_at")
+      .select("id, token, invitee_first_name, invitee_last_name, invitee_name, invitee_email, status, result_id, created_at, reminded_at")
       .eq("inviter_user_id", data.userId)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (invitations ?? []) as Array<{
       id: string;
       token: string;
+      invitee_first_name: string | null;
+      invitee_last_name: string | null;
       invitee_name: string | null;
       invitee_email: string | null;
       status: string;
@@ -127,7 +139,7 @@ export const saveInvitationScores = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: invitation, error: invitationError } = await supabaseAdmin
       .from("invitations")
-      .select("id, invitee_name, status, result_id")
+      .select("id, invitee_first_name, invitee_last_name, invitee_name, status, result_id")
       .eq("id", data.invitationId)
       .maybeSingle();
     if (invitationError) throw invitationError;
@@ -148,12 +160,20 @@ export const saveInvitationScores = createServerFn({ method: "POST" })
       return { ok: true, resultId: updated.id as string };
     }
 
-    const [firstName, ...lastNameParts] = String(invitation.invitee_name ?? "").trim().split(/\s+/).filter(Boolean);
+    // Prefer the dedicated first/last columns; fall back to splitting the
+    // legacy single-field name on whitespace for older invitations.
+    let firstName = (invitation.invitee_first_name as string | null)?.trim() || "";
+    let lastName = (invitation.invitee_last_name as string | null)?.trim() || "";
+    if (!firstName && !lastName) {
+      const parts = String(invitation.invitee_name ?? "").trim().split(/\s+/).filter(Boolean);
+      firstName = parts[0] ?? "";
+      lastName = parts.slice(1).join(" ");
+    }
     const insertData: Record<string, unknown> = {
       ip_hash: `manual-invitation-${data.invitationId}`,
       scores: data.scores,
       first_name: firstName || null,
-      last_name: lastNameParts.join(" ") || null,
+      last_name: lastName || null,
     };
     const { data: result, error: insertError } = await supabaseAdmin
       .from("results")

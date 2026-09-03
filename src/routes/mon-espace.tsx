@@ -49,6 +49,8 @@ type UserInfo = { id: string; email: string; firstName: string; lastName: string
 type Invitation = {
   id: string;
   token: string;
+  invitee_first_name: string | null;
+  invitee_last_name: string | null;
   invitee_name: string | null;
   invitee_email: string | null;
   status: string;
@@ -232,7 +234,8 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [loadingData, setLoadingData] = useState(true);
 
   // Invite form
-  const [invName, setInvName] = useState("");
+  const [invFirstName, setInvFirstName] = useState("");
+  const [invLastName, setInvLastName] = useState("");
   const [invEmail, setInvEmail] = useState("");
   const [inviting, setInviting] = useState(false);
 
@@ -427,7 +430,10 @@ function Dashboard({ user }: { user: UserInfo }) {
   };
 
   const handleInvite = async (channel: "email" | "outlook" | "whatsapp" | "sms" | "copy") => {
-    if (!invName.trim() && !invEmail.trim()) return;
+    const firstName = invFirstName.trim();
+    const lastName = invLastName.trim();
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+    if (!fullName && !invEmail.trim()) return;
     if (!myResult) return;
     setInviting(true);
     try {
@@ -435,7 +441,9 @@ function Dashboard({ user }: { user: UserInfo }) {
         data: {
           inviterUserId: user.id,
           inviterResultId: myResult.id,
-          inviteeName: invName.trim() || undefined,
+          inviteeFirstName: firstName || undefined,
+          inviteeLastName: lastName || undefined,
+          inviteeName: fullName || undefined,
           inviteeEmail: invEmail.trim() || undefined,
         },
       });
@@ -445,7 +453,9 @@ function Dashboard({ user }: { user: UserInfo }) {
         {
           id: inv.id,
           token: inv.token,
-          invitee_name: invName.trim() || null,
+          invitee_first_name: firstName || null,
+          invitee_last_name: lastName || null,
+          invitee_name: fullName || null,
           invitee_email: invEmail.trim() || null,
           status: "pending",
           result_id: null,
@@ -471,7 +481,8 @@ function Dashboard({ user }: { user: UserInfo }) {
         await navigator.clipboard.writeText(`${text}\n\n${url}`);
       }
 
-      setInvName("");
+      setInvFirstName("");
+      setInvLastName("");
       setInvEmail("");
     } catch (e) {
       console.error("invite error:", e);
@@ -767,14 +778,23 @@ function Dashboard({ user }: { user: UserInfo }) {
             puis vous pourrez générer une analyse collective.
           </p>
 
-          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr]">
             <div>
-              <Label htmlFor="inv-name" className="text-xs">Prénom / Nom</Label>
+              <Label htmlFor="inv-first-name" className="text-xs">Prénom</Label>
               <Input
-                id="inv-name"
-                value={invName}
-                onChange={(e) => setInvName(e.target.value)}
-                placeholder="Marie Dupont"
+                id="inv-first-name"
+                value={invFirstName}
+                onChange={(e) => setInvFirstName(e.target.value)}
+                placeholder="Marie"
+              />
+            </div>
+            <div>
+              <Label htmlFor="inv-last-name" className="text-xs">Nom</Label>
+              <Input
+                id="inv-last-name"
+                value={invLastName}
+                onChange={(e) => setInvLastName(e.target.value)}
+                placeholder="Dupont"
               />
             </div>
             <div>
@@ -790,19 +810,19 @@ function Dashboard({ user }: { user: UserInfo }) {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => handleInvite("email")} disabled={inviting || (!invName.trim() && !invEmail.trim())}>
+            <Button size="sm" onClick={() => handleInvite("email")} disabled={inviting || (!invFirstName.trim() && !invLastName.trim() && !invEmail.trim())}>
               ✉️ Email
             </Button>
-            <Button size="sm" variant="outline" onClick={() => handleInvite("outlook")} disabled={inviting || (!invName.trim() && !invEmail.trim())}>
+            <Button size="sm" variant="outline" onClick={() => handleInvite("outlook")} disabled={inviting || (!invFirstName.trim() && !invLastName.trim() && !invEmail.trim())}>
               📧 Outlook
             </Button>
-            <Button size="sm" variant="outline" onClick={() => handleInvite("whatsapp")} disabled={inviting || (!invName.trim() && !invEmail.trim())}>
+            <Button size="sm" variant="outline" onClick={() => handleInvite("whatsapp")} disabled={inviting || (!invFirstName.trim() && !invLastName.trim() && !invEmail.trim())}>
               💬 WhatsApp
             </Button>
-            <Button size="sm" variant="outline" onClick={() => handleInvite("sms")} disabled={inviting || (!invName.trim() && !invEmail.trim())}>
+            <Button size="sm" variant="outline" onClick={() => handleInvite("sms")} disabled={inviting || (!invFirstName.trim() && !invLastName.trim() && !invEmail.trim())}>
               📱 SMS
             </Button>
-            <Button size="sm" variant="outline" onClick={() => handleInvite("copy")} disabled={inviting || (!invName.trim() && !invEmail.trim())}>
+            <Button size="sm" variant="outline" onClick={() => handleInvite("copy")} disabled={inviting || (!invFirstName.trim() && !invLastName.trim() && !invEmail.trim())}>
               📋 Copier
             </Button>
           </div>
@@ -811,7 +831,7 @@ function Dashboard({ user }: { user: UserInfo }) {
         {/* Invitations List */}
         {invitations.length > 0 && (
           <Card className="p-6">
-            <h2 className="text-base font-semibold mb-2">📋 Suivi des invitations</h2>
+            <h2 className="text-base font-semibold mb-2">📋 Ajoutez les résultats des analyses individuelles pour générer l'analyse collective</h2>
             <p className="text-xs text-muted-foreground mb-4">
               {completedInvitations.length} / {invitations.length} personne(s) ont répondu
             </p>
@@ -820,6 +840,7 @@ function Dashboard({ user }: { user: UserInfo }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="py-2 pr-3 font-medium">Prénom</th>
                     <th className="py-2 pr-3 font-medium">Nom</th>
                     <th className="py-2 pr-3 font-medium">Email</th>
                     <th className="py-2 pr-3 font-medium">Statut</th>
@@ -836,7 +857,8 @@ function Dashboard({ user }: { user: UserInfo }) {
                 <tbody>
                   {invitations.map((inv) => (
                     <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/40">
-                      <td className="py-2 pr-3 text-xs">{inv.invitee_name || "—"}</td>
+                      <td className="py-2 pr-3 text-xs">{inv.invitee_first_name || inv.invitee_name || "—"}</td>
+                      <td className="py-2 pr-3 text-xs">{inv.invitee_last_name || "—"}</td>
                       <td className="py-2 pr-3 text-xs">{inv.invitee_email || "—"}</td>
                       <td className="py-2 pr-3 text-xs">
                         {inv.status === "completed" ? (
