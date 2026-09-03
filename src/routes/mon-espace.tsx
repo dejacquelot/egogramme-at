@@ -17,8 +17,7 @@ import {
   resetInvitation,
   deleteInvitation,
 } from "@/lib/invitation.functions";
-import { generateTeamAnalysis } from "@/lib/admin.functions";
-import { generateIndividualAnalysis } from "@/lib/analysis.functions";
+import { saveTeamAnalysis } from "@/lib/admin.functions";
 import {
   downloadTeamReportPdf,
   downloadTeamReportImage,
@@ -31,6 +30,7 @@ import {
   type ReportScores,
 } from "@/lib/team-report";
 import { storeReportFiles } from "@/lib/report.functions";
+import { streamAnalysis } from "@/lib/stream-client";
 import { NavBar } from "@/components/nav-bar";
 import { isAdminEmail } from "@/lib/admin-config";
 
@@ -534,13 +534,15 @@ function Dashboard({ user }: { user: UserInfo }) {
     setTeamAnalysis(null);
     setTeamUrls(null);
     try {
-      const [res, memberRows] = await Promise.all([
-        generateTeamAnalysis({
-          data: { ids: resultIds, teamName: `Groupe de ${user.firstName}`, creatorUserId: user.id },
-        }),
-        getResultsByIds({ data: { ids: resultIds } }),
-      ]);
-      setTeamAnalysis(res.analysis);
+      const teamName = `Groupe de ${user.firstName}`;
+      // Stream the analysis text + fetch member rows in parallel
+      const memberRowsPromise = getResultsByIds({ data: { ids: resultIds } });
+      const analysisText = await streamAnalysis(
+        "/api/analysis/team-stream",
+        { ids: resultIds, teamName },
+        (partial) => setTeamAnalysis(partial),
+      );
+      const memberRows = await memberRowsPromise;
 
       // Build report members for PDF/image download
       const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
@@ -556,25 +558,32 @@ function Dashboard({ user }: { user: UserInfo }) {
       ) as ReportScores;
       setTeamAverage(avg);
 
-      // Store the generated PDF + image in Supabase Storage
-      if (res.teamAnalysisId) {
-        try {
-          setStoringTeam(true);
-          const uploads = await buildTeamReportUploads({
-            teamName: `Groupe de ${user.firstName}`,
-            average: avg,
-            members,
-            analysis: res.analysis,
-          });
-          const urls = await storeReportFiles({
-            data: { kind: "team", refId: res.teamAnalysisId, ...uploads },
-          });
-          setTeamUrls(urls);
-        } catch (storeErr) {
-          console.error("store team report error:", storeErr);
-        } finally {
-          setStoringTeam(false);
-        }
+      // Persist the analysis + store the PDF/image in the background (non-blocking)
+      if (analysisText) {
+        setStoringTeam(true);
+        void (async () => {
+          try {
+            const saved = await saveTeamAnalysis({
+              data: { ids: resultIds, analysis: analysisText, teamName, creatorUserId: user.id },
+            });
+            if (saved.teamAnalysisId) {
+              const uploads = await buildTeamReportUploads({
+                teamName,
+                average: avg,
+                members,
+                analysis: analysisText,
+              });
+              const urls = await storeReportFiles({
+                data: { kind: "team", refId: saved.teamAnalysisId, ...uploads },
+              });
+              setTeamUrls(urls);
+            }
+          } catch (storeErr) {
+            console.error("store team report error:", storeErr);
+          } finally {
+            setStoringTeam(false);
+          }
+        })();
       }
     } catch (e) {
       console.error("team analysis error:", e);
@@ -605,34 +614,40 @@ function Dashboard({ user }: { user: UserInfo }) {
 
   const handleGenerateIndividual = async () => {
     if (!myResult) return;
+    const resultId = myResult.id;
     setGeneratingIndiv(true);
     setIndividualAnalysis(null);
     setIndivUrls(null);
     try {
-      const res = await generateIndividualAnalysis({
-        data: { scores: myResult.scores, firstName: user.firstName || "Utilisateur" },
-      });
-      setIndividualAnalysis(res.analysis);
+      const analysisText = await streamAnalysis(
+        "/api/analysis/individual-stream",
+        { scores: myResult.scores, firstName: user.firstName || "Utilisateur" },
+        (partial) => setIndividualAnalysis(partial),
+      );
 
-      // Store the generated PDF + image in Supabase Storage
-      try {
+      // Store the generated PDF + image in the background (non-blocking)
+      if (analysisText) {
         setStoringIndiv(true);
-        const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Résultat individuel";
-        const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
-        const uploads = await buildIndividualReportUploads({
-          name: fullName,
-          date: new Date(myResult.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
-          scores: Object.fromEntries(cats.map((c) => [c, myResult.scores[c] ?? 0])) as ReportScores,
-          analysis: res.analysis,
-        });
-        const urls = await storeReportFiles({
-          data: { kind: "individual", refId: myResult.id, ...uploads },
-        });
-        setIndivUrls(urls);
-      } catch (storeErr) {
-        console.error("store individual report error:", storeErr);
-      } finally {
-        setStoringIndiv(false);
+        void (async () => {
+          try {
+            const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Résultat individuel";
+            const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+            const uploads = await buildIndividualReportUploads({
+              name: fullName,
+              date: new Date(myResult.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
+              scores: Object.fromEntries(cats.map((c) => [c, myResult.scores[c] ?? 0])) as ReportScores,
+              analysis: analysisText,
+            });
+            const urls = await storeReportFiles({
+              data: { kind: "individual", refId: resultId, ...uploads },
+            });
+            setIndivUrls(urls);
+          } catch (storeErr) {
+            console.error("store individual report error:", storeErr);
+          } finally {
+            setStoringIndiv(false);
+          }
+        })();
       }
     } catch (e) {
       console.error("individual analysis error:", e);
@@ -912,28 +927,24 @@ function Dashboard({ user }: { user: UserInfo }) {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={handleGenerateIndividual}
-                    disabled={generatingIndiv || storingIndiv || indivUrls !== null}
+                    disabled={generatingIndiv || individualAnalysis !== null}
                   >
                     {generatingIndiv
                       ? "Génération en cours…"
-                      : storingIndiv
-                        ? "Enregistrement…"
-                        : indivUrls
-                          ? "✅ Analyse individuelle générée"
-                          : "📊 Générer mon analyse individuelle"}
+                      : individualAnalysis
+                        ? "✅ Analyse individuelle générée"
+                        : "📊 Générer mon analyse individuelle"}
                   </Button>
                   {invitationsWithScores.length >= 1 && (
                     <Button
                       onClick={handleGenerateTeam}
-                      disabled={generatingTeam || storingTeam || teamUrls !== null}
+                      disabled={generatingTeam || teamAnalysis !== null}
                     >
                       {generatingTeam
                         ? "Génération en cours…"
-                        : storingTeam
-                          ? "Enregistrement…"
-                          : teamUrls
-                            ? "✅ Analyse collective générée"
-                            : "🤝 Générer l'analyse collective"}
+                        : teamAnalysis
+                          ? "✅ Analyse collective générée"
+                          : "🤝 Générer l'analyse collective"}
                     </Button>
                   )}
                 </div>
@@ -963,15 +974,18 @@ function Dashboard({ user }: { user: UserInfo }) {
                 </>
               ) : (
                 <>
-                  <Button onClick={() => handleIndivDownload("pdf")} disabled={downloadingIndiv !== null || storingIndiv}>
-                    {storingIndiv ? "Enregistrement…" : downloadingIndiv === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
+                  <Button onClick={() => handleIndivDownload("pdf")} disabled={downloadingIndiv !== null}>
+                    {downloadingIndiv === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
                   </Button>
-                  <Button variant="outline" onClick={() => handleIndivDownload("img")} disabled={downloadingIndiv !== null || storingIndiv}>
+                  <Button variant="outline" onClick={() => handleIndivDownload("img")} disabled={downloadingIndiv !== null}>
                     {downloadingIndiv === "img" ? "Préparation…" : "🖼️ Télécharger en image"}
                   </Button>
                 </>
               )}
             </div>
+            {storingIndiv && !indivUrls && (
+              <p className="mt-2 text-xs text-muted-foreground">💾 Sauvegarde du rapport en cours…</p>
+            )}
           </Card>
         )}
 
@@ -996,15 +1010,18 @@ function Dashboard({ user }: { user: UserInfo }) {
                 </>
               ) : (
                 <>
-                  <Button onClick={() => handleTeamDownload("pdf")} disabled={downloading !== null || storingTeam}>
-                    {storingTeam ? "Enregistrement…" : downloading === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
+                  <Button onClick={() => handleTeamDownload("pdf")} disabled={downloading !== null}>
+                    {downloading === "pdf" ? "Préparation…" : "📄 Télécharger en PDF"}
                   </Button>
-                  <Button variant="outline" onClick={() => handleTeamDownload("img")} disabled={downloading !== null || storingTeam}>
+                  <Button variant="outline" onClick={() => handleTeamDownload("img")} disabled={downloading !== null}>
                     {downloading === "img" ? "Préparation…" : "🖼️ Télécharger en image"}
                   </Button>
                 </>
               )}
             </div>
+            {storingTeam && !teamUrls && (
+              <p className="mt-2 text-xs text-muted-foreground">💾 Sauvegarde du rapport en cours…</p>
+            )}
           </Card>
         )}
       </main>

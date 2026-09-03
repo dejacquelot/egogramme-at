@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarkdownText } from "@/components/markdown-text";
-import { generateIndividualAnalysis } from "@/lib/analysis.functions";
+import { streamAnalysis } from "@/lib/stream-client";
 import {
   downloadIndividualReportImage,
   downloadIndividualReportPdf,
@@ -633,30 +633,33 @@ function ResultSection({
         }
       }
 
-      const res = await generateIndividualAnalysis({
-        data: { scores, firstName: firstName.trim() },
-      });
-      setAnalysis(res.analysis);
+      const analysisText = await streamAnalysis(
+        "/api/analysis/individual-stream",
+        { scores, firstName: firstName.trim() },
+        (partial) => setAnalysis(partial),
+      );
 
-      // Store the generated PDF + image in Supabase Storage
-      if (savedId) {
-        try {
-          setStoring(true);
-          const uploads = await buildIndividualReportUploads({
-            name: fullName || "Résultat individuel",
-            date: dateLabel,
-            scores: scores as Record<CatKey, number>,
-            analysis: res.analysis,
-          });
-          const urls = await storeReportFiles({
-            data: { kind: "individual", refId: savedId, ...uploads },
-          });
-          setIndivUrls(urls);
-        } catch (storeErr) {
-          console.error("store individual report error:", storeErr);
-        } finally {
-          setStoring(false);
-        }
+      // Store the generated PDF + image in the background (non-blocking)
+      if (savedId && analysisText) {
+        setStoring(true);
+        void (async () => {
+          try {
+            const uploads = await buildIndividualReportUploads({
+              name: fullName || "Résultat individuel",
+              date: dateLabel,
+              scores: scores as Record<CatKey, number>,
+              analysis: analysisText,
+            });
+            const urls = await storeReportFiles({
+              data: { kind: "individual", refId: savedId, ...uploads },
+            });
+            setIndivUrls(urls);
+          } catch (storeErr) {
+            console.error("store individual report error:", storeErr);
+          } finally {
+            setStoring(false);
+          }
+        })();
       }
     } catch (e) {
       setError(
@@ -732,14 +735,12 @@ function ResultSection({
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={handleGenerate} disabled={loading || storing || indivUrls !== null}>
+        <Button onClick={handleGenerate} disabled={loading || analysis !== null}>
           {loading
             ? "Génération de l'analyse…"
-            : storing
-              ? "Enregistrement…"
-              : indivUrls
-                ? "✅ Analyse générée"
-                : "Générer mon analyse"}
+            : analysis
+              ? "✅ Analyse générée"
+              : "Générer mon analyse"}
         </Button>
       </div>
 
@@ -772,19 +773,24 @@ function ResultSection({
               </>
             ) : (
               <>
-                <Button onClick={() => handleDownload("pdf")} disabled={downloading !== null || storing}>
-                  {storing ? "Enregistrement…" : downloading === "pdf" ? "Préparation…" : "Télécharger le rapport PDF"}
+                <Button onClick={() => handleDownload("pdf")} disabled={downloading !== null}>
+                  {downloading === "pdf" ? "Préparation…" : "Télécharger le rapport PDF"}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => handleDownload("img")}
-                  disabled={downloading !== null || storing}
+                  disabled={downloading !== null}
                 >
                   {downloading === "img" ? "Préparation…" : "Télécharger en image"}
                 </Button>
               </>
             )}
           </div>
+          {storing && !indivUrls && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              💾 Sauvegarde du rapport en cours…
+            </p>
+          )}
         </div>
       )}
 

@@ -152,6 +152,49 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
   });
 
 /**
+ * Persiste une analyse d'équipe déjà générée (via streaming) et renvoie son id.
+ * Ne fait aucun appel IA : le texte est fourni par le client après le flux.
+ */
+export const saveTeamAnalysis = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { ids: string[]; analysis: string; teamName?: string; creatorUserId?: string }) =>
+      z
+        .object({
+          ids: z.array(z.string().uuid()).min(2).max(20),
+          analysis: z.string().min(1),
+          teamName: z.string().max(120).optional(),
+          creatorUserId: z.string().uuid().optional(),
+        })
+        .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rows } = await supabaseAdmin
+      .from("results")
+      .select("id, first_name, last_name")
+      .in("id", data.ids);
+    const memberNames = (rows ?? []).map((r: any, i: number) =>
+      [r.first_name, r.last_name].filter(Boolean).join(" ") || `Membre ${i + 1}`,
+    );
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from("team_analyses")
+      .insert({
+        team_name: data.teamName || "",
+        member_ids: data.ids,
+        member_names: memberNames,
+        analysis: data.analysis,
+        creator_user_id: data.creatorUserId ?? null,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+
+    return { teamAnalysisId: inserted?.id ?? null };
+  });
+
+/**
  * Provisionne (ou réinitialise) le compte email/mot de passe d'un administrateur
  * whitelisté, à partir du mot de passe partagé stocké côté serveur.
  */
