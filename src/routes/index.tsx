@@ -316,6 +316,10 @@ function Index() {
             photo à un instant T de votre dynamique personnelle.
           </p>
 
+          {!user && (
+            <RegistrationBlock resultId={resultId} />
+          )}
+
           <div className="mt-5 flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
