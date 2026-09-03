@@ -287,7 +287,11 @@ function Index() {
             Révélez votre mode de fonctionnement relationnel.
           </h1>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-            En moins de 5 minutes, obtenez une photographie de votre personnalité et de la façon dont vous interagissez avec les autres. Aucun bon ou mauvais profil, simplement une meilleure connaissance de soi.
+            <strong className="text-foreground">En 5 minutes, découvrez votre profil relationnel.</strong>
+            <br />
+            Comprenez comment vous fonctionnez avec les autres, simplement et concrètement.
+            <br />
+            <strong className="text-foreground">Aucun bon ou mauvais profil : juste des clés pour mieux vous connaître.</strong>
           </p>
 
           {!user && (
