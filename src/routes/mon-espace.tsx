@@ -587,7 +587,8 @@ function Dashboard({ user }: { user: UserInfo }) {
       }
     } catch (e) {
       console.error("team analysis error:", e);
-      setTeamAnalysis("Erreur lors de la génération. Réessayez.");
+      const msg = e instanceof Error && e.message ? e.message : "Erreur lors de la génération. Réessayez.";
+      setTeamAnalysis(msg);
     } finally {
       setGeneratingTeam(false);
     }
@@ -651,7 +652,8 @@ function Dashboard({ user }: { user: UserInfo }) {
       }
     } catch (e) {
       console.error("individual analysis error:", e);
-      setIndividualAnalysis("Erreur lors de la génération. Réessayez.");
+      const msg = e instanceof Error && e.message ? e.message : "Erreur lors de la génération. Réessayez.";
+      setIndividualAnalysis(msg);
     } finally {
       setGeneratingIndiv(false);
     }
