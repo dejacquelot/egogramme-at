@@ -284,36 +284,10 @@ function Index() {
             - Test égogramme gratuit — mieux vous connaître pour mieux interagir -
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Révélez votre mode de fonctionnement relationnel
+            Révélez votre mode de fonctionnement relationnel.
           </h1>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-            L'égogramme est une cartographie visuelle de votre personnalité issue
-            de l'Analyse Transactionnelle. En moins de 5 minutes, ce test vous
-            permet de :
-          </p>
-          <ul className="mt-3 max-w-2xl space-y-1.5 text-sm text-muted-foreground">
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-              <span>
-                <strong className="text-foreground">Mieux vous connaître</strong> : décoder vos réflexes automatiques et vos leviers d'énergie au quotidien.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-              <span>
-                <strong className="text-foreground">Améliorer vos échanges</strong> : comprendre pourquoi le courant passe (ou coince) avec vos proches ou vos collègues.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-              <span>
-                <strong className="text-foreground">Ajuster votre posture</strong> : développer des relations plus fluides, équilibrées et constructives.
-              </span>
-            </li>
-          </ul>
-          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-            Il n'y a pas de "bon" ou de "mauvais" résultat : c'est simplement une
-            photo à un instant T de votre dynamique personnelle.
+            En moins de 5 minutes, obtenez une photographie de votre personnalité et de la façon dont vous interagissez avec les autres. Aucun bon ou mauvais profil, simplement une meilleure connaissance de soi.
           </p>
 
           {!user && (
