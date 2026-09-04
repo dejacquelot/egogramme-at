@@ -247,7 +247,11 @@ export const saveTeamAnalysis = createServerFn({ method: "POST" })
       inserted = retry.data;
       error = retry.error;
     }
-    if (error) throw error;
+    if (error) {
+      throw new Error(
+        `Insertion team_analyses refusée : ${error.message}${error.hint ? ` (${error.hint})` : ""}`,
+      );
+    }
 
     return { teamAnalysisId: inserted?.id ?? null };
   });

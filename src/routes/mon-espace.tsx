@@ -279,6 +279,7 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [pendingDelete, setPendingDelete] = useState<StoredTeamAnalysis | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Individual analysis
   const [individualAnalysis, setIndividualAnalysis] = useState<string | null>(null);
@@ -749,12 +750,40 @@ function Dashboard({ user }: { user: UserInfo }) {
       if (analysisText) {
         setStoringTeam(true);
         void (async () => {
+          let savedId: string | null = null;
           try {
             const saved = await saveTeamAnalysis({
               data: { ids: resultIds, analysis: analysisText, teamName, creatorUserId: user.id, kind: "collective" },
             });
-            if (saved.teamAnalysisId) {
-              void refreshLibrary();
+            savedId = saved.teamAnalysisId;
+            if (!savedId) throw new Error("Aucun identifiant renvoyé par la base.");
+            setSaveError(null);
+            // Affichage optimiste : la carte apparaît sans attendre le rechargement
+            setStoredTeamAnalyses((prev) => [
+              {
+                id: savedId!,
+                team_name: teamName,
+                member_ids: resultIds,
+                member_names: members.map((m) => m.name),
+                analysis: analysisText,
+                created_at: new Date().toISOString(),
+                creator_user_id: user.id,
+                kind: "collective",
+              },
+              ...prev.filter((a) => a.id !== savedId),
+            ]);
+            void refreshLibrary();
+          } catch (saveErr) {
+            console.error("save team analysis error:", saveErr);
+            setSaveError(
+              `L'analyse collective n'a pas pu être enregistrée dans la bibliothèque : ${
+                saveErr instanceof Error ? saveErr.message : String(saveErr)
+              }`,
+            );
+          }
+
+          if (savedId) {
+            try {
               const uploads = await buildTeamReportUploads({
                 teamName,
                 average: avg,
@@ -762,15 +791,14 @@ function Dashboard({ user }: { user: UserInfo }) {
                 analysis: analysisText,
               });
               const urls = await storeReportFiles({
-                data: { kind: "team", refId: saved.teamAnalysisId, ...uploads },
+                data: { kind: "team", refId: savedId, ...uploads },
               });
               setTeamUrls(urls);
+            } catch (storeErr) {
+              console.error("store team report error:", storeErr);
             }
-          } catch (storeErr) {
-            console.error("store team report error:", storeErr);
-          } finally {
-            setStoringTeam(false);
           }
+          setStoringTeam(false);
         })();
       }
     } catch (e) {
@@ -835,18 +863,45 @@ function Dashboard({ user }: { user: UserInfo }) {
         setStoringIndiv(true);
         const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Résultat individuel";
         void (async () => {
+          const title = `${fullName} — ${formatDate(new Date().toISOString())}`;
+          let savedId: string | null = null;
           try {
-            await saveTeamAnalysis({
+            const saved = await saveTeamAnalysis({
               data: {
                 ids: [resultId],
                 analysis: analysisText,
-                teamName: `${fullName} — ${formatDate(new Date().toISOString())}`,
+                teamName: title,
                 creatorUserId: user.id,
                 kind: "individual",
               },
             });
+            savedId = saved.teamAnalysisId;
+            if (!savedId) throw new Error("Aucun identifiant renvoyé par la base.");
+            setSaveError(null);
+            setStoredTeamAnalyses((prev) => [
+              {
+                id: savedId!,
+                team_name: title,
+                member_ids: [resultId],
+                member_names: [fullName],
+                analysis: analysisText,
+                created_at: new Date().toISOString(),
+                creator_user_id: user.id,
+                kind: "individual",
+              },
+              ...prev.filter((a) => a.id !== savedId),
+            ]);
             void refreshLibrary();
+          } catch (saveErr) {
+            console.error("save individual analysis error:", saveErr);
+            setSaveError(
+              `L'analyse individuelle n'a pas pu être enregistrée dans la bibliothèque : ${
+                saveErr instanceof Error ? saveErr.message : String(saveErr)
+              }`,
+            );
+          }
 
+          try {
             const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
             const uploads = await buildIndividualReportUploads({
               name: fullName,
@@ -860,9 +915,8 @@ function Dashboard({ user }: { user: UserInfo }) {
             setIndivUrls(urls);
           } catch (storeErr) {
             console.error("store individual report error:", storeErr);
-          } finally {
-            setStoringIndiv(false);
           }
+          setStoringIndiv(false);
         })();
       }
     } catch (e) {
@@ -1410,7 +1464,20 @@ function Dashboard({ user }: { user: UserInfo }) {
               placeholder="Rechercher un nom…"
               className="h-8 w-full sm:w-56"
             />
+            <Button size="sm" variant="outline" onClick={() => void refreshLibrary()}>
+              🔄 Rafraîchir
+            </Button>
           </div>
+
+          {saveError && (
+            <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+              <strong>⚠️ Enregistrement impossible.</strong>
+              <p className="mt-1 break-words">{saveError}</p>
+              <Button size="sm" variant="ghost" className="mt-2" onClick={() => setSaveError(null)}>
+                Masquer
+              </Button>
+            </div>
+          )}
 
           <div className="mb-4 flex flex-wrap gap-2">
             {([
