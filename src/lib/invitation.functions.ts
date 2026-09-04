@@ -224,6 +224,36 @@ export const deleteInvitation = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateInvitationName = createServerFn({ method: "POST" })
+  .inputValidator((input: { invitationId: string; firstName: string; lastName: string }) =>
+    z
+      .object({
+        invitationId: z.string().uuid(),
+        firstName: z.string().trim().max(120),
+        lastName: z.string().trim().max(120),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const combined = [data.firstName, data.lastName].filter(Boolean).join(" ");
+    const { error } = await supabaseAdmin
+      .from("invitations")
+      .update({
+        invitee_first_name: data.firstName || null,
+        invitee_last_name: data.lastName || null,
+        invitee_name: combined || null,
+      } as Record<string, unknown>)
+      .eq("id", data.invitationId);
+    if (error) throw error;
+    return {
+      ok: true as const,
+      invitee_first_name: data.firstName || null,
+      invitee_last_name: data.lastName || null,
+      invitee_name: combined || null,
+    };
+  });
+
 /** Reset a deleted/completed invitation back to pending (e.g. when result was deleted) */
 export const resetInvitation = createServerFn({ method: "POST" })
   .inputValidator((input: { invitationId: string }) =>

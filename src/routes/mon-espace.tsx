@@ -16,6 +16,7 @@ import {
   remindInvitation,
   resetInvitation,
   deleteInvitation,
+  updateInvitationName,
 } from "@/lib/invitation.functions";
 import { saveTeamAnalysis, listMyTeamAnalyses, updateMyResultName } from "@/lib/admin.functions";
 import {
@@ -264,6 +265,8 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [invScores, setInvScores] = useState<Record<string, Record<string, number>>>({});
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, Record<string, string>>>({});
   const [savingScoresId, setSavingScoresId] = useState<string | null>(null);
+  const [nameDrafts, setNameDrafts] = useState<Record<string, { first: string; last: string }>>({});
+  const [savingNameId, setSavingNameId] = useState<string | null>(null);
   const [storedTeamAnalyses, setStoredTeamAnalyses] = useState<StoredTeamAnalysis[]>([]);
 
   // Individual analysis
@@ -431,6 +434,17 @@ function Dashboard({ user }: { user: UserInfo }) {
     }));
   };
 
+  const handleNameChange = (inv: Invitation, key: "first" | "last", value: string) => {
+    setNameDrafts((prev) => ({
+      ...prev,
+      [inv.id]: {
+        first: prev[inv.id]?.first ?? inv.invitee_first_name ?? "",
+        last: prev[inv.id]?.last ?? inv.invitee_last_name ?? "",
+        [key]: value,
+      },
+    }));
+  };
+
   const handleSaveScores = async (inv: Invitation) => {
     if (inv.status === "completed") return;
     setSavingScoresId(inv.id);
@@ -460,6 +474,46 @@ function Dashboard({ user }: { user: UserInfo }) {
       console.error("save scores error:", e);
     } finally {
       setSavingScoresId(null);
+    }
+  };
+
+  const handleSaveName = async (inv: Invitation) => {
+    setSavingNameId(inv.id);
+    try {
+      const draft = nameDrafts[inv.id] ?? {
+        first: inv.invitee_first_name || inv.invitee_name || "",
+        last: inv.invitee_last_name || "",
+      };
+      const first = draft.first.trim();
+      const last = draft.last.trim();
+      const res = await updateInvitationName({
+        data: {
+          invitationId: inv.id,
+          firstName: first,
+          lastName: last,
+        },
+      });
+      setInvitations((prev) =>
+        prev.map((i) =>
+          i.id === inv.id
+            ? {
+                ...i,
+                invitee_first_name: res.invitee_first_name,
+                invitee_last_name: res.invitee_last_name,
+                invitee_name: res.invitee_name,
+              }
+            : i,
+        ),
+      );
+      setNameDrafts((prev) => ({
+        ...prev,
+        [inv.id]: { first: res.invitee_first_name || "", last: res.invitee_last_name || "" },
+      }));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur lors de la mise à jour du prénom/nom.");
+      console.error("save invitation name error:", e);
+    } finally {
+      setSavingNameId(null);
     }
   };
 
@@ -990,8 +1044,22 @@ function Dashboard({ user }: { user: UserInfo }) {
                           "—"
                         )}
                       </td>
-                      <td className="py-2 pr-3 text-xs">{inv.invitee_first_name || inv.invitee_name || "—"}</td>
-                      <td className="py-2 pr-3 text-xs">{inv.invitee_last_name || "—"}</td>
+                      <td className="py-2 pr-3 text-xs">
+                        <Input
+                          value={nameDrafts[inv.id]?.first ?? inv.invitee_first_name ?? inv.invitee_name ?? ""}
+                          onChange={(e) => handleNameChange(inv, "first", e.target.value)}
+                          className="h-8 w-32"
+                          placeholder="Prénom"
+                        />
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        <Input
+                          value={nameDrafts[inv.id]?.last ?? inv.invitee_last_name ?? ""}
+                          onChange={(e) => handleNameChange(inv, "last", e.target.value)}
+                          className="h-8 w-32"
+                          placeholder="Nom"
+                        />
+                      </td>
                       <td className="py-2 pr-3 text-xs">{inv.invitee_email || "—"}</td>
                       <td className="py-2 pr-3 text-xs">
                         {inv.status === "completed" ? (
@@ -1047,6 +1115,14 @@ function Dashboard({ user }: { user: UserInfo }) {
                             {savingScoresId === inv.id ? "…" : "💾 Enregistrer"}
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSaveName(inv)}
+                          disabled={savingNameId === inv.id}
+                        >
+                          {savingNameId === inv.id ? "…" : "✏️ Nom"}
+                        </Button>
                         {(inv.status === "pending" || inv.status === "deleted") && (
                           <Button
                             size="sm"
