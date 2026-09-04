@@ -312,11 +312,21 @@ function Dashboard({ user }: { user: UserInfo }) {
 
       // Load data
       try {
-        const [result, invs, storedTeams] = await Promise.all([
+        const [resultSettled, invsSettled, teamsSettled] = await Promise.allSettled([
           getMyResult({ data: { userId: user.id } }),
           listMyInvitations({ data: { userId: user.id } }),
           listMyTeamAnalyses({ data: { userId: user.id } }),
         ]);
+
+        // Un appel qui échoue ne doit jamais faire disparaître les autres sections
+        if (resultSettled.status === "rejected") console.error("getMyResult error:", resultSettled.reason);
+        if (invsSettled.status === "rejected") console.error("listMyInvitations error:", invsSettled.reason);
+        if (teamsSettled.status === "rejected") console.error("listMyTeamAnalyses error:", teamsSettled.reason);
+
+        const result = resultSettled.status === "fulfilled" ? resultSettled.value : null;
+        const invs = invsSettled.status === "fulfilled" ? invsSettled.value : [];
+        const storedTeams = teamsSettled.status === "fulfilled" ? teamsSettled.value : [];
+
         setMyResult(result);
         if (result) {
           setNameDraft({

@@ -222,18 +222,31 @@ export const saveTeamAnalysis = createServerFn({ method: "POST" })
       [r.first_name, r.last_name].filter(Boolean).join(" ") || `Membre ${i + 1}`,
     );
 
-    const { data: inserted, error } = await supabaseAdmin
+    const basePayload = {
+      team_name: data.teamName || "",
+      member_ids: data.ids,
+      member_names: memberNames,
+      analysis: data.analysis,
+      creator_user_id: data.creatorUserId ?? null,
+    };
+    const kind = data.kind ?? (data.ids.length > 1 ? "collective" : "individual");
+
+    let { data: inserted, error } = await supabaseAdmin
       .from("team_analyses")
-      .insert({
-        team_name: data.teamName || "",
-        member_ids: data.ids,
-        member_names: memberNames,
-        analysis: data.analysis,
-        creator_user_id: data.creatorUserId ?? null,
-        kind: data.kind ?? (data.ids.length > 1 ? "collective" : "individual"),
-      })
+      .insert({ ...basePayload, kind })
       .select("id")
       .single();
+
+    // Retente sans `kind` si la migration de colonne n'a pas encore été appliquée
+    if (error) {
+      const retry = await supabaseAdmin
+        .from("team_analyses")
+        .insert(basePayload)
+        .select("id")
+        .single();
+      inserted = retry.data;
+      error = retry.error;
+    }
     if (error) throw error;
 
     return { teamAnalysisId: inserted?.id ?? null };
@@ -267,7 +280,7 @@ export const listMyTeamAnalyses = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("team_analyses")
-      .select("id, team_name, member_ids, member_names, analysis, created_at, creator_user_id, kind")
+      .select("*")
       .eq("creator_user_id", data.userId)
       .order("created_at", { ascending: false })
       .limit(100);
