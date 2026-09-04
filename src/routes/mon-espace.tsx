@@ -17,7 +17,7 @@ import {
   resetInvitation,
   deleteInvitation,
 } from "@/lib/invitation.functions";
-import { saveTeamAnalysis } from "@/lib/admin.functions";
+import { saveTeamAnalysis, listMyTeamAnalyses } from "@/lib/admin.functions";
 import {
   downloadTeamReportPdf,
   downloadTeamReportImage,
@@ -65,6 +65,16 @@ type MyResult = {
   first_name: string | null;
   last_name: string | null;
   created_at: string;
+};
+
+type StoredTeamAnalysis = {
+  id: string;
+  team_name: string;
+  member_ids: string[];
+  member_names: string[];
+  analysis: string;
+  created_at: string;
+  creator_user_id: string | null;
 };
 
 const SCORE_LABELS: Record<string, string> = {
@@ -232,6 +242,7 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [myResult, setMyResult] = useState<MyResult | null>(null);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [selectedInvitationIds, setSelectedInvitationIds] = useState<string[]>([]);
 
   // Invite form
   const [invFirstName, setInvFirstName] = useState("");
@@ -250,6 +261,7 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [invScores, setInvScores] = useState<Record<string, Record<string, number>>>({});
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, Record<string, string>>>({});
   const [savingScoresId, setSavingScoresId] = useState<string | null>(null);
+  const [storedTeamAnalyses, setStoredTeamAnalyses] = useState<StoredTeamAnalysis[]>([]);
 
   // Individual analysis
   const [individualAnalysis, setIndividualAnalysis] = useState<string | null>(null);
@@ -283,12 +295,14 @@ function Dashboard({ user }: { user: UserInfo }) {
 
       // Load data
       try {
-        const [result, invs] = await Promise.all([
+        const [result, invs, storedTeams] = await Promise.all([
           getMyResult({ data: { userId: user.id } }),
           listMyInvitations({ data: { userId: user.id } }),
+          listMyTeamAnalyses({ data: { userId: user.id } }),
         ]);
         setMyResult(result);
         setInvitations(invs);
+        setStoredTeamAnalyses(storedTeams as StoredTeamAnalysis[]);
 
         // Compute team average if there are answered or manually filled invitations
         const invitationsWithScores = invs.filter((i: Invitation) => i.result_id);
@@ -350,6 +364,11 @@ function Dashboard({ user }: { user: UserInfo }) {
   const pendingInvitations = invitations.filter((i) => i.status === "pending");
   const deletedInvitations = invitations.filter((i) => i.status === "deleted");
   const invitationsWithScores = invitations.filter((i) => i.result_id && i.status !== "deleted");
+  const selectableInvitations = invitations.filter((i) => i.result_id && i.status !== "deleted");
+  const selectedSelectableInvitations = selectableInvitations.filter((i) => selectedInvitationIds.includes(i.id));
+  const selectedResultIds = [myResult?.id, ...selectedSelectableInvitations.map((i) => i.result_id!).filter(Boolean)].filter(
+    Boolean,
+  ) as string[];
 
   const refreshTeamFromInvitations = async (nextInvitations: Invitation[]) => {
     if (!myResult) return;
@@ -384,6 +403,12 @@ function Dashboard({ user }: { user: UserInfo }) {
     } else {
       setTeamAverage(null);
     }
+  };
+
+  const toggleSelectedInvitation = (invitationId: string) => {
+    setSelectedInvitationIds((prev) =>
+      prev.includes(invitationId) ? prev.filter((id) => id !== invitationId) : [...prev, invitationId],
+    );
   };
 
   const handleScoreChange = (inv: Invitation, key: CatKey, value: string) => {
@@ -537,9 +562,15 @@ function Dashboard({ user }: { user: UserInfo }) {
     }
   };
 
+  useEffect(() => {
+    setSelectedInvitationIds((prev) =>
+      prev.filter((id) => invitations.some((inv) => inv.id === id && inv.result_id && inv.status !== "deleted")),
+    );
+  }, [invitations]);
+
   const handleGenerateTeam = async () => {
     if (!myResult) return;
-    const resultIds = [myResult.id, ...invitationsWithScores.map((i) => i.result_id!).filter(Boolean)];
+    const resultIds = selectedResultIds;
     if (resultIds.length < 2) return;
     setGeneratingTeam(true);
     setTeamAnalysis(null);
@@ -669,6 +700,9 @@ function Dashboard({ user }: { user: UserInfo }) {
       setGeneratingIndiv(false);
     }
   };
+
+  const selectedInvitationCount = selectedSelectableInvitations.length;
+  const canGenerateSelectedTeam = selectedResultIds.length >= 2;
 
   const handleIndivDownload = async (kind: "pdf" | "img") => {
     if (!individualAnalysis || !myResult) return;
@@ -835,11 +869,23 @@ function Dashboard({ user }: { user: UserInfo }) {
             <p className="text-xs text-muted-foreground mb-4">
               {completedInvitations.length} / {invitations.length} personne(s) ont répondu
             </p>
+            {myResult && (
+              <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">Votre test personnel</h3>
+                    <p className="text-xs text-muted-foreground">Inclus automatiquement dans les analyses collectives et non modifiable.</p>
+                  </div>
+                  <span className="text-xs font-medium text-foreground">Sélection fixe</span>
+                </div>
+              </div>
+            )}
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="py-2 pr-3 font-medium text-center">#</th>
                     <th className="py-2 pr-3 font-medium">Prénom</th>
                     <th className="py-2 pr-3 font-medium">Nom</th>
                     <th className="py-2 pr-3 font-medium">Email</th>
@@ -857,6 +903,18 @@ function Dashboard({ user }: { user: UserInfo }) {
                 <tbody>
                   {invitations.map((inv) => (
                     <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/40">
+                      <td className="py-2 pr-3 text-center text-xs">
+                        {inv.result_id && inv.status !== "deleted" ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedInvitationIds.includes(inv.id)}
+                            onChange={() => toggleSelectedInvitation(inv.id)}
+                            aria-label={`Sélectionner ${inv.invitee_first_name || inv.invitee_name || "cette personne"}`}
+                          />
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                       <td className="py-2 pr-3 text-xs">{inv.invitee_first_name || inv.invitee_name || "—"}</td>
                       <td className="py-2 pr-3 text-xs">{inv.invitee_last_name || "—"}</td>
                       <td className="py-2 pr-3 text-xs">{inv.invitee_email || "—"}</td>
@@ -943,9 +1001,9 @@ function Dashboard({ user }: { user: UserInfo }) {
             {/* Generate analyses */}
             {myResult && (
               <div className="mt-6 pt-4 border-t border-border">
-                {invitationsWithScores.length >= 1 && (
+                {selectedInvitationCount >= 1 && (
                   <p className="text-sm text-muted-foreground mb-3">
-                    🎯 {invitationsWithScores.length + 1} profils disponibles (vous + {invitationsWithScores.length} invité{invitationsWithScores.length > 1 ? "s" : ""})
+                    🎯 {selectedResultIds.length} profils sélectionnés (vous + {selectedInvitationCount} invité{selectedInvitationCount > 1 ? "s" : ""})
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
@@ -959,7 +1017,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                         ? "✅ Analyse individuelle générée"
                         : "📊 Générer mon analyse individuelle"}
                   </Button>
-                  {invitationsWithScores.length >= 1 && (
+                  {canGenerateSelectedTeam && (
                     <Button
                       onClick={handleGenerateTeam}
                       disabled={generatingTeam || teamAnalysis !== null}
@@ -1045,6 +1103,42 @@ function Dashboard({ user }: { user: UserInfo }) {
             </div>
             {storingTeam && !teamUrls && (
               <p className="mt-2 text-xs text-muted-foreground">💾 Sauvegarde du rapport en cours…</p>
+            )}
+          </Card>
+        )}
+
+        {myResult && (
+          <Card className="p-6">
+            <h2 className="text-base font-semibold mb-4">🗂️ Analyses de binômes ou de groupe</h2>
+            {storedTeamAnalyses.length > 0 ? (
+              <div className="space-y-4">
+                {storedTeamAnalyses.map((analysis) => (
+                  <div key={analysis.id} className="rounded-lg border border-border p-4">
+                    <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-semibold">{analysis.team_name || "Binôme ou groupe"}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(analysis.created_at).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {Array.isArray(analysis.member_names) ? analysis.member_names.join(" · ") : ""}
+                      </p>
+                    </div>
+                    <MarkdownText text={analysis.analysis} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Les analyses d'équipes enregistrées apparaissent ici une fois générées.
+              </p>
             )}
           </Card>
         )}

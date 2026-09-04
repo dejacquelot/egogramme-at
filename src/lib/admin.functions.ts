@@ -194,6 +194,22 @@ export const saveTeamAnalysis = createServerFn({ method: "POST" })
     return { teamAnalysisId: inserted?.id ?? null };
   });
 
+export const listMyTeamAnalyses = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string }) =>
+    z.object({ userId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("team_analyses")
+      .select("id, team_name, member_ids, member_names, analysis, created_at, creator_user_id")
+      .eq("creator_user_id", data.userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return rows ?? [];
+  });
+
 /**
  * Provisionne (ou réinitialise) le compte email/mot de passe d'un administrateur
  * whitelisté, à partir du mot de passe partagé stocké côté serveur.
