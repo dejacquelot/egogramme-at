@@ -759,6 +759,15 @@ function Dashboard({ user }: { user: UserInfo }) {
             }
           : prev,
       );
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              firstName: res.first_name || prev.firstName,
+              lastName: res.last_name || prev.lastName,
+            }
+          : prev,
+      );
       setEditingName(false);
     } catch (e) {
       console.error("save name error:", e);

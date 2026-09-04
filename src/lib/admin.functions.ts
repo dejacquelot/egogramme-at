@@ -66,7 +66,16 @@ export const updateMyResultName = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      user_metadata: {
+        given_name: data.first_name || "",
+        family_name: data.last_name || "",
+        full_name: [data.first_name, data.last_name].filter(Boolean).join(" "),
+      },
+    });
+    if (authError) throw authError;
+
+    const { data: rows, error } = await supabaseAdmin
       .from("results")
       .update({
         first_name: data.first_name || null,
@@ -78,6 +87,7 @@ export const updateMyResultName = createServerFn({ method: "POST" })
       ok: true as const,
       first_name: data.first_name || null,
       last_name: data.last_name || null,
+      hasResultRow: Array.isArray(rows) ? rows.length > 0 : true,
     };
   });
 
