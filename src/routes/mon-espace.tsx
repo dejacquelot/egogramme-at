@@ -477,7 +477,7 @@ function Dashboard({ user }: { user: UserInfo }) {
     }
   };
 
-  const handleSaveName = async (inv: Invitation) => {
+  const handleSaveInvitationName = async (inv: Invitation) => {
     setSavingNameId(inv.id);
     try {
       const draft = nameDrafts[inv.id] ?? {
@@ -1118,7 +1118,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleSaveName(inv)}
+                          onClick={() => handleSaveInvitationName(inv)}
                           disabled={savingNameId === inv.id}
                         >
                           {savingNameId === inv.id ? "…" : "✏️ Nom"}
