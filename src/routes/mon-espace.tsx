@@ -18,7 +18,7 @@ import {
   deleteInvitation,
   updateInvitationName,
 } from "@/lib/invitation.functions";
-import { saveTeamAnalysis, listMyTeamAnalyses, updateMyResultName, deleteMyTeamAnalysis } from "@/lib/admin.functions";
+import { saveTeamAnalysis, listMyTeamAnalyses, updateMyResultName, deleteMyTeamAnalysis, renameMyAnalysis } from "@/lib/admin.functions";
 import {
   downloadTeamReportPdf,
   downloadTeamReportImage,
@@ -76,6 +76,7 @@ type StoredTeamAnalysis = {
   analysis: string;
   created_at: string;
   creator_user_id: string | null;
+  kind?: string | null;
 };
 
 const SCORE_LABELS: Record<string, string> = {
@@ -272,6 +273,13 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
   const [storedTeamAnalyses, setStoredTeamAnalyses] = useState<StoredTeamAnalysis[]>([]);
 
+  // Bibliothèque d'analyses
+  const [libraryFilter, setLibraryFilter] = useState<"all" | "individual" | "collective">("all");
+  const [librarySearch, setLibrarySearch] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<StoredTeamAnalysis | null>(null);
+
   // Individual analysis
   const [individualAnalysis, setIndividualAnalysis] = useState<string | null>(null);
   const [generatingIndiv, setGeneratingIndiv] = useState(false);
@@ -386,6 +394,45 @@ function Dashboard({ user }: { user: UserInfo }) {
     ...selectedSelectableInvitations.map((i) => i.result_id!).filter(Boolean),
   ] as string[];
   const selfSelected = selectedInvitationIds.includes("__self__");
+
+  const totalSelectable = selectableInvitations.length + (myResult ? 1 : 0);
+  const allSelected = totalSelectable > 0 && selectedResultIds.length === totalSelectable;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedInvitationIds([]);
+    } else {
+      setSelectedInvitationIds([
+        ...(myResult ? ["__self__"] : []),
+        ...selectableInvitations.map((i) => i.id),
+      ]);
+    }
+  };
+
+  const refreshLibrary = async () => {
+    try {
+      const rows = await listMyTeamAnalyses({ data: { userId: user.id } });
+      setStoredTeamAnalyses(rows as StoredTeamAnalysis[]);
+    } catch (e) {
+      console.error("refresh library error:", e);
+    }
+  };
+
+  const analysisKind = (a: StoredTeamAnalysis) =>
+    a.kind === "individual" || (!a.kind && (a.member_ids?.length ?? 0) <= 1)
+      ? "individual"
+      : "collective";
+
+  const filteredAnalyses = storedTeamAnalyses.filter((a) => {
+    if (libraryFilter !== "all" && analysisKind(a) !== libraryFilter) return false;
+    const q = librarySearch.trim().toLowerCase();
+    if (!q) return true;
+    const names = Array.isArray(a.member_names) ? a.member_names.join(" ") : "";
+    return `${a.team_name} ${names}`.toLowerCase().includes(q);
+  });
+
+  const individualCount = storedTeamAnalyses.filter((a) => analysisKind(a) === "individual").length;
+  const collectiveCount = storedTeamAnalyses.length - individualCount;
 
   const refreshTeamFromInvitations = async (nextInvitations: Invitation[]) => {
     if (!myResult) return;
@@ -649,14 +696,22 @@ function Dashboard({ user }: { user: UserInfo }) {
   }, [invitations]);
 
   const handleGenerateTeam = async () => {
-    if (!myResult) return;
     const resultIds = selectedResultIds;
     if (resultIds.length < 2) return;
     setGeneratingTeam(true);
     setTeamAnalysis(null);
     setTeamUrls(null);
     try {
-      const teamName = `Groupe de ${user.firstName}`;
+      const namesForTitle = [
+        ...(selfSelected && myResult ? [myResult.first_name || user.firstName || "Vous"] : []),
+        ...selectedSelectableInvitations.map(
+          (i) => i.invitee_first_name || i.invitee_name || "Participant",
+        ),
+      ];
+      const teamName =
+        namesForTitle.length > 0 && namesForTitle.length <= 3
+          ? `${namesForTitle.join(" & ")} — ${formatDate(new Date().toISOString())}`
+          : `Groupe de ${namesForTitle.length} — ${formatDate(new Date().toISOString())}`;
       // Stream the analysis text + fetch member rows in parallel
       const memberRowsPromise = getResultsByIds({ data: { ids: resultIds } });
       const analysisText = await streamAnalysis(
@@ -686,12 +741,10 @@ function Dashboard({ user }: { user: UserInfo }) {
         void (async () => {
           try {
             const saved = await saveTeamAnalysis({
-              data: { ids: resultIds, analysis: analysisText, teamName, creatorUserId: user.id },
+              data: { ids: resultIds, analysis: analysisText, teamName, creatorUserId: user.id, kind: "collective" },
             });
             if (saved.teamAnalysisId) {
-              void listMyTeamAnalyses({ data: { userId: user.id } })
-                .then((rows) => setStoredTeamAnalyses(rows as StoredTeamAnalysis[]))
-                .catch(() => {});
+              void refreshLibrary();
               const uploads = await buildTeamReportUploads({
                 teamName,
                 average: avg,
@@ -739,29 +792,56 @@ function Dashboard({ user }: { user: UserInfo }) {
   };
 
   const handleGenerateIndividual = async () => {
-    if (!myResult) return;
-    const resultId = myResult.id;
+    const resultId = selectedResultIds.length === 1 ? selectedResultIds[0] : myResult?.id;
+    if (!resultId) return;
     setGeneratingIndiv(true);
     setIndividualAnalysis(null);
     setIndivUrls(null);
     try {
+      // Résout le profil ciblé : soit le vôtre, soit celui d'un invité sélectionné
+      let firstName = user.firstName || "Utilisateur";
+      let lastName = user.lastName || "";
+      let scores = myResult?.scores ?? ({} as Record<string, number>);
+      let createdAt = myResult?.created_at ?? new Date().toISOString();
+
+      if (!myResult || resultId !== myResult.id) {
+        const rows = await getResultsByIds({ data: { ids: [resultId] } });
+        const row = rows[0];
+        if (!row) throw new Error("Profil introuvable.");
+        firstName = row.first_name || "Participant";
+        lastName = row.last_name || "";
+        scores = row.scores as Record<string, number>;
+        createdAt = row.created_at;
+      }
+
       const analysisText = await streamAnalysis(
         "/api/analysis/individual-stream",
-        { scores: myResult.scores, firstName: user.firstName || "Utilisateur" },
+        { scores, firstName },
         (partial) => setIndividualAnalysis(partial),
       );
 
-      // Store the generated PDF + image in the background (non-blocking)
+      // Persiste l'analyse dans la bibliothèque + génère PDF/image en arrière-plan
       if (analysisText) {
         setStoringIndiv(true);
+        const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Résultat individuel";
         void (async () => {
           try {
-            const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Résultat individuel";
+            await saveTeamAnalysis({
+              data: {
+                ids: [resultId],
+                analysis: analysisText,
+                teamName: `${fullName} — ${formatDate(new Date().toISOString())}`,
+                creatorUserId: user.id,
+                kind: "individual",
+              },
+            });
+            void refreshLibrary();
+
             const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
             const uploads = await buildIndividualReportUploads({
               name: fullName,
-              date: new Date(myResult.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
-              scores: Object.fromEntries(cats.map((c) => [c, myResult.scores[c] ?? 0])) as ReportScores,
+              date: new Date(createdAt).toLocaleDateString("fr-FR", { dateStyle: "long" }),
+              scores: Object.fromEntries(cats.map((c) => [c, scores[c] ?? 0])) as ReportScores,
               analysis: analysisText,
             });
             const urls = await storeReportFiles({
@@ -785,6 +865,7 @@ function Dashboard({ user }: { user: UserInfo }) {
   };
 
   const canGenerateSelectedTeam = selectedResultIds.length >= 2;
+  const canGenerateIndividual = selectedResultIds.length === 1 || (selectedResultIds.length === 0 && !!myResult);
 
   const handleIndivDownload = async (kind: "pdf" | "img") => {
     if (!individualAnalysis || !myResult) return;
@@ -912,7 +993,7 @@ function Dashboard({ user }: { user: UserInfo }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 space-y-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 pb-32 space-y-8">
         {/* My Profile */}
         {myResult && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -954,7 +1035,10 @@ function Dashboard({ user }: { user: UserInfo }) {
 
         {/* Invite Section */}
         <Card className="p-6">
-          <h2 className="text-base font-semibold mb-2">👥 Inviter des personnes</h2>
+          <h2 className="text-base font-semibold mb-2">
+            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">1</span>
+            Inviter des personnes
+          </h2>
           <p className="text-xs text-muted-foreground mb-4">
             Invitez des amis, collègues ou votre équipe. Chacun recevra son analyse individuelle,
             puis vous pourrez générer une analyse collective.
@@ -1011,17 +1095,33 @@ function Dashboard({ user }: { user: UserInfo }) {
         </Card>
 
         {/* Invitations List */}
-        {invitations.length > 0 && (
+        {(invitations.length > 0 || myResult) && (
           <Card className="p-6">
-            <h2 className="text-base font-semibold mb-2">📋 Ajoutez les résultats des analyses individuelles pour générer l'analyse collective</h2>
+            <h2 className="text-base font-semibold mb-2">
+              <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">2</span>
+              Sélectionner les profils et générer une analyse
+            </h2>
             <p className="text-xs text-muted-foreground mb-4">
-              {completedInvitations.length} / {invitations.length} personne(s) ont répondu
+              {completedInvitations.length} / {invitations.length} personne(s) ont répondu · cochez
+              <strong className="mx-1">1 profil</strong>pour une analyse individuelle,
+              <strong className="mx-1">2 ou plus</strong>pour une analyse collective.
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
-                    <th className="py-2 pr-3 font-medium text-center">Inclure</th>
+                    <th className="py-2 pr-3 font-medium text-center">
+                      <label className="flex cursor-pointer flex-col items-center gap-1">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 cursor-pointer accent-primary"
+                          checked={allSelected}
+                          onChange={toggleSelectAll}
+                          aria-label="Tout sélectionner ou tout désélectionner"
+                        />
+                        <span className="text-[10px] normal-case">{allSelected ? "Aucun" : "Tous"}</span>
+                      </label>
+                    </th>
                     <th className="py-2 pr-3 font-medium">Prénom</th>
                     <th className="py-2 pr-3 font-medium">Nom</th>
                     <th className="py-2 pr-3 font-medium">Email</th>
@@ -1196,44 +1296,22 @@ function Dashboard({ user }: { user: UserInfo }) {
               </table>
             </div>
 
-            {/* Generate analyses */}
-            {myResult && (
-              <div className="mt-6 pt-4 border-t border-border">
-                {selectedResultIds.length >= 1 && (
-                  <p className="text-sm text-muted-foreground mb-3">
-                    🎯 {selectedResultIds.length} profil{selectedResultIds.length > 1 ? "s" : ""} sélectionné{selectedResultIds.length > 1 ? "s" : ""}
-                    {" — "}
-                    {selfSelected ? "vous" : "sans vous"}
-                    {selectedSelectableInvitations.length > 0 &&
-                      ` + ${selectedSelectableInvitations.length} invité${selectedSelectableInvitations.length > 1 ? "s" : ""}`}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    onClick={handleGenerateIndividual}
-                    disabled={generatingIndiv || individualAnalysis !== null}
-                  >
-                    {generatingIndiv
-                      ? "Génération en cours…"
-                      : individualAnalysis
-                        ? "✅ Analyse individuelle générée"
-                        : "📊 Générer mon analyse individuelle"}
-                  </Button>
-                  {canGenerateSelectedTeam && (
-                    <Button
-                      onClick={handleGenerateTeam}
-                      disabled={generatingTeam || teamAnalysis !== null}
-                    >
-                      {generatingTeam
-                        ? "Génération en cours…"
-                        : teamAnalysis
-                          ? "✅ Analyse collective générée"
-                          : "🤝 Générer l'analyse collective"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Résumé de sélection (les actions sont dans la barre collante en bas) */}
+            <div className="mt-6 pt-4 border-t border-border">
+              {selectedResultIds.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Cochez au moins un profil ci-dessus pour générer une analyse.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  🎯 {selectedResultIds.length} profil{selectedResultIds.length > 1 ? "s" : ""} sélectionné{selectedResultIds.length > 1 ? "s" : ""}
+                  {" — "}
+                  {selfSelected ? "vous" : "sans vous"}
+                  {selectedSelectableInvitations.length > 0 &&
+                    ` + ${selectedSelectableInvitations.length} invité${selectedSelectableInvitations.length > 1 ? "s" : ""}`}
+                </p>
+              )}
+            </div>
           </Card>
         )}
 
@@ -1309,58 +1387,174 @@ function Dashboard({ user }: { user: UserInfo }) {
           </Card>
         )}
 
+        {/* ③ Bibliothèque d'analyses */}
         <Card className="p-6">
-          <h2 className="text-base font-semibold mb-4">
-            🗂️ Analyses de binômes ou de groupe ({storedTeamAnalyses.length})
-          </h2>
-          {storedTeamAnalyses.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-base font-semibold">
+              <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">3</span>
+              Bibliothèque d'analyses ({storedTeamAnalyses.length})
+            </h2>
+            <Input
+              value={librarySearch}
+              onChange={(e) => setLibrarySearch(e.target.value)}
+              placeholder="Rechercher un nom…"
+              className="h-8 w-full sm:w-56"
+            />
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            {([
+              ["all", `Toutes (${storedTeamAnalyses.length})`],
+              ["individual", `Individuelles (${individualCount})`],
+              ["collective", `Collectives (${collectiveCount})`],
+            ] as const).map(([value, label]) => (
+              <Button
+                key={value}
+                size="sm"
+                variant={libraryFilter === value ? "default" : "outline"}
+                onClick={() => setLibraryFilter(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+
+          {pendingDelete && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
+              <span>
+                « {pendingDelete.team_name || "Analyse"} » sera supprimée.
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setStoredTeamAnalyses((prev) =>
+                      [...prev, pendingDelete].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+                    );
+                    setPendingDelete(null);
+                  }}
+                >
+                  ↩️ Annuler
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700"
+                  disabled={deletingTeamId === pendingDelete.id}
+                  onClick={async () => {
+                    const target = pendingDelete;
+                    setDeletingTeamId(target.id);
+                    try {
+                      await deleteMyTeamAnalysis({ data: { userId: user.id, teamAnalysisId: target.id } });
+                      setPendingDelete(null);
+                    } catch (e) {
+                      console.error("delete analysis error:", e);
+                      setStoredTeamAnalyses((prev) =>
+                        [...prev, target].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+                      );
+                      setPendingDelete(null);
+                      alert("Impossible de supprimer cette analyse.");
+                    } finally {
+                      setDeletingTeamId(null);
+                    }
+                  }}
+                >
+                  {deletingTeamId === pendingDelete.id ? "Suppression…" : "Confirmer"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {filteredAnalyses.length > 0 ? (
             <div className="space-y-3">
-              {storedTeamAnalyses.map((ta) => {
+              {filteredAnalyses.map((ta) => {
                 const memberNames = Array.isArray(ta.member_names) ? ta.member_names : [];
+                const kind = analysisKind(ta);
                 return (
                   <div key={ta.id} className="rounded-lg border border-border p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="font-medium text-sm">{ta.team_name || "Binôme ou groupe"}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{formatDate(ta.created_at)}</span>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={
+                              kind === "individual"
+                                ? "rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700"
+                                : "rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700"
+                            }
+                          >
+                            {kind === "individual" ? "👤 Individuelle" : "🤝 Collective"}
+                          </span>
+                          {renamingId === ta.id ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Input
+                                value={renameDraft}
+                                onChange={(e) => setRenameDraft(e.target.value)}
+                                className="h-8 w-64"
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  const title = renameDraft.trim();
+                                  setRenamingId(null);
+                                  setStoredTeamAnalyses((prev) =>
+                                    prev.map((a) => (a.id === ta.id ? { ...a, team_name: title } : a)),
+                                  );
+                                  try {
+                                    await renameMyAnalysis({
+                                      data: { userId: user.id, analysisId: ta.id, title },
+                                    });
+                                  } catch (e) {
+                                    console.error("rename analysis error:", e);
+                                  }
+                                }}
+                              >
+                                OK
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setRenamingId(null)}>
+                                Annuler
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="text-left text-sm font-medium hover:underline"
+                              title="Cliquez pour renommer"
+                              onClick={() => {
+                                setRenamingId(ta.id);
+                                setRenameDraft(ta.team_name || "");
+                              }}
+                            >
+                              {ta.team_name || "Analyse sans titre"} ✏️
+                            </button>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatDate(ta.created_at)}
+                          {memberNames.length > 0 && ` · ${memberNames.join(", ")}`}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {memberNames.length} membre{memberNames.length > 1 ? "s" : ""}
-                        </span>
+                      <div className="flex shrink-0 items-center gap-2">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => setExpandedTeamId(expandedTeamId === ta.id ? null : ta.id)}
                         >
-                          {expandedTeamId === ta.id ? "Masquer" : "Voir l'analyse"}
+                          {expandedTeamId === ta.id ? "Masquer" : "Voir"}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                          disabled={deletingTeamId === ta.id}
-                          onClick={async () => {
-                            if (!confirm(`Supprimer l'analyse « ${ta.team_name || "Binôme ou groupe"} » ?`)) return;
-                            setDeletingTeamId(ta.id);
-                            try {
-                              await deleteMyTeamAnalysis({ data: { userId: user.id, teamAnalysisId: ta.id } });
-                              setStoredTeamAnalyses((prev) => prev.filter((t) => t.id !== ta.id));
-                            } catch (e) {
-                              console.error("delete team analysis error:", e);
-                              alert("Impossible de supprimer cette analyse.");
-                            } finally {
-                              setDeletingTeamId(null);
-                            }
+                          onClick={() => {
+                            setStoredTeamAnalyses((prev) => prev.filter((t) => t.id !== ta.id));
+                            setPendingDelete(ta);
                           }}
                         >
-                          {deletingTeamId === ta.id ? "…" : "Supprimer"}
+                          🗑️
                         </Button>
                       </div>
                     </div>
-                    {memberNames.length > 0 && (
-                      <p className="mt-1 text-xs text-muted-foreground">{memberNames.join(", ")}</p>
-                    )}
                     {expandedTeamId === ta.id && (
                       <div className="mt-3 border-t border-border pt-3">
                         <MarkdownText text={ta.analysis} />
@@ -1371,12 +1565,67 @@ function Dashboard({ user }: { user: UserInfo }) {
               })}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Les analyses enregistrées apparaîtront ici une fois générées.
-            </p>
+            <div className="rounded-lg border border-dashed border-border p-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                {storedTeamAnalyses.length === 0
+                  ? "Aucune analyse enregistrée pour l'instant. Sélectionnez un ou plusieurs profils ci-dessus, puis générez une analyse — elle sera archivée ici automatiquement."
+                  : "Aucune analyse ne correspond à ce filtre."}
+              </p>
+            </div>
           )}
         </Card>
       </main>
+
+      {/* Barre d'action collante */}
+      {selectedResultIds.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 shadow-lg backdrop-blur">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <p className="text-sm">
+              <strong>{selectedResultIds.length}</strong> profil{selectedResultIds.length > 1 ? "s" : ""} sélectionné{selectedResultIds.length > 1 ? "s" : ""}
+              <span className="ml-2 text-xs text-muted-foreground">
+                {selfSelected ? "vous inclus" : "sans vous"}
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setSelectedInvitationIds([])}>
+                Tout décocher
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleGenerateIndividual}
+                disabled={generatingIndiv || generatingTeam || !canGenerateIndividual}
+                title={
+                  canGenerateIndividual
+                    ? undefined
+                    : "Sélectionnez exactement 1 profil pour une analyse individuelle"
+                }
+              >
+                {generatingIndiv
+                  ? "Génération…"
+                  : individualAnalysis
+                    ? "🔄 Régénérer l'analyse individuelle"
+                    : "📊 Analyse individuelle"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleGenerateTeam}
+                disabled={generatingTeam || generatingIndiv || !canGenerateSelectedTeam}
+                title={
+                  canGenerateSelectedTeam
+                    ? undefined
+                    : "Sélectionnez au moins 2 profils pour une analyse collective"
+                }
+              >
+                {generatingTeam
+                  ? "Génération…"
+                  : teamAnalysis
+                    ? "🔄 Régénérer l'analyse collective"
+                    : "🤝 Analyse collective"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

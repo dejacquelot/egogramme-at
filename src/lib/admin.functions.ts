@@ -194,13 +194,20 @@ export const generateTeamAnalysis = createServerFn({ method: "POST" })
  */
 export const saveTeamAnalysis = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { ids: string[]; analysis: string; teamName?: string; creatorUserId?: string }) =>
+    (input: {
+      ids: string[];
+      analysis: string;
+      teamName?: string;
+      creatorUserId?: string;
+      kind?: "individual" | "collective";
+    }) =>
       z
         .object({
-          ids: z.array(z.string().uuid()).min(2).max(20),
+          ids: z.array(z.string().uuid()).min(1).max(20),
           analysis: z.string().min(1),
           teamName: z.string().max(120).optional(),
           creatorUserId: z.string().uuid().optional(),
+          kind: z.enum(["individual", "collective"]).optional(),
         })
         .parse(input),
   )
@@ -223,6 +230,7 @@ export const saveTeamAnalysis = createServerFn({ method: "POST" })
         member_names: memberNames,
         analysis: data.analysis,
         creator_user_id: data.creatorUserId ?? null,
+        kind: data.kind ?? (data.ids.length > 1 ? "collective" : "individual"),
       })
       .select("id")
       .single();
@@ -259,12 +267,36 @@ export const listMyTeamAnalyses = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("team_analyses")
-      .select("id, team_name, member_ids, member_names, analysis, created_at, creator_user_id")
+      .select("id, team_name, member_ids, member_names, analysis, created_at, creator_user_id, kind")
       .eq("creator_user_id", data.userId)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(100);
     if (error) throw error;
     return rows ?? [];
+  });
+
+/** Renomme une analyse appartenant à l'utilisateur courant. */
+export const renameMyAnalysis = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string; analysisId: string; title: string }) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        analysisId: z.string().uuid(),
+        title: z.string().max(120),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("team_analyses")
+      .update({ team_name: data.title } as Record<string, unknown>)
+      .eq("id", data.analysisId)
+      .eq("creator_user_id", data.userId)
+      .select("id, team_name")
+      .maybeSingle();
+    if (error) throw error;
+    return { ok: true as const, row };
   });
 
 /**
