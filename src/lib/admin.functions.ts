@@ -54,6 +54,33 @@ export const updateAdminResultName = createServerFn({ method: "POST" })
     };
   });
 
+export const updateMyResultName = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string; first_name: string; last_name: string }) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        first_name: z.string().trim().max(80),
+        last_name: z.string().trim().max(80),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("results")
+      .update({
+        first_name: data.first_name || null,
+        last_name: data.last_name || null,
+      })
+      .eq("user_id", data.userId);
+    if (error) throw error;
+    return {
+      ok: true as const,
+      first_name: data.first_name || null,
+      last_name: data.last_name || null,
+    };
+  });
+
 export const generateTeamAnalysis = createServerFn({ method: "POST" })
   .inputValidator((input: { ids: string[]; teamName?: string; creatorUserId?: string }) =>
     z

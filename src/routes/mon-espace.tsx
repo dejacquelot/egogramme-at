@@ -17,7 +17,7 @@ import {
   resetInvitation,
   deleteInvitation,
 } from "@/lib/invitation.functions";
-import { saveTeamAnalysis, listMyTeamAnalyses } from "@/lib/admin.functions";
+import { saveTeamAnalysis, listMyTeamAnalyses, updateMyResultName } from "@/lib/admin.functions";
 import {
   downloadTeamReportPdf,
   downloadTeamReportImage,
@@ -243,6 +243,9 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [selectedInvitationIds, setSelectedInvitationIds] = useState<string[]>([]);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState({ first: "", last: "" });
+  const [savingName, setSavingName] = useState(false);
 
   // Invite form
   const [invFirstName, setInvFirstName] = useState("");
@@ -301,6 +304,12 @@ function Dashboard({ user }: { user: UserInfo }) {
           listMyTeamAnalyses({ data: { userId: user.id } }),
         ]);
         setMyResult(result);
+        if (result) {
+          setNameDraft({
+            first: result.first_name ?? user.firstName ?? "",
+            last: result.last_name ?? user.lastName ?? "",
+          });
+        }
         setInvitations(invs);
         setStoredTeamAnalyses(storedTeams as StoredTeamAnalysis[]);
 
@@ -730,6 +739,35 @@ function Dashboard({ user }: { user: UserInfo }) {
     window.location.href = "/";
   };
 
+  const handleSaveName = async () => {
+    if (!myResult) return;
+    setSavingName(true);
+    try {
+      const res = await updateMyResultName({
+        data: {
+          userId: user.id,
+          first_name: nameDraft.first.trim(),
+          last_name: nameDraft.last.trim(),
+        },
+      });
+      setMyResult((prev) =>
+        prev
+          ? {
+              ...prev,
+              first_name: res.first_name,
+              last_name: res.last_name,
+            }
+          : prev,
+      );
+      setEditingName(false);
+    } catch (e) {
+      console.error("save name error:", e);
+      alert("Impossible d'enregistrer le prénom et le nom.");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
@@ -749,9 +787,37 @@ function Dashboard({ user }: { user: UserInfo }) {
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold">Mon Espace Égogramme</h1>
-            <p className="text-xs text-muted-foreground">
-              {user.firstName} {user.lastName} · {user.email}
-            </p>
+            {myResult && !editingName ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>
+                  {myResult.first_name || user.firstName} {myResult.last_name || user.lastName} · {user.email}
+                </span>
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingName(true)}>
+                  Modifier prénom/nom
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Input
+                  value={nameDraft.first}
+                  onChange={(e) => setNameDraft((prev) => ({ ...prev, first: e.target.value }))}
+                  placeholder="Prénom"
+                  className="h-8 w-36"
+                />
+                <Input
+                  value={nameDraft.last}
+                  onChange={(e) => setNameDraft((prev) => ({ ...prev, last: e.target.value }))}
+                  placeholder="Nom"
+                  className="h-8 w-36"
+                />
+                <Button size="sm" onClick={handleSaveName} disabled={savingName}>
+                  {savingName ? "Enregistrement…" : "Enregistrer"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingName(false)} disabled={savingName}>
+                  Annuler
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Link to="/" className="text-xs text-primary underline">
