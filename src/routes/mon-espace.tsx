@@ -382,6 +382,7 @@ function Dashboard({ user }: { user: UserInfo }) {
     ...(myResult && selectedInvitationIds.includes("__self__") ? [myResult.id] : []),
     ...selectedSelectableInvitations.map((i) => i.result_id!).filter(Boolean),
   ] as string[];
+  const selfSelected = selectedInvitationIds.includes("__self__");
 
   const refreshTeamFromInvitations = async (nextInvitations: Invitation[]) => {
     if (!myResult) return;
@@ -519,6 +520,18 @@ function Dashboard({ user }: { user: UserInfo }) {
         ...prev,
         [inv.id]: { first: res.invitee_first_name || "", last: res.invitee_last_name || "" },
       }));
+      setInvitations((prev) =>
+        prev.map((i) =>
+          i.id === inv.id
+            ? {
+                ...i,
+                invitee_first_name: res.invitee_first_name,
+                invitee_last_name: res.invitee_last_name,
+                invitee_name: res.invitee_name,
+              }
+            : i,
+        ),
+      );
     } catch (e) {
       alert(e instanceof Error ? e.message : "Erreur lors de la mise à jour du prénom/nom.");
       console.error("save invitation name error:", e);
@@ -774,7 +787,7 @@ function Dashboard({ user }: { user: UserInfo }) {
     }
   };
 
-  const selectedInvitationCount = selectedSelectableInvitations.length + (selectedInvitationIds.includes("__self__") ? 1 : 0);
+  const selectedInvitationCount = selectedSelectableInvitations.length + (selfSelected ? 1 : 0);
   const canGenerateSelectedTeam = selectedResultIds.length >= 2;
 
   const handleIndivDownload = async (kind: "pdf" | "img") => {
@@ -1008,25 +1021,6 @@ function Dashboard({ user }: { user: UserInfo }) {
             <p className="text-xs text-muted-foreground mb-4">
               {completedInvitations.length} / {invitations.length} personne(s) ont répondu
             </p>
-            {myResult && (
-              <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-semibold">Votre test personnel</h3>
-                    <p className="text-xs text-muted-foreground">Inclus automatiquement dans les analyses collectives et non modifiable.</p>
-                  </div>
-                  <label className="flex items-center gap-2 text-xs font-medium text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={selectedInvitationIds.includes("__self__")}
-                      onChange={() => toggleSelectedInvitation("__self__")}
-                    />
-                    Inclure
-                  </label>
-                </div>
-              </div>
-            )}
-
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1047,6 +1041,45 @@ function Dashboard({ user }: { user: UserInfo }) {
                   </tr>
                 </thead>
                 <tbody>
+                  {myResult && (
+                    <tr className="border-b border-border/50 bg-muted/30">
+                      <td className="py-2 pr-3 text-center text-xs">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={selfSelected ? "default" : "outline"}
+                          className="h-8 px-3 text-xs"
+                          onClick={() => toggleSelectedInvitation("__self__")}
+                          aria-pressed={selfSelected}
+                        >
+                          {selfSelected ? "✓ Inclus" : "Exclu"}
+                        </Button>
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        {myResult.first_name || user.firstName || "Vous"}
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        {myResult.last_name || user.lastName || "—"}
+                      </td>
+                      <td className="py-2 pr-3 text-xs">{user.email}</td>
+                      <td className="py-2 pr-3 text-xs">
+                        <span className="text-indigo-600 font-medium">👤 Vous</span>
+                      </td>
+                      {SCORE_KEYS.map((key) => (
+                        <td key={key} className="py-2 pr-3 text-xs text-center tabular-nums">
+                          {myResult.scores[key] ?? "—"}
+                        </td>
+                      ))}
+                      <td className="py-2 pr-3 text-xs whitespace-nowrap">
+                        {formatDate(myResult.created_at)}
+                      </td>
+                      <td className="py-2 text-right text-xs">
+                        <span className={selfSelected ? "font-medium text-green-600" : "font-medium text-muted-foreground"}>
+                          {selfSelected ? "Inclus" : "Exclu"}
+                        </span>
+                      </td>
+                    </tr>
+                  )}
                   {invitations.map((inv) => (
                     <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/40">
                       <td className="py-2 pr-3 text-center text-xs">
@@ -1171,7 +1204,7 @@ function Dashboard({ user }: { user: UserInfo }) {
               <div className="mt-6 pt-4 border-t border-border">
                 {selectedInvitationCount >= 1 && (
                   <p className="text-sm text-muted-foreground mb-3">
-                    🎯 {selectedResultIds.length} profils sélectionnés (vous + {selectedInvitationCount} invité{selectedInvitationCount > 1 ? "s" : ""})
+                    🎯 {selectedResultIds.length} profils sélectionnés ({selfSelected ? "vous inclus" : "vous exclus"} + {selectedSelectableInvitations.length} invité{selectedSelectableInvitations.length > 1 ? "s" : ""})
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">

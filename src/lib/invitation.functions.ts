@@ -237,7 +237,7 @@ export const updateInvitationName = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const combined = [data.firstName, data.lastName].filter(Boolean).join(" ");
-    const { error } = await supabaseAdmin
+    const { data: updated, error } = await supabaseAdmin
       .from("invitations")
       .update({
         invitee_first_name: data.firstName || null,
@@ -245,12 +245,15 @@ export const updateInvitationName = createServerFn({ method: "POST" })
         invitee_name: combined || null,
       } as Record<string, unknown>)
       .eq("id", data.invitationId);
+      .select("id, invitee_first_name, invitee_last_name, invitee_name")
+      .maybeSingle();
     if (error) throw error;
+    if (!updated) throw new Error("Invitation introuvable.");
     return {
       ok: true as const,
-      invitee_first_name: data.firstName || null,
-      invitee_last_name: data.lastName || null,
-      invitee_name: combined || null,
+      invitee_first_name: updated.invitee_first_name as string | null,
+      invitee_last_name: updated.invitee_last_name as string | null,
+      invitee_name: updated.invitee_name as string | null,
     };
   });
 
