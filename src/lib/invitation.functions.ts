@@ -244,7 +244,7 @@ export const updateInvitationName = createServerFn({ method: "POST" })
         invitee_last_name: data.lastName || null,
         invitee_name: combined || null,
       } as Record<string, unknown>)
-      .eq("id", data.invitationId);
+      .eq("id", data.invitationId)
       .select("id, invitee_first_name, invitee_last_name, invitee_name")
       .maybeSingle();
     if (error) throw error;

@@ -231,6 +231,26 @@ export const saveTeamAnalysis = createServerFn({ method: "POST" })
     return { teamAnalysisId: inserted?.id ?? null };
   });
 
+export const deleteMyTeamAnalysis = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string; teamAnalysisId: string }) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        teamAnalysisId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("team_analyses")
+      .delete()
+      .eq("id", data.teamAnalysisId)
+      .eq("creator_user_id", data.userId);
+    if (error) throw error;
+    return { ok: true as const };
+  });
+
 export const listMyTeamAnalyses = createServerFn({ method: "POST" })
   .inputValidator((input: { userId: string }) =>
     z.object({ userId: z.string().uuid() }).parse(input),
