@@ -378,9 +378,10 @@ function Dashboard({ user }: { user: UserInfo }) {
   const invitationsWithScores = invitations.filter((i) => i.result_id && i.status !== "deleted");
   const selectableInvitations = invitations.filter((i) => i.result_id && i.status !== "deleted");
   const selectedSelectableInvitations = selectableInvitations.filter((i) => selectedInvitationIds.includes(i.id));
-  const selectedResultIds = [myResult?.id, ...selectedSelectableInvitations.map((i) => i.result_id!).filter(Boolean)].filter(
-    Boolean,
-  ) as string[];
+  const selectedResultIds = [
+    ...(myResult && selectedInvitationIds.includes("__self__") ? [myResult.id] : []),
+    ...selectedSelectableInvitations.map((i) => i.result_id!).filter(Boolean),
+  ] as string[];
 
   const refreshTeamFromInvitations = async (nextInvitations: Invitation[]) => {
     if (!myResult) return;
@@ -422,6 +423,15 @@ function Dashboard({ user }: { user: UserInfo }) {
       prev.includes(invitationId) ? prev.filter((id) => id !== invitationId) : [...prev, invitationId],
     );
   };
+
+  useEffect(() => {
+    if (!myResult) return;
+    setSelectedInvitationIds((prev) => (prev.includes("__self__") ? prev : ["__self__", ...prev]));
+  }, [myResult]);
+
+  useEffect(() => {
+    setSelectedInvitationIds((prev) => (myResult ? prev : prev.filter((id) => id !== "__self__")));
+  }, [myResult]);
 
   const handleScoreChange = (inv: Invitation, key: CatKey, value: string) => {
     const normalized = value.replace(/\D/g, "").slice(0, 2);
@@ -764,7 +774,7 @@ function Dashboard({ user }: { user: UserInfo }) {
     }
   };
 
-  const selectedInvitationCount = selectedSelectableInvitations.length;
+  const selectedInvitationCount = selectedSelectableInvitations.length + (selectedInvitationIds.includes("__self__") ? 1 : 0);
   const canGenerateSelectedTeam = selectedResultIds.length >= 2;
 
   const handleIndivDownload = async (kind: "pdf" | "img") => {
@@ -1005,7 +1015,14 @@ function Dashboard({ user }: { user: UserInfo }) {
                     <h3 className="text-sm font-semibold">Votre test personnel</h3>
                     <p className="text-xs text-muted-foreground">Inclus automatiquement dans les analyses collectives et non modifiable.</p>
                   </div>
-                  <span className="text-xs font-medium text-foreground">Sélection fixe</span>
+                  <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={selectedInvitationIds.includes("__self__")}
+                      onChange={() => toggleSelectedInvitation("__self__")}
+                    />
+                    Inclure
+                  </label>
                 </div>
               </div>
             )}
