@@ -280,6 +280,8 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [renameDraft, setRenameDraft] = useState("");
   const [pendingDelete, setPendingDelete] = useState<StoredTeamAnalysis | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   // Individual analysis
   const [individualAnalysis, setIndividualAnalysis] = useState<string | null>(null);
@@ -427,6 +429,24 @@ function Dashboard({ user }: { user: UserInfo }) {
     } catch (e) {
       console.error("refresh library error:", e);
     }
+  };
+
+  // Compte à rebours après une limitation de débit de l'IA (429)
+  useEffect(() => {
+    if (cooldownUntil <= Date.now()) return;
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [cooldownUntil]);
+
+  const cooldownLeft = Math.max(0, Math.ceil((cooldownUntil - nowTick) / 1000));
+
+  /** Déclenche un délai d'attente si l'IA a renvoyé une limite de débit. */
+  const applyRateLimit = (msg: string) => {
+    if (!/limite de vitesse|trop de requ|quota/i.test(msg)) return;
+    const m = /(\d+)\s*secondes?/.exec(msg);
+    const seconds = m ? parseInt(m[1], 10) : 30;
+    setCooldownUntil(Date.now() + (seconds + 2) * 1000);
+    setNowTick(Date.now());
   };
 
   const analysisKind = (a: StoredTeamAnalysis) =>
@@ -805,6 +825,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       console.error("team analysis error:", e);
       const msg = e instanceof Error && e.message ? e.message : "Erreur lors de la génération. Réessayez.";
       setTeamAnalysis(msg);
+      applyRateLimit(msg);
     } finally {
       setGeneratingTeam(false);
     }
@@ -923,6 +944,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       console.error("individual analysis error:", e);
       const msg = e instanceof Error && e.message ? e.message : "Erreur lors de la génération. Réessayez.";
       setIndividualAnalysis(msg);
+      applyRateLimit(msg);
     } finally {
       setGeneratingIndiv(false);
     }
@@ -1670,34 +1692,38 @@ function Dashboard({ user }: { user: UserInfo }) {
               <Button
                 size="sm"
                 onClick={handleGenerateIndividual}
-                disabled={generatingIndiv || generatingTeam || !canGenerateIndividual}
+                disabled={generatingIndiv || generatingTeam || !canGenerateIndividual || cooldownLeft > 0}
                 title={
                   canGenerateIndividual
                     ? undefined
                     : "Sélectionnez exactement 1 profil pour une analyse individuelle"
                 }
               >
-                {generatingIndiv
-                  ? "Génération…"
-                  : individualAnalysis
-                    ? "🔄 Régénérer l'analyse individuelle"
-                    : "📊 Analyse individuelle"}
+                {cooldownLeft > 0
+                  ? `⏳ ${cooldownLeft}s`
+                  : generatingIndiv
+                    ? "Génération…"
+                    : individualAnalysis
+                      ? "🔄 Régénérer l'analyse individuelle"
+                      : "📊 Analyse individuelle"}
               </Button>
               <Button
                 size="sm"
                 onClick={handleGenerateTeam}
-                disabled={generatingTeam || generatingIndiv || !canGenerateSelectedTeam}
+                disabled={generatingTeam || generatingIndiv || !canGenerateSelectedTeam || cooldownLeft > 0}
                 title={
                   canGenerateSelectedTeam
                     ? undefined
                     : "Sélectionnez au moins 2 profils pour une analyse collective"
                 }
               >
-                {generatingTeam
-                  ? "Génération…"
-                  : teamAnalysis
-                    ? "🔄 Régénérer l'analyse collective"
-                    : "🤝 Analyse collective"}
+                {cooldownLeft > 0
+                  ? `⏳ ${cooldownLeft}s`
+                  : generatingTeam
+                    ? "Génération…"
+                    : teamAnalysis
+                      ? "🔄 Régénérer l'analyse collective"
+                      : "🤝 Analyse collective"}
               </Button>
             </div>
           </div>
