@@ -951,7 +951,17 @@ function Dashboard({ user }: { user: UserInfo }) {
   };
 
   const canGenerateSelectedTeam = selectedResultIds.length >= 2;
-  const canGenerateIndividual = selectedResultIds.length === 1 || (selectedResultIds.length === 0 && !!myResult);
+  // L'analyse individuelle porte sur le seul profil coché, sinon sur le vôtre par défaut.
+  const canGenerateIndividual = selectedResultIds.length === 1 || !!myResult;
+  const individualTargetName = (() => {
+    if (selectedResultIds.length === 1) {
+      const id = selectedResultIds[0];
+      if (myResult && id === myResult.id) return "vous";
+      const inv = selectableInvitations.find((i) => i.result_id === id);
+      return inv ? inv.invitee_first_name || inv.invitee_name || "ce profil" : "ce profil";
+    }
+    return myResult ? "vous" : null;
+  })();
 
   const handleIndivDownload = async (kind: "pdf" | "img") => {
     if (!individualAnalysis || !myResult) return;
@@ -1382,14 +1392,14 @@ function Dashboard({ user }: { user: UserInfo }) {
               </table>
             </div>
 
-            {/* Résumé de sélection (les actions sont dans la barre collante en bas) */}
+            {/* Résumé de sélection + actions (dupliquées dans la barre collante) */}
             <div className="mt-6 pt-4 border-t border-border">
               {selectedResultIds.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-3">
                   Cochez au moins un profil ci-dessus pour générer une analyse.
                 </p>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-3">
                   🎯 {selectedResultIds.length} profil{selectedResultIds.length > 1 ? "s" : ""} sélectionné{selectedResultIds.length > 1 ? "s" : ""}
                   {" — "}
                   {selfSelected ? "vous" : "sans vous"}
@@ -1397,6 +1407,39 @@ function Dashboard({ user }: { user: UserInfo }) {
                     ` + ${selectedSelectableInvitations.length} invité${selectedSelectableInvitations.length > 1 ? "s" : ""}`}
                 </p>
               )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleGenerateIndividual}
+                  disabled={generatingIndiv || generatingTeam || !canGenerateIndividual || cooldownLeft > 0}
+                >
+                  {cooldownLeft > 0
+                    ? `⏳ Patientez ${cooldownLeft}s`
+                    : generatingIndiv
+                      ? "Génération en cours…"
+                      : individualAnalysis
+                        ? "🔄 Régénérer l'analyse individuelle"
+                        : `📊 Générer une analyse individuelle${individualTargetName ? ` — ${individualTargetName}` : ""}`}
+                </Button>
+                <Button
+                  onClick={handleGenerateTeam}
+                  disabled={generatingTeam || generatingIndiv || !canGenerateSelectedTeam || cooldownLeft > 0}
+                >
+                  {cooldownLeft > 0
+                    ? `⏳ Patientez ${cooldownLeft}s`
+                    : generatingTeam
+                      ? "Génération en cours…"
+                      : teamAnalysis
+                        ? "🔄 Régénérer l'analyse collective"
+                        : "🤝 Générer l'analyse collective"}
+                </Button>
+              </div>
+
+              <p className="mt-2 text-xs text-muted-foreground">
+                {!canGenerateSelectedTeam
+                  ? "L'analyse collective demande au moins 2 profils cochés."
+                  : null}
+              </p>
             </div>
           </Card>
         )}
