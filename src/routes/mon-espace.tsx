@@ -282,6 +282,17 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [highlightedAnalysisId, setHighlightedAnalysisId] = useState<string | null>(null);
+  const libraryRef = useRef<HTMLDivElement | null>(null);
+
+  /** Amène la bibliothèque à l'écran pour que la nouvelle analyse soit visible. */
+  const scrollToLibrary = () => {
+    setLibraryFilter("all");
+    setLibrarySearch("");
+    window.setTimeout(() => {
+      libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  };
 
   // Individual analysis
   const [individualAnalysis, setIndividualAnalysis] = useState<string | null>(null);
@@ -758,33 +769,17 @@ function Dashboard({ user }: { user: UserInfo }) {
         namesForTitle.length > 0 && namesForTitle.length <= 3
           ? `${namesForTitle.join(" & ")} — ${formatDate(new Date().toISOString())}`
           : `Groupe de ${namesForTitle.length} — ${formatDate(new Date().toISOString())}`;
-      // Stream the analysis text + fetch member rows in parallel
-      const memberRowsPromise = getResultsByIds({ data: { ids: resultIds } });
       const analysisText = await streamAnalysis(
         "/api/analysis/team-stream",
         { ids: resultIds, teamName },
         (partial) => setTeamAnalysis(partial),
       );
-      const memberRows = await memberRowsPromise;
 
-      // Build report members for PDF/image download
-      const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
-      const members: ReportMember[] = memberRows.map((r) => ({
-        name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
-        date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
-        scores: Object.fromEntries(cats.map((c) => [c, r.scores[c] ?? 0])) as ReportScores,
-      }));
-      setTeamMembers(members);
-
-      const avg = Object.fromEntries(
-        cats.map((c) => [c, Math.round(members.reduce((s, m) => s + m.scores[c], 0) / members.length)]),
-      ) as ReportScores;
-      setTeamAverage(avg);
-
-      // Persist the analysis + store the PDF/image in the background (non-blocking)
       if (analysisText) {
         setStoringTeam(true);
         void (async () => {
+          // Étape 1 — persistance en bibliothèque. Elle ne dépend d'AUCUN autre appel :
+          // ni les lignes membres, ni le PDF ne peuvent la faire échouer.
           let savedId: string | null = null;
           try {
             const saved = await saveTeamAnalysis({
@@ -799,7 +794,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                 id: savedId!,
                 team_name: teamName,
                 member_ids: resultIds,
-                member_names: members.map((m) => m.name),
+                member_names: namesForTitle,
                 analysis: analysisText,
                 created_at: new Date().toISOString(),
                 creator_user_id: user.id,
@@ -807,6 +802,8 @@ function Dashboard({ user }: { user: UserInfo }) {
               },
               ...prev.filter((a) => a.id !== savedId),
             ]);
+            setHighlightedAnalysisId(savedId);
+            scrollToLibrary();
             void refreshLibrary();
           } catch (saveErr) {
             console.error("save team analysis error:", saveErr);
@@ -817,21 +814,41 @@ function Dashboard({ user }: { user: UserInfo }) {
             );
           }
 
-          if (savedId) {
-            try {
-              const uploads = await buildTeamReportUploads({
-                teamName,
-                average: avg,
-                members,
-                analysis: analysisText,
-              });
-              const urls = await storeReportFiles({
-                data: { kind: "team", refId: savedId, ...uploads },
-              });
-              setTeamUrls(urls);
-            } catch (storeErr) {
-              console.error("store team report error:", storeErr);
+          // Étape 2 — rapport PDF/image. Best effort : un échec ici est sans conséquence
+          // sur la bibliothèque.
+          try {
+            const memberRows = await getResultsByIds({ data: { ids: resultIds } });
+            const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+            const members: ReportMember[] = memberRows.map((r) => ({
+              name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
+              date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
+              scores: Object.fromEntries(cats.map((c) => [c, r.scores?.[c] ?? 0])) as ReportScores,
+            }));
+            if (members.length > 0) {
+              setTeamMembers(members);
+              const avg = Object.fromEntries(
+                cats.map((c) => [
+                  c,
+                  Math.round(members.reduce((s, m) => s + m.scores[c], 0) / members.length),
+                ]),
+              ) as ReportScores;
+              setTeamAverage(avg);
+
+              if (savedId) {
+                const uploads = await buildTeamReportUploads({
+                  teamName,
+                  average: avg,
+                  members,
+                  analysis: analysisText,
+                });
+                const urls = await storeReportFiles({
+                  data: { kind: "team", refId: savedId, ...uploads },
+                });
+                setTeamUrls(urls);
+              }
             }
+          } catch (storeErr) {
+            console.error("store team report error:", storeErr);
           }
           setStoringTeam(false);
         })();
@@ -927,6 +944,8 @@ function Dashboard({ user }: { user: UserInfo }) {
               },
               ...prev.filter((a) => a.id !== savedId),
             ]);
+            setHighlightedAnalysisId(savedId);
+            scrollToLibrary();
             void refreshLibrary();
           } catch (saveErr) {
             console.error("save individual analysis error:", saveErr);
@@ -1532,7 +1551,7 @@ function Dashboard({ user }: { user: UserInfo }) {
         )}
 
         {/* ③ Bibliothèque d'analyses */}
-        <Card className="p-6">
+        <Card className="p-6 scroll-mt-24" ref={libraryRef}>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-base font-semibold">
               <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">3</span>
@@ -1628,7 +1647,17 @@ function Dashboard({ user }: { user: UserInfo }) {
                 const memberNames = Array.isArray(ta.member_names) ? ta.member_names : [];
                 const kind = analysisKind(ta);
                 return (
-                  <div key={ta.id} className="rounded-lg border border-border p-4">
+                  <div
+                    key={ta.id}
+                    className={
+                      highlightedAnalysisId === ta.id
+                        ? "rounded-lg border-2 border-primary bg-primary/5 p-4"
+                        : "rounded-lg border border-border p-4"
+                    }
+                  >
+                    {highlightedAnalysisId === ta.id && (
+                      <p className="mb-2 text-xs font-medium text-primary">✨ Nouvelle analyse enregistrée</p>
+                    )}
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
