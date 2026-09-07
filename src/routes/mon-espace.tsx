@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -402,14 +402,21 @@ function Dashboard({ user }: { user: UserInfo }) {
   const invitationsWithScores = invitations.filter((i) => i.result_id && i.status !== "deleted");
   const selectableInvitations = invitations.filter((i) => i.result_id && i.status !== "deleted");
   const selectedSelectableInvitations = selectableInvitations.filter((i) => selectedInvitationIds.includes(i.id));
-  const selectedResultIds = [
-    ...(myResult && selectedInvitationIds.includes("__self__") ? [myResult.id] : []),
-    ...selectedSelectableInvitations.map((i) => i.result_id!).filter(Boolean),
-  ] as string[];
+  // Déduplique : un invité peut pointer vers le même résultat que le vôtre.
+  const selectedResultIds = Array.from(
+    new Set(
+      [
+        ...(myResult && selectedInvitationIds.includes("__self__") ? [myResult.id] : []),
+        ...selectedSelectableInvitations.map((i) => i.result_id!).filter(Boolean),
+      ] as string[],
+    ),
+  );
   const selfSelected = selectedInvitationIds.includes("__self__");
 
-  const totalSelectable = selectableInvitations.length + (myResult ? 1 : 0);
-  const allSelected = totalSelectable > 0 && selectedResultIds.length === totalSelectable;
+  const allSelected =
+    (selectableInvitations.length > 0 || !!myResult) &&
+    (!myResult || selfSelected) &&
+    selectableInvitations.every((i) => selectedInvitationIds.includes(i.id));
 
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -506,13 +513,16 @@ function Dashboard({ user }: { user: UserInfo }) {
     );
   };
 
+  // Pré-coche votre profil une seule fois, sans jamais le re-cocher après un décochage volontaire.
+  const selfPrecheckedRef = useRef(false);
   useEffect(() => {
-    if (!myResult) return;
+    if (!myResult) {
+      setSelectedInvitationIds((prev) => prev.filter((id) => id !== "__self__"));
+      return;
+    }
+    if (selfPrecheckedRef.current) return;
+    selfPrecheckedRef.current = true;
     setSelectedInvitationIds((prev) => (prev.includes("__self__") ? prev : ["__self__", ...prev]));
-  }, [myResult]);
-
-  useEffect(() => {
-    setSelectedInvitationIds((prev) => (myResult ? prev : prev.filter((id) => id !== "__self__")));
   }, [myResult]);
 
   const handleScoreChange = (inv: Invitation, key: CatKey, value: string) => {
@@ -722,7 +732,12 @@ function Dashboard({ user }: { user: UserInfo }) {
 
   useEffect(() => {
     setSelectedInvitationIds((prev) =>
-      prev.filter((id) => invitations.some((inv) => inv.id === id && inv.result_id && inv.status !== "deleted")),
+      prev.filter(
+        (id) =>
+          // `__self__` n'est pas une invitation : il ne doit jamais être filtré ici.
+          id === "__self__" ||
+          invitations.some((inv) => inv.id === id && inv.result_id && inv.status !== "deleted"),
+      ),
     );
   }, [invitations]);
 
