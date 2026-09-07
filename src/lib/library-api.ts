@@ -24,6 +24,7 @@ async function call<T>(body: Record<string, unknown>): Promise<T> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    cache: "no-store",
   });
   let json: any = null;
   try {

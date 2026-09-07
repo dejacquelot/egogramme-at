@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
+const json = (body: unknown, init?: ResponseInit) => {
+  const headers = new Headers(init?.headers);
+  headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return Response.json(body, { ...init, headers });
+};
+
 /**
  * Route API classique pour la bibliothèque d'analyses de Mon Espace.
  *
@@ -61,7 +67,7 @@ export const Route = createFileRoute("/api/analysis/library")({
               .order("created_at", { ascending: false })
               .limit(100);
             if (error) throw new Error(error.message);
-            return Response.json({ ok: true, rows: data ?? [] });
+            return json({ ok: true, rows: data ?? [] });
           }
 
           if (body.action === "delete") {
@@ -71,7 +77,7 @@ export const Route = createFileRoute("/api/analysis/library")({
               .eq("id", body.analysisId)
               .eq("creator_user_id", body.userId);
             if (error) throw new Error(error.message);
-            return Response.json({ ok: true });
+            return json({ ok: true });
           }
 
           if (body.action === "rename") {
@@ -81,7 +87,7 @@ export const Route = createFileRoute("/api/analysis/library")({
               .eq("id", body.analysisId)
               .eq("creator_user_id", body.userId);
             if (error) throw new Error(error.message);
-            return Response.json({ ok: true });
+            return json({ ok: true });
           }
 
           // action === "save"
@@ -122,11 +128,11 @@ export const Route = createFileRoute("/api/analysis/library")({
           }
           if (error) throw new Error(error.message);
 
-          return Response.json({ ok: true, row: inserted });
+          return json({ ok: true, row: inserted });
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           console.error("analysis/library error", message);
-          return Response.json({ ok: false, error: message }, { status: 400 });
+          return json({ ok: false, error: message }, { status: 400 });
         }
       },
     },

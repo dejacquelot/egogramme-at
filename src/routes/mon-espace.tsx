@@ -792,7 +792,7 @@ function Dashboard({ user }: { user: UserInfo }) {
 
       if (analysisText) {
         setStoringTeam(true);
-        void (async () => {
+        await (async () => {
           // Étape 1 — persistance en bibliothèque. Elle ne dépend d'AUCUN autre appel :
           // ni les lignes membres, ni le PDF ne peuvent la faire échouer.
           let savedId: string | null = null;
@@ -813,7 +813,7 @@ function Dashboard({ user }: { user: UserInfo }) {
             ]);
             setHighlightedAnalysisId(savedId);
             scrollToLibrary();
-            void refreshLibrary();
+            await refreshLibrary();
           } catch (saveErr) {
             console.error("save team analysis error:", saveErr);
             setSaveError(
@@ -924,7 +924,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       if (analysisText) {
         setStoringIndiv(true);
         const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Résultat individuel";
-        void (async () => {
+        await (async () => {
           const title = `${fullName} — ${formatDate(new Date().toISOString())}`;
           let savedId: string | null = null;
           try {
@@ -943,7 +943,7 @@ function Dashboard({ user }: { user: UserInfo }) {
             ]);
             setHighlightedAnalysisId(savedId);
             scrollToLibrary();
-            void refreshLibrary();
+            await refreshLibrary();
           } catch (saveErr) {
             console.error("save individual analysis error:", saveErr);
             setSaveError(
