@@ -18,7 +18,8 @@ import {
   deleteInvitation,
   updateInvitationName,
 } from "@/lib/invitation.functions";
-import { saveTeamAnalysis, listMyTeamAnalyses, updateMyResultName, deleteMyTeamAnalysis, renameMyAnalysis } from "@/lib/admin.functions";
+import { updateMyResultName } from "@/lib/admin.functions";
+import { libraryApi } from "@/lib/library-api";
 import {
   downloadTeamReportPdf,
   downloadTeamReportImage,
@@ -329,13 +330,22 @@ function Dashboard({ user }: { user: UserInfo }) {
         const [resultSettled, invsSettled, teamsSettled] = await Promise.allSettled([
           getMyResult({ data: { userId: user.id } }),
           listMyInvitations({ data: { userId: user.id } }),
-          listMyTeamAnalyses({ data: { userId: user.id } }),
+          libraryApi.list(user.id),
         ]);
 
         // Un appel qui échoue ne doit jamais faire disparaître les autres sections
         if (resultSettled.status === "rejected") console.error("getMyResult error:", resultSettled.reason);
         if (invsSettled.status === "rejected") console.error("listMyInvitations error:", invsSettled.reason);
-        if (teamsSettled.status === "rejected") console.error("listMyTeamAnalyses error:", teamsSettled.reason);
+        if (teamsSettled.status === "rejected") {
+          console.error("library load error:", teamsSettled.reason);
+          setSaveError(
+            `La bibliothèque n'a pas pu être chargée : ${
+              teamsSettled.reason instanceof Error
+                ? teamsSettled.reason.message
+                : String(teamsSettled.reason)
+            }`,
+          );
+        }
 
         const result = resultSettled.status === "fulfilled" ? resultSettled.value : null;
         const invs = invsSettled.status === "fulfilled" ? invsSettled.value : [];
@@ -442,10 +452,15 @@ function Dashboard({ user }: { user: UserInfo }) {
 
   const refreshLibrary = async () => {
     try {
-      const rows = await listMyTeamAnalyses({ data: { userId: user.id } });
+      const rows = await libraryApi.list(user.id);
       setStoredTeamAnalyses(rows as StoredTeamAnalysis[]);
     } catch (e) {
       console.error("refresh library error:", e);
+      setSaveError(
+        `La bibliothèque n'a pas pu être rechargée : ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
     }
   };
 
@@ -782,24 +797,18 @@ function Dashboard({ user }: { user: UserInfo }) {
           // ni les lignes membres, ni le PDF ne peuvent la faire échouer.
           let savedId: string | null = null;
           try {
-            const saved = await saveTeamAnalysis({
-              data: { ids: resultIds, analysis: analysisText, teamName, creatorUserId: user.id, kind: "collective" },
+            const row = await libraryApi.save({
+              userId: user.id,
+              ids: resultIds,
+              analysis: analysisText,
+              teamName,
+              kind: "collective",
             });
-            savedId = saved.teamAnalysisId;
-            if (!savedId) throw new Error("Aucun identifiant renvoyé par la base.");
+            savedId = row.id;
             setSaveError(null);
             // Affichage optimiste : la carte apparaît sans attendre le rechargement
             setStoredTeamAnalyses((prev) => [
-              {
-                id: savedId!,
-                team_name: teamName,
-                member_ids: resultIds,
-                member_names: namesForTitle,
-                analysis: analysisText,
-                created_at: new Date().toISOString(),
-                creator_user_id: user.id,
-                kind: "collective",
-              },
+              row as StoredTeamAnalysis,
               ...prev.filter((a) => a.id !== savedId),
             ]);
             setHighlightedAnalysisId(savedId);
@@ -919,29 +928,17 @@ function Dashboard({ user }: { user: UserInfo }) {
           const title = `${fullName} — ${formatDate(new Date().toISOString())}`;
           let savedId: string | null = null;
           try {
-            const saved = await saveTeamAnalysis({
-              data: {
-                ids: [resultId],
-                analysis: analysisText,
-                teamName: title,
-                creatorUserId: user.id,
-                kind: "individual",
-              },
+            const row = await libraryApi.save({
+              userId: user.id,
+              ids: [resultId],
+              analysis: analysisText,
+              teamName: title,
+              kind: "individual",
             });
-            savedId = saved.teamAnalysisId;
-            if (!savedId) throw new Error("Aucun identifiant renvoyé par la base.");
+            savedId = row.id;
             setSaveError(null);
             setStoredTeamAnalyses((prev) => [
-              {
-                id: savedId!,
-                team_name: title,
-                member_ids: [resultId],
-                member_names: [fullName],
-                analysis: analysisText,
-                created_at: new Date().toISOString(),
-                creator_user_id: user.id,
-                kind: "individual",
-              },
+              row as StoredTeamAnalysis,
               ...prev.filter((a) => a.id !== savedId),
             ]);
             setHighlightedAnalysisId(savedId);
@@ -1124,6 +1121,21 @@ function Dashboard({ user }: { user: UserInfo }) {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 pb-32 space-y-8">
+        {saveError && (
+          <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+            <strong>⚠️ Enregistrement impossible.</strong>
+            <p className="mt-1 break-words">{saveError}</p>
+            <div className="mt-2 flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => void refreshLibrary()}>
+                🔄 Réessayer
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSaveError(null)}>
+                Masquer
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* My Profile */}
         {myResult && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1621,7 +1633,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                     const target = pendingDelete;
                     setDeletingTeamId(target.id);
                     try {
-                      await deleteMyTeamAnalysis({ data: { userId: user.id, teamAnalysisId: target.id } });
+                      await libraryApi.remove(user.id, target.id);
                       setPendingDelete(null);
                     } catch (e) {
                       console.error("delete analysis error:", e);
@@ -1687,9 +1699,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                                     prev.map((a) => (a.id === ta.id ? { ...a, team_name: title } : a)),
                                   );
                                   try {
-                                    await renameMyAnalysis({
-                                      data: { userId: user.id, analysisId: ta.id, title },
-                                    });
+                                    await libraryApi.rename(user.id, ta.id, title);
                                   } catch (e) {
                                     console.error("rename analysis error:", e);
                                   }
