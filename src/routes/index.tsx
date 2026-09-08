@@ -26,17 +26,17 @@ export const Route = createFileRoute("/")({
   }),
   head: () => ({
     meta: [
-      { title: "- Test égogramme gratuit — mieux vous connaître pour mieux interagir -" },
+      { title: "- Test égogramme d'équipe gratuit — mieux vous connaître pour mieux interagir -" },
       {
         name: "description",
         content:
-          "Révélez votre mode de fonctionnement relationnel en moins de 5 minutes. Test d'égogramme interactif basé sur l'analyse transactionnelle.",
+          "Révélez vos modes de fonctionnement relationnel en moins de 5 minutes. Test d'égogramme d'équipe basé sur l'analyse transactionnelle.",
       },
-      { property: "og:title", content: "- Test égogramme gratuit — mieux vous connaître pour mieux interagir -" },
+      { property: "og:title", content: "- Test égogramme d'équipe gratuit — mieux vous connaître pour mieux interagir -" },
       {
         property: "og:description",
         content:
-          "Découvrez votre égogramme personnel et développez des relations plus fluides, équilibrées et constructives.",
+          "Révélez vos modes de fonctionnement relationnel en moins de 5 minutes. Test d'égogramme d'équipe basé sur l'analyse transactionnelle.",
       },
     ],
   }),
