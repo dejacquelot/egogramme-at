@@ -174,6 +174,8 @@ const MAPPING: Record<CategoryKey, number[]> = {
   EAR: [2, 10, 18, 20, 30, 35, 39, 45, 49, 55],
 };
 
+const ANSWERS_STORAGE_KEY = "egogramme_answers";
+
 function Index() {
   // Read search params from router
   const { ref: routerRef, inv: routerInv } = Route.useSearch();
@@ -221,6 +223,37 @@ function Index() {
   const [answers, setAnswers] = useState<(boolean | undefined)[]>(
     () => Array(60).fill(undefined),
   );
+  const [answersRestored, setAnswersRestored] = useState(false);
+
+  // Restaure les réponses au montage : changement de page, retour depuis Mon Espace,
+  // ou retour de la redirection OAuth après création de compte.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(ANSWERS_STORAGE_KEY);
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length === 60) {
+          setAnswers(parsed.map((v) => (typeof v === "boolean" ? v : undefined)));
+        }
+      }
+    } catch {
+      // localStorage indisponible (navigation privée, cookies bloqués)
+    }
+    setAnswersRestored(true);
+  }, []);
+
+  // Sauvegarde à chaque réponse, une fois la restauration terminée
+  useEffect(() => {
+    if (!answersRestored) return;
+    try {
+      window.localStorage.setItem(
+        ANSWERS_STORAGE_KEY,
+        JSON.stringify(answers.map((v) => (v === undefined ? null : v))),
+      );
+    } catch {
+      // quota dépassé ou stockage indisponible
+    }
+  }, [answers, answersRestored]);
 
   // Track a unique visit once per session
   useEffect(() => {
