@@ -27,6 +27,8 @@ const scoresSchema = z.object({
   EAR: z.number().int().min(0).max(10),
 });
 
+const answersSchema = z.array(z.union([z.boolean(), z.null()])).length(60);
+
 export const Route = createFileRoute("/api/public/save-result")({
   server: {
     handlers: {
@@ -34,7 +36,13 @@ export const Route = createFileRoute("/api/public/save-result")({
         try {
           const body = await request.json();
           const scores = scoresSchema.parse(body?.scores);
+          const parsedAnswers = answersSchema.safeParse(body?.answers);
+          const answers = parsedAnswers.success ? parsedAnswers.data : null;
           const existingId = typeof body?.resultId === "string" ? body.resultId : null;
+          const userId =
+            typeof body?.userId === "string" && /^[0-9a-f-]{36}$/i.test(body.userId)
+              ? body.userId
+              : null;
           const referredBy = typeof body?.referred_by === "string" ? body.referred_by : null;
           const ip = getClientIp(request);
           const ipHash = hashIp(ip);
@@ -44,10 +52,20 @@ export const Route = createFileRoute("/api/public/save-result")({
 
           if (existingId) {
             // Update existing result
-            const { error } = await supabaseAdmin
+            const payload: Record<string, unknown> = { scores, ip_hash: ipHash };
+            if (answers) payload.answers = answers;
+            if (userId) payload.user_id = userId;
+            let { error } = await supabaseAdmin
               .from("results")
-              .update({ scores, ip_hash: ipHash })
+              .update(payload)
               .eq("id", existingId);
+            // Retente sans `answers` si la colonne n'existe pas encore
+            if (error && answers) {
+              const { answers: _omit, ...withoutAnswers } = payload;
+              error = (
+                await supabaseAdmin.from("results").update(withoutAnswers).eq("id", existingId)
+              ).error;
+            }
             if (error) throw error;
             return Response.json({ ok: true, id: existingId, ipHash });
           }
@@ -55,11 +73,24 @@ export const Route = createFileRoute("/api/public/save-result")({
           // Insert new result
           const insertData: Record<string, unknown> = { ip_hash: ipHash, scores };
           if (referredBy) insertData.referred_by = referredBy;
-          const { data, error } = await supabaseAdmin
+          if (answers) insertData.answers = answers;
+          if (userId) insertData.user_id = userId;
+          let { data, error } = await supabaseAdmin
             .from("results")
             .insert(insertData)
             .select("id")
             .single();
+          // Retente sans `answers` si la colonne n'existe pas encore
+          if (error && answers) {
+            const { answers: _omit, ...withoutAnswers } = insertData;
+            const retry = await supabaseAdmin
+              .from("results")
+              .insert(withoutAnswers)
+              .select("id")
+              .single();
+            data = retry.data;
+            error = retry.error;
+          }
           if (error) throw error;
           return Response.json({ ok: true, id: data.id, ipHash });
         } catch (e) {

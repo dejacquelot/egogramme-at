@@ -44,7 +44,29 @@ export const Route = createFileRoute("/api/test-progress")({
               .eq("user_id", body.userId)
               .maybeSingle();
             if (error) throw new Error(error.message);
-            return json({ ok: true, answers: (data as { answers?: unknown } | null)?.answers ?? null });
+
+            const stored = (data as { answers?: unknown } | null)?.answers;
+            if (Array.isArray(stored) && stored.length === ANSWER_COUNT) {
+              return json({ ok: true, answers: stored, source: "progress" });
+            }
+
+            // Repli : réponses conservées avec le dernier résultat généré.
+            // Permet de retrouver son test après un vidage du cache navigateur.
+            const { data: last } = await supabaseAdmin
+              .from("results")
+              .select("answers")
+              .eq("user_id", body.userId)
+              .not("answers", "is", null)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            const fallback = (last as { answers?: unknown } | null)?.answers;
+            if (Array.isArray(fallback) && fallback.length === ANSWER_COUNT) {
+              return json({ ok: true, answers: fallback, source: "results" });
+            }
+
+            return json({ ok: true, answers: null, source: "none" });
           }
 
           const answeredCount = body.answers.filter((v) => v !== null).length;

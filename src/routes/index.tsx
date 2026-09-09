@@ -259,7 +259,13 @@ function Index() {
   // Synchronisation avec le compte : permet de retrouver ses réponses
   // depuis un autre appareil. Best-effort, ne bloque jamais le test.
   const syncedUserId = useRef<string | null>(null);
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
   const [progressSynced, setProgressSynced] = useState(false);
+  const [reloading, setReloading] = useState(false);
+
+  const countAnswered = (list: (boolean | undefined)[]) =>
+    list.filter((a) => a !== undefined).length;
 
   useEffect(() => {
     if (!answersRestored) return;
@@ -275,21 +281,32 @@ function Index() {
     void (async () => {
       const remote = await progressApi.get(user.id);
       if (cancelled) return;
-      if (remote) {
-        // On conserve la version la plus avancée pour ne jamais perdre de réponses
-        setAnswers((local) => {
-          const localCount = local.filter((a) => a !== undefined).length;
-          const remoteCount = remote.filter((a) => a !== undefined).length;
-          return remoteCount > localCount ? remote : local;
-        });
-      }
+
+      // On conserve la version la plus avancée pour ne jamais perdre de réponses
+      const local = answersRef.current;
+      const merged =
+        remote && countAnswered(remote) > countAnswered(local) ? remote : local;
+      setAnswers(merged);
       setProgressSynced(true);
+
+      // Écriture immédiate : garantit qu'une ligne existe pour ce compte même si
+      // l'utilisateur quitte la page sans répondre à d'autres questions.
+      void progressApi.save(user.id, merged);
     })();
 
     return () => {
       cancelled = true;
     };
   }, [user, answersRestored]);
+
+  // Rechargement manuel depuis le compte, sans condition de fusion
+  const reloadFromAccount = async () => {
+    if (!user || reloading) return;
+    setReloading(true);
+    const remote = await progressApi.get(user.id);
+    if (remote) setAnswers(remote);
+    setReloading(false);
+  };
 
   // Envoi différé au serveur, uniquement après la fusion initiale
   useEffect(() => {
@@ -416,6 +433,15 @@ function Index() {
                     👥 Mon Espace
                   </Button>
                 </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={reloadFromAccount}
+                  disabled={reloading}
+                  title="Récupérer les réponses enregistrées sur votre compte"
+                >
+                  {reloading ? "Chargement…" : "↻ Recharger mes réponses"}
+                </Button>
                 <span className="text-xs text-muted-foreground">
                   {user.firstName || user.email}
                 </span>
@@ -615,7 +641,7 @@ function Index() {
 
       {answeredCount === 60 && (
         <section className="mx-auto max-w-5xl px-4 pb-12">
-          <ResultSection scores={scores} resultId={resultId} setResultId={setResultId} referredBy={referredBy} invToken={invToken} user={user} userFirstName={user?.firstName} userLastName={user?.lastName} />
+          <ResultSection scores={scores} answers={answers} resultId={resultId} setResultId={setResultId} referredBy={referredBy} invToken={invToken} user={user} userFirstName={user?.firstName} userLastName={user?.lastName} />
         </section>
       )}
     </div>
@@ -628,6 +654,7 @@ type UserInfo = { id?: string; email: string; firstName: string; lastName: strin
 
 function ResultSection({
   scores,
+  answers,
   resultId,
   setResultId,
   referredBy,
@@ -637,6 +664,7 @@ function ResultSection({
   userLastName,
 }: {
   scores: Scores;
+  answers: (boolean | undefined)[];
   resultId: string | null;
   setResultId: (id: string) => void;
   referredBy: string | null;
@@ -699,7 +727,13 @@ function ResultSection({
       const saveRes = await fetch("/api/public/save-result", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scores, resultId, referred_by: referredBy }),
+        body: JSON.stringify({
+          scores,
+          resultId,
+          referred_by: referredBy,
+          answers: answers.map((v) => (v === undefined ? null : v)),
+          userId: user?.id ?? null,
+        }),
       }).then((r) => r.json());
       const savedId = (saveRes?.ok && saveRes?.id) ? saveRes.id as string : resultId;
       if (savedId) {
