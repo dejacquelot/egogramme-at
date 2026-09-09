@@ -821,18 +821,7 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
   };
 
   return (
-    <div className="mt-8 rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 p-6">
-      <h3 className="text-lg font-bold text-orange-800 mb-2 text-center">
-        🔥 Votre profil est intéressant… mais il ne raconte que la moitié de l'histoire.
-      </h3>
-      <p className="text-sm text-orange-700 mb-3 text-center">
-        Découvrez comment votre profil fonctionne avec celui d'une personne importante pour vous.
-      </p>
-      <p className="text-center text-lg mb-4">
-        👩‍❤️‍👨 Couple &nbsp; 👨‍👩‍👧 Famille &nbsp; 🧑‍🤝‍🧑 Ami &nbsp; 💼 Collègue
-      </p>
-
-      <div className="rounded-lg bg-white/70 border border-indigo-200 p-5 mt-4">
+    <div className="mt-8 rounded-xl bg-white border border-indigo-200 p-5 shadow-sm">
         <p className="text-sm text-indigo-800 font-semibold mb-3 text-center">
           💾 Enregistrer mon profil pour conserver mes résultats et générer des analyses à plusieurs.
         </p>
@@ -879,7 +868,6 @@ function RegistrationBlock({ resultId }: { resultId: string | null }) {
                 LinkedIn
               </button>
             </div>
-      </div>
     </div>
   );
 }
