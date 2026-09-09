@@ -291,7 +291,11 @@ function Index() {
 
       // Écriture immédiate : garantit qu'une ligne existe pour ce compte même si
       // l'utilisateur quitte la page sans répondre à d'autres questions.
-      void progressApi.save(user.id, merged);
+      // On n'écrit jamais un tableau vide : si la lecture a échoué (réseau,
+      // serveur), cela écraserait une progression valide déjà enregistrée.
+      if (countAnswered(merged) > 0) {
+        void progressApi.save(user.id, merged);
+      }
     })();
 
     return () => {
