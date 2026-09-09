@@ -284,14 +284,28 @@ function Index() {
             - Test égogramme gratuit — mieux vous connaître pour mieux interagir -
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Révélez votre mode de fonctionnement relationnel.
+            Comprenez ce qui se joue dans vos relations et vos équipes
           </h1>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-            <strong className="text-foreground">En 5 minutes, découvrez votre profil relationnel.</strong>
+            En 5 minutes, découvrez votre profil relationnel issu de l'Analyse Transactionnelle.
             <br />
-            Comprenez comment vous fonctionnez avec les autres, simplement et concrètement.
             <br />
-            <strong className="text-foreground">Aucun bon ou mauvais profil : juste des clés pour mieux vous connaître.</strong>
+            Puis analysez les dynamiques d'un couple, d'une famille, d'une équipe ou d'un collectif :
+            <br />
+            <br />
+            ✅ Forces du groupe
+            <br />
+            ✅ Risques de tensions
+            <br />
+            ✅ Jeux psychologiques potentiels
+            <br />
+            ✅ Leviers de coopération
+            <br />
+            <br />
+            👩‍❤️‍👨 Couple&nbsp;&nbsp;&nbsp;👨‍👩‍👧 Famille&nbsp;&nbsp;&nbsp;🧑‍🤝‍🧑 Ami&nbsp;&nbsp;&nbsp;💼 Collègue&nbsp;&nbsp;&nbsp;👥 Équipe
+            <br />
+            <br />
+            <strong className="text-foreground">L'IA au service de vos relations. Et gratuitement !</strong>
           </p>
 
           {!user && (

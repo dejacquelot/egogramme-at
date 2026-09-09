@@ -83,7 +83,7 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
       <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-2">
         <Link to="/" className="mr-4 flex items-center gap-2 hover:opacity-80 transition-opacity">
           <img src={teamLogo} alt="Team Performance" className="h-7 w-7 rounded" />
-          <span className="text-sm font-bold text-gray-700 tracking-tight">Égogramme</span>
+          <span className="text-sm font-bold text-gray-700 tracking-tight">Égogramme d'équipe</span>
         </Link>
 
         <div className="flex flex-1 items-center gap-1">
