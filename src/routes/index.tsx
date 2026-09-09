@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { completeInvitation, linkResultToUser } from "@/lib/invitation.functions";
 import { NavBar } from "@/components/nav-bar";
 import { isAdminEmail } from "@/lib/admin-config";
+import { progressApi } from "@/lib/progress-api";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -254,6 +255,50 @@ function Index() {
       // quota dépassé ou stockage indisponible
     }
   }, [answers, answersRestored]);
+
+  // Synchronisation avec le compte : permet de retrouver ses réponses
+  // depuis un autre appareil. Best-effort, ne bloque jamais le test.
+  const syncedUserId = useRef<string | null>(null);
+  const [progressSynced, setProgressSynced] = useState(false);
+
+  useEffect(() => {
+    if (!answersRestored) return;
+    if (!user) {
+      syncedUserId.current = null;
+      setProgressSynced(false);
+      return;
+    }
+    if (syncedUserId.current === user.id) return;
+    syncedUserId.current = user.id;
+
+    let cancelled = false;
+    void (async () => {
+      const remote = await progressApi.get(user.id);
+      if (cancelled) return;
+      if (remote) {
+        // On conserve la version la plus avancée pour ne jamais perdre de réponses
+        setAnswers((local) => {
+          const localCount = local.filter((a) => a !== undefined).length;
+          const remoteCount = remote.filter((a) => a !== undefined).length;
+          return remoteCount > localCount ? remote : local;
+        });
+      }
+      setProgressSynced(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, answersRestored]);
+
+  // Envoi différé au serveur, uniquement après la fusion initiale
+  useEffect(() => {
+    if (!progressSynced || !user) return;
+    const timer = setTimeout(() => {
+      void progressApi.save(user.id, answers);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [answers, user, progressSynced]);
 
   // Track a unique visit once per session
   useEffect(() => {
