@@ -740,6 +740,10 @@ function ResultSection({
         </Button>
       </div>
 
+      {!user && (
+        <RegistrationBlock resultId={resultId} />
+      )}
+
       {analysis && (
         <div className="mt-6 border-t border-border pt-6">
           <h3 className="text-base font-semibold text-foreground">
@@ -788,10 +792,6 @@ function ResultSection({
             </p>
           )}
         </div>
-      )}
-
-      {analysis && !user && (
-        <RegistrationBlock resultId={resultId} />
       )}
     </Card>
   );
