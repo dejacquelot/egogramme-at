@@ -278,39 +278,48 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-5xl px-4 py-6">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            - Test égogramme gratuit — mieux vous connaître pour mieux interagir -
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Comprenez ce qui se joue dans vos relations et vos équipes
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-            En 5 minutes, découvrez votre profil relationnel issu de l'Analyse Transactionnelle.
-            <br />
-            <br />
-            Puis analysez les dynamiques d'un couple, d'une famille, d'une équipe ou d'un collectif :
-            <br />
-            <br />
-            ✅ Forces du groupe
-            <br />
-            ✅ Risques de tensions
-            <br />
-            ✅ Jeux psychologiques potentiels
-            <br />
-            ✅ Leviers de coopération
-            <br />
-            <br />
-            👩‍❤️‍👨 Couple&nbsp;&nbsp;&nbsp;👨‍👩‍👧 Famille&nbsp;&nbsp;&nbsp;🧑‍🤝‍🧑 Ami&nbsp;&nbsp;&nbsp;💼 Collègue&nbsp;&nbsp;&nbsp;👥 Équipe
-            <br />
-            <br />
-            <strong className="text-foreground">L'IA au service de vos relations. Et gratuitement !</strong>
-          </p>
+      <header className="border-b border-border">
+        <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-600">
+          <div className="mx-auto max-w-5xl px-4 py-12 text-center">
+            <p className="text-xs uppercase tracking-[0.18em] text-white/70">
+              Test égogramme gratuit — mieux vous connaître pour mieux interagir
+            </p>
+            <h1 className="mx-auto mt-3 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
+              Comprenez ce qui se joue dans vos relations et vos équipes
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base">
+              En 5 minutes, découvrez votre profil relationnel issu de l'Analyse Transactionnelle.
+              Puis analysez les dynamiques d'un couple, d'une famille, d'une équipe ou d'un collectif.
+            </p>
+            <ul className="mt-7 flex flex-wrap justify-center gap-2">
+              {[
+                "Forces du groupe",
+                "Risques de tensions",
+                "Jeux psychologiques potentiels",
+                "Leviers de coopération",
+              ].map((feature) => (
+                <li
+                  key={feature}
+                  className="rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-xs font-semibold text-white sm:text-sm"
+                >
+                  ✅ {feature}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-5 text-sm text-white/85">
+              👩‍❤️‍👨 Couple&nbsp;&nbsp;·&nbsp;&nbsp;👨‍👩‍👧 Famille&nbsp;&nbsp;·&nbsp;&nbsp;🧑‍🤝‍🧑 Ami&nbsp;&nbsp;·&nbsp;&nbsp;💼 Collègue&nbsp;&nbsp;·&nbsp;&nbsp;👥 Équipe
+            </p>
+            <p className="mt-6 text-sm font-bold text-white sm:text-base">
+              L'IA au service de vos relations. Et gratuitement !
+            </p>
+          </div>
+        </div>
 
-          {!user && (
-            <RegistrationBlock resultId={resultId} />
-          )}
+        <div className="bg-card">
+          <div className="mx-auto max-w-5xl px-4 py-6">
+            {!user && (
+              <RegistrationBlock resultId={resultId} />
+            )}
 
           <div className="mt-5 flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[200px]">
@@ -354,6 +363,7 @@ function Index() {
                     </Button>
                   </>
                 )}
+          </div>
           </div>
         </div>
       </header>
