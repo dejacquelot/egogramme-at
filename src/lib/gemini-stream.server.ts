@@ -22,10 +22,21 @@ export async function streamGeminiText(system: string, user: string): Promise<Re
   if (!apiKey) return new Response("Clé IA manquante.", { status: 500 });
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
-  const payload = JSON.stringify({
+
+  // Le mode « réflexion » du modèle retarde le premier mot de 20 à 30 secondes
+  // sans émettre le moindre octet. On le désactive pour que le texte commence
+  // à s'afficher quasi immédiatement.
+  const basePayload = {
     system_instruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
+  };
+  const payload = JSON.stringify({
+    ...basePayload,
+    generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
   });
+  // Repli si une future version du modèle rejette ce réglage (HTTP 400).
+  const fallbackPayload = JSON.stringify(basePayload);
+  let usedFallback = false;
 
   // Le modèle renvoie parfois 503 (surchargé) / 429 / 500 de façon transitoire.
   // On réessaie avec un backoff exponentiel avant d'abandonner.
@@ -42,7 +53,7 @@ export async function streamGeminiText(system: string, user: string): Promise<Re
       upstream = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: payload,
+        body: usedFallback ? fallbackPayload : payload,
       });
     } catch (e) {
       // Erreur réseau : on retente comme pour un statut transitoire.
@@ -59,6 +70,17 @@ export async function streamGeminiText(system: string, user: string): Promise<Re
 
     lastStatus = upstream.status;
     lastBody = await upstream.text().catch(() => "");
+
+    // Le seul ajout à la requête étant le réglage de réflexion, un HTTP 400
+    // ne peut venir que de lui : on rejoue sans ce réglage (sans consommer
+    // de tentative).
+    if (lastStatus === 400 && !usedFallback) {
+      console.warn("gemini: thinkingConfig refusé, repli sans ce réglage —", lastBody.slice(0, 200));
+      usedFallback = true;
+      upstream = null;
+      attempt--;
+      continue;
+    }
 
     // Un quota journalier ne se résout pas en réessayant : on abandonne tout de suite.
     if (lastStatus === 429 && isDailyQuota(lastBody)) break;

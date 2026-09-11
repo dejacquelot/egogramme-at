@@ -560,6 +560,17 @@ function ResultSection({
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
   const [indivUrls, setIndivUrls] = useState<{ pdfUrl: string; imageUrl: string } | null>(null);
   const [storing, setStoring] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const resultRef = useRef<HTMLDivElement | null>(null);
+
+  // Compteur de secondes pendant l'attente, pour matérialiser la progression.
+  useEffect(() => {
+    if (!loading) return;
+    const started = Date.now();
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [loading]);
 
 
 
@@ -595,9 +606,15 @@ function ResultSection({
     }
     setLoading(true);
     setIndivUrls(null);
+    // Fait apparaître la zone de résultat tout de suite, puis défile dessus :
+    // sans cela l'utilisateur fixe un bouton grisé sans rien voir se passer.
+    setTimeout(() => {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
     try {
-      // Save result to DB on first generation
-      const saveRes = await fetch("/api/public/save-result", {
+      // L'analyse ne dépend pas de l'enregistrement : on lance les deux en
+      // parallèle pour ne pas ajouter l'attente de la base à celle de l'IA.
+      const savePromise = fetch("/api/public/save-result", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -607,7 +624,20 @@ function ResultSection({
           answers: answers.map((v) => (v === undefined ? null : v)),
           userId: user?.id ?? null,
         }),
-      }).then((r) => r.json());
+      })
+        .then((r) => r.json())
+        .catch(() => null);
+
+      const analysisPromise = streamAnalysis(
+        "/api/analysis/individual-stream",
+        { scores, firstName: firstName.trim() },
+        (partial) => setAnalysis(partial),
+      );
+      // Marque la promesse comme gérée : sans cela, un échec de l'IA survenant
+      // avant la fin de l'enregistrement déclencherait un rejet non intercepté.
+      analysisPromise.catch(() => {});
+
+      const saveRes = await savePromise;
       const savedId = (saveRes?.ok && saveRes?.id) ? saveRes.id as string : resultId;
       if (savedId) {
         setResultId(savedId);
@@ -624,11 +654,7 @@ function ResultSection({
         }
       }
 
-      const analysisText = await streamAnalysis(
-        "/api/analysis/individual-stream",
-        { scores, firstName: firstName.trim() },
-        (partial) => setAnalysis(partial),
-      );
+      const analysisText = await analysisPromise;
 
       // Store the generated PDF + image in the background (non-blocking)
       if (savedId && analysisText) {
@@ -728,7 +754,7 @@ function ResultSection({
       <div className="mt-4 flex flex-wrap gap-2">
         <Button onClick={handleGenerate} disabled={loading || analysis !== null}>
           {loading
-            ? "Génération de l'analyse…"
+            ? `Rédaction en cours… ${elapsed}s`
             : analysis
               ? "✅ Analyse générée"
               : "Générer mon analyse"}
@@ -739,8 +765,8 @@ function ResultSection({
         <RegistrationBlock resultId={resultId} />
       )}
 
-      {analysis && (
-        <div className="mt-6 border-t border-border pt-6">
+      {(analysis || loading) && (
+        <div ref={resultRef} className="mt-6 scroll-mt-24 border-t border-border pt-6">
           <h3 className="text-base font-semibold text-foreground">
             Interprétation clinique de votre égogramme
           </h3>
@@ -748,10 +774,56 @@ function ResultSection({
             Lecture indicative, à visée pédagogique — ne remplace pas un
             entretien avec un professionnel.
           </p>
-          <div className="mt-4">
-            <MarkdownText text={analysis} />
-          </div>
 
+          {loading && !analysis && (
+            <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50/60 p-4">
+              <p className="flex items-center gap-2 text-sm font-medium text-indigo-900">
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-700"
+                />
+                {elapsed < 3
+                  ? "Lecture de vos 60 réponses…"
+                  : elapsed < 8
+                    ? "Analyse de vos 6 états du moi…"
+                    : "Rédaction de votre portrait…"}
+              </p>
+              <p className="mt-1 text-xs text-indigo-700">
+                Le texte s'affiche au fur et à mesure de sa rédaction. Restez sur
+                cette page, comptez environ deux minutes pour le rapport complet.
+              </p>
+              <div
+                aria-hidden="true"
+                className="mt-4 space-y-2.5"
+              >
+                {[
+                  "w-2/5", "w-full", "w-11/12", "w-4/5",
+                  "w-1/3", "w-full", "w-10/12",
+                ].map((w, i) => (
+                  <div
+                    key={i}
+                    className={`h-3 animate-pulse rounded bg-indigo-200/70 ${w}`}
+                    style={{ animationDelay: `${i * 120}ms` }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {analysis && (
+            <div className="mt-4">
+              <MarkdownText text={analysis} />
+              {loading && (
+                <span
+                  aria-hidden="true"
+                  className="ml-0.5 inline-block h-4 w-[2px] animate-pulse bg-indigo-600 align-text-bottom"
+                />
+              )}
+            </div>
+          )}
+
+          {analysis && !loading && (
+          <>
           <div className="mt-6 flex flex-wrap gap-2">
             {indivUrls ? (
               <>
@@ -785,6 +857,8 @@ function ResultSection({
             <p className="mt-2 text-xs text-muted-foreground">
               💾 Sauvegarde du rapport en cours…
             </p>
+          )}
+          </>
           )}
         </div>
       )}
