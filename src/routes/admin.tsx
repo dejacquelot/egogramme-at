@@ -897,9 +897,7 @@ function AdminDashboard() {
                     <th className="py-2 pr-3 font-medium" title="Ajouter à l'équipe">Éq.</th>
                     <th className="py-2 pr-3 font-medium">Date</th>
                     <th className="py-2 pr-3 font-medium">Contact</th>
-                    <th className="py-2 pr-3 font-medium">Téléphone</th>
                     <th className="py-2 pr-3 font-medium">IP (hash)</th>
-                    <th className="py-2 pr-3 font-medium">Parrainage</th>
                     {CATEGORIES.map((c) => (
                       <th key={c.key} className="py-2 pr-3 font-medium text-center" title={c.label}>
                         {c.short}
@@ -995,15 +993,6 @@ function AdminDashboard() {
                           </div>
                         )}
                       </td>
-                      <td className="py-2 pr-3 text-xs">
-                        {r.phone ? (
-                          <a href={`tel:${r.phone}`} className="text-primary underline underline-offset-2">
-                            {r.phone}
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
                       <td className="py-2 pr-3">
                         <button
                           className="font-mono text-xs text-primary underline underline-offset-2 hover:opacity-80"
@@ -1017,16 +1006,6 @@ function AdminDashboard() {
                         >
                           {shortHash(r.ip_hash)}
                         </button>
-                      </td>
-                      <td className="py-2 pr-3 text-xs">
-                        {r.referred_by ? (() => {
-                          const referrer = rows.find((x) => x.id === r.referred_by);
-                          if (referrer) {
-                            const name = [referrer.first_name, referrer.last_name].filter(Boolean).join(" ");
-                            return <span className="text-amber-600 font-medium" title={`Invité par ${name || shortHash(referrer.ip_hash)}`}>🤝 {name || shortHash(referrer.ip_hash)}</span>;
-                          }
-                          return <span className="text-muted-foreground" title={r.referred_by}>🤝 {r.referred_by.slice(0, 8)}…</span>;
-                        })() : <span className="text-muted-foreground">—</span>}
                       </td>
                       {CATEGORIES.map((c) => (
                         <td key={c.key} className="py-2 pr-3 text-center tabular-nums text-xs">
