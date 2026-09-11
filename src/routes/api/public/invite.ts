@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "crypto";
 import { z } from "zod";
+import { errorMessage } from "@/lib/api-error";
 
 const SALT = "egogramme-josien-v1-static-salt";
 
@@ -20,6 +21,12 @@ function getClientIp(request: Request): string {
 function hashIp(ip: string): string {
   return createHash("sha256").update(SALT + "|" + ip).digest("hex");
 }
+
+/**
+ * Les erreurs Supabase ne sont pas des `Error` mais des objets simples
+ * ({ message, details, hint, code }). `String(e)` produisait « [object Object] »,
+ * ce qui masquait complètement la cause réelle. Voir `@/lib/api-error`.
+ */
 
 const createSchema = z.object({
   inviterResultId: z.string().uuid(),
@@ -56,14 +63,15 @@ export const Route = createFileRoute("/api/public/invite")({
             );
           }
 
+          // Garde anti-abus. Si la colonne `created_ip_hash` n'existe pas
+          // encore, on n'échoue pas : la limite est simplement inactive.
           const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const { count, error: countError } = await supabaseAdmin
             .from("invitations")
             .select("id", { count: "exact", head: true })
             .eq("created_ip_hash", ipHash)
             .gte("created_at", since);
-          if (countError) throw countError;
-          if ((count ?? 0) >= MAX_PER_DAY) {
+          if (!countError && (count ?? 0) >= MAX_PER_DAY) {
             return Response.json(
               {
                 ok: false,
@@ -113,8 +121,25 @@ export const Route = createFileRoute("/api/public/invite")({
 
           return Response.json({ ok: true, id: data.id, token: data.token });
         } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
+          const msg = errorMessage(e);
           console.error("invite create error", msg);
+          // Cas typique : la migration des invitations anonymes n'a pas été
+          // appliquée, `inviter_user_id` est encore NOT NULL.
+          const notMigrated =
+            /inviter_user_id/.test(msg) &&
+            /null|not-null|violates/i.test(msg);
+          if (notMigrated) {
+            return Response.json(
+              {
+                ok: false,
+                error:
+                  "Le partage sans compte n'est pas encore activé sur le serveur.",
+                detail: msg,
+                hint: "Appliquer la migration 20260911120000_anonymous_invitations.sql",
+              },
+              { status: 503 },
+            );
+          }
           return Response.json({ ok: false, error: msg }, { status: 400 });
         }
       },
@@ -140,7 +165,7 @@ export const Route = createFileRoute("/api/public/invite")({
           if (error) throw error;
           return Response.json({ ok: true, invitations: data ?? [] });
         } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
+          const msg = errorMessage(e);
           return Response.json({ ok: false, error: msg }, { status: 400 });
         }
       },

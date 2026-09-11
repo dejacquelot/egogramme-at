@@ -227,6 +227,9 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [teamUrls, setTeamUrls] = useState<{ pdfUrl: string; imageUrl: string } | null>(null);
   const [storingTeam, setStoringTeam] = useState(false);
   const [invScores, setInvScores] = useState<Record<string, Record<string, number>>>({});
+  // Nom réellement saisi par la personne au moment de son test, indexé par
+  // result_id. Distinct du prénom saisi par l'inviteur à la création.
+  const [resultNames, setResultNames] = useState<Record<string, string>>({});
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, Record<string, string>>>({});
   const [savingScoresId, setSavingScoresId] = useState<string | null>(null);
   const [nameDrafts, setNameDrafts] = useState<Record<string, { first: string; last: string }>>({});
@@ -347,9 +350,12 @@ function Dashboard({ user }: { user: UserInfo }) {
 
             // Build scores lookup by result_id and detect results with missing scores
             const scoresMap: Record<string, Record<string, number>> = {};
+            const namesMap: Record<string, string> = {};
             const validIds = new Set<string>();
             const scoreKeys = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
             memberRows.forEach((r: any) => {
+              const realName = [r.first_name, r.last_name].filter(Boolean).join(" ").trim();
+              if (realName) namesMap[r.id] = realName;
               const hasScores = r.scores && scoreKeys.some((k) => typeof r.scores[k] === "number" && r.scores[k] > 0);
               if (hasScores) {
                 scoresMap[r.id] = r.scores;
@@ -357,6 +363,7 @@ function Dashboard({ user }: { user: UserInfo }) {
               }
             });
             setInvScores(scoresMap);
+            setResultNames(namesMap);
 
             // Detect completed invitations whose result was deleted or has no scores
             const updatedInvs = invs.map((i: Invitation) => {
@@ -742,6 +749,31 @@ function Dashboard({ user }: { user: UserInfo }) {
     );
   }, [invitations]);
 
+  /** Prénom + nom saisis par l'inviteur à la création de l'invitation. */
+  const invitationName = (inv: Invitation) => {
+    const composed = [inv.invitee_first_name, inv.invitee_last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    return composed || (inv.invitee_name ?? "").trim();
+  };
+
+  /** Nom que la personne a elle-même saisi en passant le test, si connu. */
+  const answeredName = (inv: Invitation) =>
+    ((inv.result_id ? resultNames[inv.result_id] : "") ?? "").trim();
+
+  /**
+   * Libellé en toutes lettres : le nom donné par la personne, suivi entre
+   * parenthèses du prénom sous lequel vous l'aviez invitée si les deux diffèrent.
+   */
+  const participantLabel = (inv: Invitation) => {
+    const invited = invitationName(inv) || "Participant";
+    const real = answeredName(inv);
+    if (!real) return invited;
+    if (real.toLowerCase() === invited.toLowerCase()) return real;
+    return `${real} (${invited})`;
+  };
+
   const handleGenerateTeam = async () => {
     const resultIds = selectedResultIds;
     if (resultIds.length < 2) return;
@@ -752,7 +784,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       const namesForTitle = [
         ...(selfSelected && myResult ? [myResult.first_name || user.firstName || "Vous"] : []),
         ...selectedSelectableInvitations.map(
-          (i) => i.invitee_first_name || i.invitee_name || "Participant",
+          (i) => answeredName(i) || invitationName(i) || "Participant",
         ),
       ];
       const teamName =
@@ -964,7 +996,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       const id = selectedResultIds[0];
       if (myResult && id === myResult.id) return "vous";
       const inv = selectableInvitations.find((i) => i.result_id === id);
-      return inv ? inv.invitee_first_name || inv.invitee_name || "ce profil" : "ce profil";
+      return inv ? participantLabel(inv) : "ce profil";
     }
     return myResult ? "vous" : null;
   })();
@@ -1313,7 +1345,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                             className="mt-2 h-5 w-5 shrink-0 cursor-pointer accent-primary"
                             checked={checked}
                             onChange={() => toggleSelectedInvitation(inv.id)}
-                            aria-label={`Sélectionner ${inv.invitee_first_name || inv.invitee_name || "cette personne"}`}
+                            aria-label={`Sélectionner ${participantLabel(inv)}`}
                           />
                         ) : (
                           <span
@@ -1341,6 +1373,12 @@ function Dashboard({ user }: { user: UserInfo }) {
                             />
                           </div>
                           <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                            {answeredName(inv) && (
+                              <span className="font-medium text-foreground">
+                                ✍️ {answeredName(inv)}
+                                {" · "}
+                              </span>
+                            )}
                             {inv.invitee_email || "—"}
                           </p>
                         </div>
@@ -1524,7 +1562,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                             className="h-4 w-4 cursor-pointer accent-primary"
                             checked={selectedInvitationIds.includes(inv.id)}
                             onChange={() => toggleSelectedInvitation(inv.id)}
-                            aria-label={`Sélectionner ${inv.invitee_first_name || inv.invitee_name || "cette personne"}`}
+                            aria-label={`Sélectionner ${participantLabel(inv)}`}
                           />
                         ) : (
                           <span className="text-muted-foreground" title="Saisissez d'abord les scores">—</span>
@@ -1538,6 +1576,14 @@ function Dashboard({ user }: { user: UserInfo }) {
                           className="h-8 w-32"
                           placeholder="Prénom"
                         />
+                        {answeredName(inv) && (
+                          <p
+                            className="mt-0.5 w-32 truncate text-[10px] text-muted-foreground"
+                            title={`Nom saisi par la personne : ${answeredName(inv)}`}
+                          >
+                            ✍️ {answeredName(inv)}
+                          </p>
+                        )}
                       </td>
                       <td className="py-2 pr-3 text-xs">
                         <div className="flex items-center gap-1">

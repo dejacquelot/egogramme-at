@@ -143,8 +143,14 @@ function InviteGateway({
           inviteeFirstName: inviteeName.trim(),
         }),
       });
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error ?? "Création impossible.");
+      const json = await res.json().catch(() => null);
+      if (!json?.ok) {
+        // `detail` porte la cause technique quand le serveur en connaît une.
+        const reason = [json?.error, json?.detail]
+          .filter((v): v is string => typeof v === "string" && v.length > 0)
+          .join(" — ");
+        throw new Error(reason || `Création impossible (HTTP ${res.status}).`);
+      }
       const url = `${window.location.origin}/?inv=${json.token}`;
       setLink(url);
       onInvited();

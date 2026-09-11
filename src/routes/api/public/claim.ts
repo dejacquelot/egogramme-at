@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { errorMessage } from "@/lib/api-error";
 
 /**
  * Rattache à un compte fraîchement créé le résultat et les invitations
@@ -45,7 +46,7 @@ export const Route = createFileRoute("/api/public/claim")({
             invitationsClaimed: (claimed ?? []).length,
           });
         } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
+          const msg = errorMessage(e);
           console.error("claim error", msg);
           return Response.json({ ok: false, error: msg }, { status: 400 });
         }
