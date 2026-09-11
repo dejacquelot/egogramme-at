@@ -15,7 +15,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { isAdminEmail } from "@/lib/admin-config";
 import { NavBar } from "@/components/nav-bar";
-import { listAdminStatsData } from "@/lib/admin.functions";
+import {
+  EMPTY_STATS,
+  buildParentMap,
+  computeVirality,
+  formatPercent,
+  kVerdict,
+  loadStats,
+  type StatsPayload,
+} from "@/lib/virality";
 
 type Period = "hour" | "day" | "week" | "month" | "quarter" | "year";
 
@@ -32,6 +40,30 @@ const PERIODS: {
   { key: "quarter", label: "Par trimestre (8 trim.)", days: 92 * 8, buckets: 8 },
   { key: "year", label: "Par année (5 ans)", days: 366 * 5, buckets: 5 },
 ];
+
+const PERIOD_LABELS: Record<Period, string> = {
+  hour: "aujourd'hui",
+  day: "sur 30 jours",
+  week: "sur 12 semaines",
+  month: "sur 12 mois",
+  quarter: "sur 8 trimestres",
+  year: "sur 5 ans",
+};
+
+/** Début de la fenêtre d'observation correspondant à la période choisie. */
+function periodSince(period: Period): Date {
+  const cfg = PERIODS.find((p) => p.key === period)!;
+  const now = new Date();
+  const since = period === "hour"
+    ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  if (period === "day") since.setUTCDate(since.getUTCDate() - cfg.days);
+  else if (period === "week") since.setUTCDate(since.getUTCDate() - cfg.days);
+  else if (period === "month") since.setUTCMonth(since.getUTCMonth() - cfg.buckets);
+  else if (period === "quarter") since.setUTCMonth(since.getUTCMonth() - cfg.buckets * 3);
+  else if (period === "year") since.setUTCFullYear(since.getUTCFullYear() - cfg.buckets);
+  return since;
+}
 
 function bucketKey(date: Date, period: Period): string {
   if (period === "hour") {
@@ -157,21 +189,15 @@ function StatsContent() {
   const [totalAccounts, setTotalAccounts] = useState<number | null>(null);
   const [totalInvitations, setTotalInvitations] = useState<number | null>(null);
   const [totalTeams, setTotalTeams] = useState<number | null>(null);
+  const [stats, setStats] = useState<StatsPayload>(EMPTY_STATS);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  const since = useMemo(() => periodSince(period), [period]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const cfg = PERIODS.find((p) => p.key === period)!;
-      const now = new Date();
-      const since = period === "hour"
-        ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-      if (period === "day") since.setUTCDate(since.getUTCDate() - cfg.days);
-      else if (period === "week") since.setUTCDate(since.getUTCDate() - cfg.days);
-      else if (period === "month") since.setUTCMonth(since.getUTCMonth() - cfg.buckets);
-      else if (period === "quarter") since.setUTCMonth(since.getUTCMonth() - cfg.buckets * 3);
-      else if (period === "year") since.setUTCFullYear(since.getUTCFullYear() - cfg.buckets);
       const isoDate = since.toISOString();
 
       const [visitsRes, resultsRes, resultsCountRes] = await Promise.all([
@@ -193,32 +219,38 @@ function StatsContent() {
           .not("ip_hash", "like", "manual-invitation-%"),
       ]);
 
-      // These may fail if tables don't exist yet — don't block the page
-      const [adminStatsRes, teamsCountRes, teamsRes] = await Promise.all([
-        listAdminStatsData().then((r) => r, () => ({ users: [], invitations: [], teamAnalysesByUsers: [] })),
+      // Ces requêtes peuvent échouer si les tables n'existent pas encore — sans bloquer la page
+      const [statsRes, teamsCountRes, teamsRes] = await Promise.all([
+        loadStats().then(
+          (r) => ({ payload: r, error: null as string | null }),
+          (e: unknown) => ({
+            payload: EMPTY_STATS,
+            error: e instanceof Error ? e.message : String(e),
+          }),
+        ),
         supabase.from("team_analyses").select("id", { count: "exact", head: true })
           .then((r) => r, () => ({ count: 0 })),
         supabase.from("team_analyses").select("created_at").gte("created_at", isoDate)
           .order("created_at", { ascending: true }).then((r) => r, () => ({ data: [] })),
       ]);
       if (cancelled) return;
-      const adminStats = adminStatsRes as {
-        users: { created_at: string }[];
-        invitations: { created_at: string }[];
-        teamAnalysesByUsers: { created_at: string }[];
-      };
+      const payload = statsRes.payload;
+      setStats(payload);
+      setStatsError(statsRes.error);
       setRows((visitsRes.data as { visit_date: string; created_at: string }[] | null) ?? []);
       setResultRows((resultsRes.data as { created_at: string; ip_hash: string }[] | null) ?? []);
       setTotalResults(resultsCountRes.count ?? 0);
-      setTotalAccounts(adminStats.users.length);
-      setTotalInvitations(adminStats.invitations.length);
+      setTotalAccounts(payload.users.length);
+      setTotalInvitations(payload.invitations.length);
       setTotalTeams((teamsCountRes as { count: number | null }).count ?? 0);
-      setAccountRows(adminStats.users.filter((user) => new Date(user.created_at) >= since));
+      setAccountRows(payload.users.filter((user) => new Date(user.created_at) >= since));
       setInvitationRows(
-        adminStats.invitations.filter((invitation) => new Date(invitation.created_at) >= since),
+        payload.invitations.filter((invitation) => new Date(invitation.created_at) >= since),
       );
       setTeamByUsersRows(
-        adminStats.teamAnalysesByUsers.filter((row) => new Date(row.created_at) >= since),
+        payload.teamAnalyses
+          .filter((row) => Boolean(row.creator_user_id))
+          .filter((row) => new Date(row.created_at) >= since),
       );
       setTeamRows(((teamsRes as { data: { created_at: string }[] | null }).data) ?? []);
       setLoading(false);
@@ -226,7 +258,7 @@ function StatsContent() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, since]);
 
   const chartData = useMemo(() => {
     const cfg = PERIODS.find((p) => p.key === period)!;
@@ -291,6 +323,33 @@ function StatsContent() {
   const periodAccounts = chartData.reduce((a, b) => a + b.accounts, 0);
   const periodInvitations = chartData.reduce((a, b) => a + b.invitations, 0);
   const periodTeamsByUsers = chartData.reduce((a, b) => a + b.teamsByUsers, 0);
+
+  const parentMap = useMemo(() => buildParentMap(stats), [stats]);
+  const viral = useMemo(
+    () => computeVirality(stats, since, parentMap),
+    [stats, since, parentMap],
+  );
+  const viralAllTime = useMemo(
+    () => computeVirality(stats, new Date(0), parentMap),
+    [stats, parentMap],
+  );
+  const verdict = kVerdict(viral.k);
+
+  const funnel = useMemo(() => {
+    const steps = [
+      { label: "Visiteurs uniques", value: totalVisitors },
+      { label: "Tests terminés", value: viral.completed },
+      { label: "Invitations émises", value: viral.invitationsSent },
+      { label: "Invitations acceptées", value: viral.invitationsAccepted },
+      { label: "Analyses collectives", value: viral.teamAnalyses },
+    ];
+    return steps.map((step, i) => {
+      const previous = i === 0 ? null : steps[i - 1].value;
+      const rate = previous && previous > 0 ? step.value / previous : null;
+      const width = totalVisitors > 0 ? Math.max(step.value / totalVisitors, 0.02) : 0;
+      return { ...step, rate, width };
+    });
+  }, [totalVisitors, viral]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -486,6 +545,144 @@ function StatsContent() {
               </ResponsiveContainer>
             )}
           </div>
+        </Card>
+
+        <Card className="p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold tracking-tight">Viralité</h2>
+            <span className="text-xs text-muted-foreground">
+              Période sélectionnée : {PERIOD_LABELS[period]} · comparatif depuis le début
+            </span>
+          </div>
+
+          {statsError && (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Les données de viralité n'ont pas pu être chargées ({statsError}). Les valeurs
+              ci-dessous sont à 0 et ne reflètent pas la réalité.
+            </div>
+          )}
+
+          <div
+            className={`mt-4 rounded-lg border p-4 ${
+              verdict.tone === "viral"
+                ? "border-green-300 bg-green-50"
+                : verdict.tone === "near"
+                  ? "border-yellow-300 bg-yellow-50"
+                  : verdict.tone === "low"
+                    ? "border-orange-300 bg-orange-50"
+                    : "border-border bg-muted/40"
+            }`}
+          >
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+              <div>
+                <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                  Coefficient viral K
+                </div>
+                <div className="text-4xl font-semibold tabular-nums">
+                  {viral.k.toFixed(2)}
+                </div>
+              </div>
+              <div className="pb-1 text-sm">
+                <div className="font-medium">{verdict.label}</div>
+                <div className="text-xs text-muted-foreground">
+                  K = invitations par participant × taux d'acceptation. La propagation
+                  s'auto-entretient à partir de K = 1.
+                </div>
+              </div>
+              <div className="pb-1 text-xs text-muted-foreground">
+                Depuis le début : <span className="tabular-nums">{viralAllTime.k.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              {
+                label: "Invitations par participant",
+                value: viral.invitationsPerParticipant.toFixed(2),
+                all: viralAllTime.invitationsPerParticipant.toFixed(2),
+              },
+              {
+                label: "Taux d'acceptation",
+                value: formatPercent(viral.acceptanceRate),
+                all: formatPercent(viralAllTime.acceptanceRate),
+              },
+              {
+                label: "Inviteurs distincts",
+                value: String(viral.distinctInviters),
+                all: String(viralAllTime.distinctInviters),
+              },
+              {
+                label: "Tests de 2ᵉ génération",
+                value: String(viral.secondGeneration),
+                all: String(viralAllTime.secondGeneration),
+              },
+              {
+                label: "Liens partagés",
+                value: String(viral.shares),
+                all: String(viralAllTime.shares),
+              },
+              {
+                label: "Arrivées via un lien",
+                value: String(viral.arrivalsFromLink),
+                all: String(viralAllTime.arrivalsFromLink),
+              },
+            ].map((tile) => (
+              <div key={tile.label}>
+                <div className="text-xs text-muted-foreground">{tile.label}</div>
+                <div className="text-2xl font-semibold tabular-nums">{tile.value}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  total {tile.all}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-4 text-xs text-muted-foreground">
+            Un test de 2ᵉ génération est un test passé par quelqu'un qu'une personne
+            elle-même invitée a fait venir. C'est le seul signal qui prouve que la
+            propagation dépasse le cercle initial.
+          </p>
+        </Card>
+
+        <Card className="p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold tracking-tight">Entonnoir de conversion</h2>
+            <span className="text-xs text-muted-foreground">{PERIOD_LABELS[period]}</span>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {funnel.map((step) => (
+              <div key={step.label}>
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span>{step.label}</span>
+                  <span className="tabular-nums">
+                    <span className="font-semibold">{step.value}</span>
+                    {step.rate !== null && (
+                      <span
+                        className={`ml-2 text-xs ${
+                          step.rate < 0.1 ? "text-red-600" : "text-muted-foreground"
+                        }`}
+                      >
+                        {formatPercent(step.rate)} de l'étape précédente
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="mt-1 h-2 w-full rounded-full bg-muted">
+                  <div
+                    className="h-2 rounded-full bg-primary"
+                    style={{ width: `${Math.min(step.width * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-4 text-xs text-muted-foreground">
+            La marche la plus basse indique où l'effort produit le plus d'effet. Un
+            pourcentage en rouge signale une étape qui perd plus de neuf personnes sur dix.
+          </p>
         </Card>
 
         <Card className="p-5 text-xs text-muted-foreground">

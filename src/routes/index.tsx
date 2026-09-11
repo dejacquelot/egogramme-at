@@ -558,6 +558,7 @@ function ResultSection({
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
   const [indivUrls, setIndivUrls] = useState<{ pdfUrl: string; imageUrl: string } | null>(null);
   const [storing, setStoring] = useState(false);
+  const [shareState, setShareState] = useState<"idle" | "shared" | "copied" | "error">("idle");
   const [elapsed, setElapsed] = useState(0);
   const resultRef = useRef<HTMLDivElement | null>(null);
 
@@ -686,6 +687,46 @@ function ResultSection({
       setLoading(false);
     }
   };
+
+  const handleShare = async () => {
+    if (typeof window === "undefined") return;
+    const base = window.location.origin;
+    // Le paramètre ?ref= est lu par validateSearch et enregistré dans results.referred_by,
+    // ce qui rend le partage informel mesurable dans les statistiques.
+    const url = resultId ? `${base}/?ref=${resultId}` : `${base}/`;
+    const text =
+      "Je viens de faire ce test d'égogramme : 5 minutes pour comprendre son profil relationnel, avec une analyse personnalisée à la clé.";
+
+    const nav = navigator as Navigator & {
+      share?: (data: { title?: string; text?: string; url?: string }) => Promise<void>;
+    };
+
+    if (nav.share) {
+      try {
+        await nav.share({ title: "Test égogramme", text, url });
+        setShareState("shared");
+        void fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
+        return;
+      } catch (e) {
+        // L'utilisateur a fermé la feuille de partage : ne rien faire.
+        if ((e as { name?: string } | null)?.name === "AbortError") return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${text}\n\n${url}`);
+      setShareState("copied");
+      void fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
+    } catch {
+      setShareState("error");
+    }
+  };
+
+  useEffect(() => {
+    if (shareState === "idle") return;
+    const t = setTimeout(() => setShareState("idle"), 4000);
+    return () => clearTimeout(t);
+  }, [shareState]);
 
   const handleDownload = async (kind: "pdf" | "img") => {
     if (!analysis) return;
@@ -846,7 +887,23 @@ function ResultSection({
                 </Button>
               </>
             )}
+            <Button variant="outline" onClick={handleShare}>
+              Partager le test
+            </Button>
           </div>
+          {shareState !== "idle" && (
+            <p
+              className={`mt-2 text-xs ${
+                shareState === "error" ? "text-red-600" : "text-green-700"
+              }`}
+            >
+              {shareState === "shared"
+                ? "Lien partagé ✓"
+                : shareState === "copied"
+                  ? "Lien copié ✓ — il ne reste qu'à le coller"
+                  : "Copie impossible sur ce navigateur. Copiez l'adresse de la page."}
+            </p>
+          )}
           {storing && !indivUrls && (
             <p className="mt-2 text-xs text-muted-foreground">
               💾 Sauvegarde du rapport en cours…
