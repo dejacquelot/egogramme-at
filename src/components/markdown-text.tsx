@@ -12,6 +12,9 @@ export function MarkdownText({ text }: { text: string }) {
         [&_li]:text-muted-foreground
         [&_strong]:text-foreground [&_strong]:font-semibold
         [&_em]:italic
+        [&_hr]:my-6 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-border
+        [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-primary/40 [&_blockquote]:pl-3
+        [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_blockquote_p]:mb-1 [&_blockquote_p:last-child]:mb-0
         [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_table]:my-3
         [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_th]:text-foreground
         [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1.5 [&_td]:text-muted-foreground [&_td]:align-top
@@ -166,6 +169,25 @@ function markdownToHtml(md: string): string {
         }
       }
       out.push(renderTable(tableLines));
+      continue;
+    }
+
+    // Horizontal rule (---, ***, ___) → real visual separation instead of literal dashes
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      out.push("<hr />");
+      i++;
+      continue;
+    }
+
+    // Blockquote: collect consecutive "> " lines
+    if (/^\s*>\s?/.test(line)) {
+      const quoted: string[] = [];
+      while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
+        const content = lines[i].replace(/^\s*>\s?/, "");
+        if (content.trim()) quoted.push(`<p>${inlineMarkdown(content)}</p>`);
+        i++;
+      }
+      if (quoted.length) out.push(`<blockquote>${quoted.join("")}</blockquote>`);
       continue;
     }
 
