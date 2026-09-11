@@ -45,7 +45,7 @@ export const libraryApi = {
   },
 
   async save(input: {
-    userId: string;
+    userId?: string;
     ids: string[];
     analysis: string;
     teamName?: string;

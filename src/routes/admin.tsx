@@ -7,7 +7,6 @@ import {
   listAdminResults,
   deleteAdminResult as deleteAdminResultFn,
   updateAdminResultName as updateAdminResultNameFn,
-  generateTeamAnalysis as generateTeamAnalysisFn,
   provisionAdminAccount,
 } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,8 @@ import {
   downloadIndividualReportImage,
   type TeamReportInput,
 } from "@/lib/team-report";
-import { generateIndividualAnalysis as generateIndividualAnalysisFn } from "@/lib/analysis.functions";
+import { streamAnalysis } from "@/lib/stream-client";
+import { libraryApi, type LibraryRow } from "@/lib/library-api";
 import { NavBar } from "@/components/nav-bar";
 import { MarkdownText } from "@/components/markdown-text";
 
@@ -313,11 +313,20 @@ function Bars({ scores }: { scores: Scores }) {
   );
 }
 
-function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void }) {
+function ResultDetail({
+  row,
+  onClose,
+  onAnalysisSaved,
+}: {
+  row: ResultRow;
+  onClose: () => void;
+  onAnalysisSaved?: (saved: LibraryRow) => void;
+}) {
   const interp = useMemo(() => buildInterpretation(row.scores), [row.scores]);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<"pdf" | "img" | null>(null);
 
   const fullName =
@@ -330,20 +339,46 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
   useEffect(() => {
     setAnalysis(null);
     setAiError(null);
+    setSaveWarning(null);
   }, [row.id]);
 
+  // Même chemin que Mon Espace : streaming via /api/analysis/individual-stream
+  // (prompt unique de analysis-prompts.ts), puis enregistrement en bibliothèque.
   const handleGenerate = async () => {
     setAiError(null);
+    setSaveWarning(null);
     setAiLoading(true);
+    setAnalysis(null);
     try {
-      const res = await generateIndividualAnalysisFn({
-        data: {
-          scores: row.scores,
-          firstName: row.first_name?.trim() || undefined,
-        },
-      });
-      setAnalysis(res.analysis);
+      const scores = Object.fromEntries(
+        CATEGORIES.map((c) => [c.key, row.scores?.[c.key] ?? 0]),
+      ) as Record<string, number>;
+
+      const analysisText = await streamAnalysis(
+        "/api/analysis/individual-stream",
+        { scores, firstName: row.first_name?.trim() || undefined },
+        (partial) => setAnalysis(partial),
+      );
+
+      if (analysisText) {
+        try {
+          const saved = await libraryApi.save({
+            ids: [row.id],
+            analysis: analysisText,
+            teamName: `${fullName} — ${dateLabel}`,
+            kind: "individual",
+          });
+          onAnalysisSaved?.(saved);
+        } catch (saveErr) {
+          setSaveWarning(
+            `Analyse générée, mais non enregistrée : ${
+              saveErr instanceof Error ? saveErr.message : String(saveErr)
+            }`,
+          );
+        }
+      }
     } catch (e) {
+      setAnalysis(null);
       setAiError(
         e instanceof Error && e.message
           ? e.message
@@ -473,12 +508,17 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
           )}
         </div>
 
-        {aiLoading && (
+        {aiLoading && !analysis && (
           <p className="text-sm text-muted-foreground">Génération de l&apos;analyse en cours…</p>
         )}
         {aiError && (
           <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {aiError}
+          </p>
+        )}
+        {saveWarning && (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {saveWarning}
           </p>
         )}
         {analysis && (
@@ -491,7 +531,7 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
                 size="sm"
                 variant="outline"
                 className="gap-2"
-                disabled={downloading === "pdf"}
+                disabled={aiLoading || downloading === "pdf"}
                 onClick={() => handleDownload("pdf")}
               >
                 <FileDown className="h-4 w-4" />
@@ -501,7 +541,7 @@ function ResultDetail({ row, onClose }: { row: ResultRow; onClose: () => void })
                 size="sm"
                 variant="outline"
                 className="gap-2"
-                disabled={downloading === "img"}
+                disabled={aiLoading || downloading === "img"}
                 onClick={() => handleDownload("img")}
               >
                 <ImageDown className="h-4 w-4" />
@@ -574,6 +614,7 @@ function AdminDashboard() {
     member_names: string[];
     analysis: string;
     created_at: string;
+    kind?: "individual" | "collective" | null;
   };
   const [teamAnalyses, setTeamAnalyses] = useState<TeamAnalysisRow[]>([]);
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
@@ -615,7 +656,7 @@ function AdminDashboard() {
         // Load team analyses
         const { data: taData } = await supabase
           .from("team_analyses")
-          .select("id, team_name, member_ids, member_names, analysis, created_at")
+          .select("id, team_name, member_ids, member_names, analysis, created_at, kind")
           .order("created_at", { ascending: false })
           .limit(50);
         if (!cancelled) setTeamAnalyses((taData ?? []) as TeamAnalysisRow[]);
@@ -641,28 +682,42 @@ function AdminDashboard() {
     );
   };
 
+  // Même chemin que Mon Espace : streaming via /api/analysis/team-stream
+  // (prompt unique de analysis-prompts.ts), puis enregistrement en bibliothèque.
   const generateTeamAnalysis = async () => {
     setAnalysing(true);
     setAnalysisError(null);
     setAnalysis(null);
     try {
-      const res = await generateTeamAnalysisFn({
-        data: { ids: teamIds, teamName: teamName.trim() || undefined },
-      });
-      setAnalysis(res.analysis);
+      const label = teamName.trim();
+      const analysisText = await streamAnalysis(
+        "/api/analysis/team-stream",
+        { ids: teamIds, teamName: label || undefined },
+        (partial) => setAnalysis(partial),
+      );
 
-      // Add to local team analyses list immediately
-      const memberNames = teamRows.map((r, i) => memberName(r, i));
-      const newTa: TeamAnalysisRow = {
-        id: crypto.randomUUID(),
-        team_name: teamName.trim(),
-        member_ids: teamIds,
-        member_names: memberNames,
-        analysis: res.analysis,
-        created_at: new Date().toISOString(),
-      };
-      setTeamAnalyses((prev) => [newTa, ...prev]);
+      if (analysisText) {
+        try {
+          const saved = await libraryApi.save({
+            ids: teamIds,
+            analysis: analysisText,
+            teamName: label,
+            kind: "collective",
+          });
+          setTeamAnalyses((prev) => [
+            saved as unknown as TeamAnalysisRow,
+            ...prev.filter((t) => t.id !== saved.id),
+          ]);
+        } catch (saveErr) {
+          setAnalysisError(
+            `Analyse générée, mais non enregistrée : ${
+              saveErr instanceof Error ? saveErr.message : String(saveErr)
+            }`,
+          );
+        }
+      }
     } catch (e) {
+      setAnalysis(null);
       setAnalysisError(
         e instanceof Error && e.message && !/fetch/i.test(e.message)
           ? e.message
@@ -755,7 +810,16 @@ function AdminDashboard() {
 
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-6">
         {selected && (
-          <ResultDetail row={selected} onClose={() => setSelectedId(null)} />
+          <ResultDetail
+            row={selected}
+            onClose={() => setSelectedId(null)}
+            onAnalysisSaved={(saved) =>
+              setTeamAnalyses((prev) => [
+                saved as unknown as TeamAnalysisRow,
+                ...prev.filter((t) => t.id !== saved.id),
+              ])
+            }
+          />
         )}
 
         <Card className="p-5 space-y-4">
@@ -1050,7 +1114,7 @@ function AdminDashboard() {
         {teamAnalyses.length > 0 && (
           <Card className="p-5">
             <h2 className="text-lg font-semibold">
-              Analyses d'équipe enregistrées ({teamAnalyses.length})
+              Analyses enregistrées ({teamAnalyses.length})
             </h2>
             <div className="mt-4 space-y-3">
               {teamAnalyses.map((ta) => (
@@ -1059,6 +1123,15 @@ function AdminDashboard() {
                     <div>
                       <span className="font-medium">
                         {ta.team_name || "Équipe sans nom"}
+                      </span>
+                      <span
+                        className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          ta.kind === "individual"
+                            ? "bg-sky-100 text-sky-800"
+                            : "bg-violet-100 text-violet-800"
+                        }`}
+                      >
+                        {ta.kind === "individual" ? "Individuelle" : "Collective"}
                       </span>
                       <span className="ml-2 text-xs text-muted-foreground">
                         {formatDate(ta.created_at)}

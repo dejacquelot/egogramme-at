@@ -19,7 +19,9 @@ const json = (body: unknown, init?: ResponseInit) => {
 
 const saveSchema = z.object({
   action: z.literal("save"),
-  userId: z.string().uuid(),
+  // Optionnel : l'Administration enregistre des analyses sans propriétaire
+  // (creator_user_id = null), donc invisibles dans la bibliothèque personnelle.
+  userId: z.string().uuid().optional(),
   ids: z.array(z.string().uuid()).min(1).max(20),
   analysis: z.string().min(1),
   teamName: z.string().max(120).optional(),
@@ -105,7 +107,7 @@ export const Route = createFileRoute("/api/analysis/library")({
             member_ids: body.ids,
             member_names: memberNames,
             analysis: body.analysis,
-            creator_user_id: body.userId,
+            creator_user_id: body.userId ?? null,
             kind: body.kind ?? (body.ids.length > 1 ? "collective" : "individual"),
           };
 
