@@ -21,6 +21,7 @@ import { isAdminEmail } from "@/lib/admin-config";
 import { progressApi } from "@/lib/progress-api";
 import { EgogramCard } from "@/components/egogram-card";
 import { type CategoryKey } from "@/lib/egogram-categories";
+import { DuoNextStep, InviteReturnBanner } from "@/components/duo-next-step";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -380,10 +381,7 @@ function Index() {
 
         <div className="bg-card">
           <div className="mx-auto max-w-5xl px-4 py-4 sm:py-6">
-            {!user && (
-              <RegistrationBlock resultId={resultId} />
-            )}
-
+          <InviteReturnBanner user={user} />
           <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-5 sm:gap-4">
             {user ? (
               <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -761,10 +759,6 @@ function ResultSection({
         </Button>
       </div>
 
-      {!user && (
-        <RegistrationBlock resultId={resultId} />
-      )}
-
       {(analysis || loading) && (
         <div ref={resultRef} className="mt-6 scroll-mt-24 border-t border-border pt-6">
           <h3 className="text-base font-semibold text-foreground">
@@ -858,85 +852,12 @@ function ResultSection({
               💾 Sauvegarde du rapport en cours…
             </p>
           )}
+
+          <DuoNextStep scores={scores} resultId={resultId} user={user} />
           </>
           )}
         </div>
       )}
     </Card>
-  );
-}
-
-function RegistrationBlock({ resultId }: { resultId: string | null }) {
-  const [rgpd, setRgpd] = useState(false);
-  const [registering, setRegistering] = useState(false);
-
-  const savePending = () => {
-    if (resultId && typeof window !== "undefined") {
-      localStorage.setItem("egogramme_pending_result", resultId);
-    }
-  };
-
-  const handleRegisterOAuth = async (provider: "google" | "linkedin_oidc") => {
-    if (!rgpd) return;
-    setRegistering(true);
-    savePending();
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/mon-espace`,
-        ...(provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
-      },
-    });
-  };
-
-  return (
-    <div className="mt-8 rounded-xl bg-white border border-indigo-200 p-5 shadow-sm">
-        <p className="text-sm text-indigo-800 font-semibold mb-3 text-center">
-          💾 Enregistrer mon profil pour conserver mes résultats et générer des analyses à plusieurs.
-        </p>
-
-        <div className="flex items-start gap-2 mb-4">
-          <input
-            type="checkbox"
-            id="rgpd-consent"
-            checked={rgpd}
-            onChange={(e) => setRgpd(e.target.checked)}
-            className="mt-1 h-4 w-4 accent-indigo-600 cursor-pointer"
-          />
-          <label htmlFor="rgpd-consent" className="text-xs text-gray-700 cursor-pointer">
-            J'accepte que mes réponses et mon profil soient enregistrés dans mon espace personnel.
-            {" "}
-            <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline hover:text-indigo-800">
-              Consultez notre politique de confidentialité
-            </a>.
-          </label>
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => handleRegisterOAuth("google")}
-                disabled={!rgpd || registering}
-                className="inline-flex items-center gap-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-black font-medium text-sm px-5 py-2.5 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
-                  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.8 2.6 13.5l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
-                  <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-3.2-.45-4.7H24v9h12.6c-.55 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 7-10.1 7-17.3z" />
-                  <path fill="#FBBC05" d="M10.5 19.6a14.6 14.6 0 000 8.8l-7.9 6.1A23.5 23.5 0 01.5 24c0-3.8.9-7.4 2.1-10.5l7.9 6.1z" />
-                  <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.2 14.6 47.5 24 47.5z" />
-                </svg>
-                Google
-              </button>
-              <button
-                onClick={() => handleRegisterOAuth("linkedin_oidc")}
-                disabled={!rgpd || registering}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#0A66C2] hover:bg-[#004182] text-white font-medium text-sm px-5 py-2.5 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white" aria-hidden="true">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                </svg>
-                LinkedIn
-              </button>
-            </div>
-    </div>
   );
 }

@@ -278,9 +278,22 @@ function Dashboard({ user }: { user: UserInfo }) {
         const pendingResultId = localStorage.getItem("egogramme_pending_result");
         if (pendingResultId) {
           try {
-            await linkResultToUser({ data: { resultId: pendingResultId, userId: user.id } });
+            // Route `/api/*` et non server function : les appels `/_serverFn/*`
+            // échouent en production. Rattache le résultat ET les invitations
+            // créées anonymement depuis ce résultat.
+            const res = await fetch("/api/public/claim", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: user.id, resultId: pendingResultId }),
+            });
+            const json = await res.json().catch(() => null);
+            if (!json?.ok) throw new Error(json?.error ?? "claim failed");
           } catch (e) {
             console.error("link result error:", e);
+            // Dernier recours : l'ancienne server function.
+            await linkResultToUser({
+              data: { resultId: pendingResultId, userId: user.id },
+            }).catch(() => {});
           }
           localStorage.removeItem("egogramme_pending_result");
           localStorage.removeItem("egogramme_pending_inv");

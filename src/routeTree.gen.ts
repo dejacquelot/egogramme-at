@@ -14,6 +14,8 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicTrackRouteImport } from './routes/api/public/track'
 import { Route as ApiPublicSaveResultRouteImport } from './routes/api/public/save-result'
+import { Route as ApiPublicInviteRouteImport } from './routes/api/public/invite'
+import { Route as ApiPublicClaimRouteImport } from './routes/api/public/claim'
 import { Route as ApiPublicSaveContactRouteImport } from './routes/api/public/save-contact'
 
 const StatsRoute = StatsRouteImport.update({
@@ -41,6 +43,16 @@ const ApiPublicSaveResultRoute = ApiPublicSaveResultRouteImport.update({
   path: '/api/public/save-result',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicInviteRoute = ApiPublicInviteRouteImport.update({
+  id: '/api/public/invite',
+  path: '/api/public/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicClaimRoute = ApiPublicClaimRouteImport.update({
+  id: '/api/public/claim',
+  path: '/api/public/claim',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSaveContactRoute = ApiPublicSaveContactRouteImport.update({
   id: '/api/public/save-contact',
   path: '/api/public/save-contact',
@@ -53,6 +65,8 @@ export interface FileRoutesByFullPath {
   '/stats': typeof StatsRoute
   '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
+  '/api/public/invite': typeof ApiPublicInviteRoute
+  '/api/public/claim': typeof ApiPublicClaimRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +75,8 @@ export interface FileRoutesByTo {
   '/stats': typeof StatsRoute
   '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
+  '/api/public/invite': typeof ApiPublicInviteRoute
+  '/api/public/claim': typeof ApiPublicClaimRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
 export interface FileRoutesById {
@@ -70,6 +86,8 @@ export interface FileRoutesById {
   '/stats': typeof StatsRoute
   '/api/public/save-contact': typeof ApiPublicSaveContactRoute
   '/api/public/save-result': typeof ApiPublicSaveResultRoute
+  '/api/public/invite': typeof ApiPublicInviteRoute
+  '/api/public/claim': typeof ApiPublicClaimRoute
   '/api/public/track': typeof ApiPublicTrackRoute
 }
 export interface FileRouteTypes {
@@ -105,6 +123,8 @@ export interface RootRouteChildren {
   StatsRoute: typeof StatsRoute
   ApiPublicSaveContactRoute: typeof ApiPublicSaveContactRoute
   ApiPublicSaveResultRoute: typeof ApiPublicSaveResultRoute
+  ApiPublicInviteRoute: typeof ApiPublicInviteRoute
+  ApiPublicClaimRoute: typeof ApiPublicClaimRoute
   ApiPublicTrackRoute: typeof ApiPublicTrackRoute
 }
 
@@ -145,6 +165,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSaveResultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/invite': {
+      id: '/api/public/invite'
+      path: '/api/public/invite'
+      fullPath: '/api/public/invite'
+      preLoaderRoute: typeof ApiPublicInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/claim': {
+      id: '/api/public/claim'
+      path: '/api/public/claim'
+      fullPath: '/api/public/claim'
+      preLoaderRoute: typeof ApiPublicClaimRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/save-contact': {
       id: '/api/public/save-contact'
       path: '/api/public/save-contact'
@@ -161,6 +195,8 @@ const rootRouteChildren: RootRouteChildren = {
   StatsRoute: StatsRoute,
   ApiPublicSaveContactRoute: ApiPublicSaveContactRoute,
   ApiPublicSaveResultRoute: ApiPublicSaveResultRoute,
+  ApiPublicInviteRoute: ApiPublicInviteRoute,
+  ApiPublicClaimRoute: ApiPublicClaimRoute,
   ApiPublicTrackRoute: ApiPublicTrackRoute,
 }
 export const routeTree = rootRouteImport
