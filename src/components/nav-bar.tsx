@@ -81,12 +81,12 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/90 backdrop-blur-sm shadow-sm">
       <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-2">
-        <Link to="/" className="mr-4 flex items-center gap-2 hover:opacity-80 transition-opacity">
+        <Link to="/" className="mr-2 flex shrink-0 items-center gap-2 hover:opacity-80 transition-opacity sm:mr-4">
           <img src={teamLogo} alt="Team Performance" className="h-7 w-7 rounded" />
-          <span className="text-sm font-bold text-gray-700 tracking-tight">Égogramme d'équipe</span>
+          <span className="hidden text-sm font-bold text-gray-700 tracking-tight sm:inline">Égogramme d'équipe</span>
         </Link>
 
-        <div className="flex flex-1 items-center gap-1">
+        <div className="flex flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {links.map((link) => {
             const active = current === link.to;
             return (
@@ -94,7 +94,7 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
                 key={link.to}
                 to={link.to}
                 className={[
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  "shrink-0 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3",
                   active
                     ? "bg-indigo-100 text-indigo-700"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
@@ -107,7 +107,7 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
         </div>
 
         {/* Auth zone — right side */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {user ? (
             <>
               <span className="hidden text-xs text-gray-500 sm:inline">{user.name}</span>

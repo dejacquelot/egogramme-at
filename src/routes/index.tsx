@@ -19,6 +19,8 @@ import { completeInvitation, linkResultToUser } from "@/lib/invitation.functions
 import { NavBar } from "@/components/nav-bar";
 import { isAdminEmail } from "@/lib/admin-config";
 import { progressApi } from "@/lib/progress-api";
+import { EgogramCard } from "@/components/egogram-card";
+import { type CategoryKey } from "@/lib/egogram-categories";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -107,64 +109,6 @@ const QUESTIONS: string[] = [
   "J'ai tendance à prendre les opprimés sous mon aile",
 ];
 
-type CategoryKey =
-  | "PN"
-  | "PNo"
-  | "A"
-  | "EL"
-  | "EAS"
-  | "EAR";
-
-const CATEGORIES: {
-  key: CategoryKey;
-  label: string;
-  short: string;
-  color: string;
-  description: string;
-}[] = [
-  {
-    key: "PN",
-    label: "Parent Nourricier",
-    short: "PNr",
-    color: "oklch(0.72 0.15 30)",
-    description: "Bienveillant, protecteur, encourageant.",
-  },
-  {
-    key: "PNo",
-    label: "Parent Normatif",
-    short: "PNf",
-    color: "oklch(0.6 0.15 60)",
-    description: "Cadre, règles, autorité, transmission de valeurs.",
-  },
-  {
-    key: "A",
-    label: "Adulte",
-    short: "A",
-    color: "oklch(0.55 0.15 250)",
-    description: "Rationnel, objectif, analytique, factuel.",
-  },
-  {
-    key: "EL",
-    label: "Enfant Libre",
-    short: "EL",
-    color: "oklch(0.7 0.17 140)",
-    description: "Spontané, créatif, expressif, joueur.",
-  },
-  {
-    key: "EAS",
-    label: "Enfant Adapté Soumis",
-    short: "EAS",
-    color: "oklch(0.6 0.13 310)",
-    description: "Conforme, poli, s'adapte aux attentes.",
-  },
-  {
-    key: "EAR",
-    label: "Enfant Adapté Rebelle",
-    short: "EAR",
-    color: "oklch(0.6 0.2 20)",
-    description: "Oppositionnel, provocateur, contestataire.",
-  },
-];
 
 const MAPPING: Record<CategoryKey, number[]> = {
   PN: [4, 8, 14, 22, 28, 33, 36, 50, 57, 60],
@@ -374,23 +318,42 @@ function Index() {
   // Save result only when analysis is generated (not on 60-question completion)
   const [resultId, setResultId] = useState<string | null>(null);
 
+  // Bandeau d'accueil : replié par défaut sur mobile pour ne pas repousser
+  // la première question sous la ligne de flottaison. Toujours ouvert sur grand écran.
+  const [heroOpen, setHeroOpen] = useState(false);
+
+  // Panneau égogramme accessible pendant le test sur mobile
+  const [chartOpen, setChartOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
       <header className="border-b border-border">
         <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-600">
-          <div className="mx-auto max-w-5xl px-4 py-12 text-center">
-            <p className="text-xs uppercase tracking-[0.18em] text-white/70">
+          <div className="mx-auto max-w-5xl px-4 py-7 text-center sm:py-12">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-white/70 sm:text-xs">
               Test égogramme gratuit — mieux vous connaître pour mieux interagir
             </p>
-            <h1 className="mx-auto mt-3 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
+            <h1 className="mx-auto mt-3 max-w-3xl text-xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
               Comprenez ce qui se joue dans vos relations et vos équipes
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base">
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-white/85 sm:mt-4 sm:text-base">
               En 5 minutes, découvrez votre profil relationnel issu de l'Analyse Transactionnelle.
-              Puis analysez les dynamiques d'un couple, d'une famille, d'une équipe ou d'un collectif.
+              <span className={heroOpen ? "" : "hidden sm:inline"}>
+                {" "}Puis analysez les dynamiques d'un couple, d'une famille, d'une équipe ou d'un collectif.
+              </span>
             </p>
-            <ul className="mt-7 flex flex-wrap justify-center gap-2">
+
+            <button
+              type="button"
+              onClick={() => setHeroOpen((v) => !v)}
+              className="mt-3 rounded-full border border-white/45 px-4 py-1 text-xs font-medium text-white/90 sm:hidden"
+            >
+              {heroOpen ? "Masquer ▴" : "En savoir plus ▾"}
+            </button>
+
+            <div className={heroOpen ? "" : "hidden sm:block"}>
+              <ul className="mt-5 flex flex-wrap justify-center gap-2 sm:mt-7">
               {[
                 "Forces du groupe",
                 "Risques de tensions",
@@ -405,35 +368,27 @@ function Index() {
                 </li>
               ))}
             </ul>
-            <p className="mt-5 text-sm text-white/85">
+            <p className="mt-5 text-xs text-white/85 sm:text-sm">
               👩‍❤️‍👨 Couple&nbsp;&nbsp;·&nbsp;&nbsp;👨‍👩‍👧 Famille&nbsp;&nbsp;·&nbsp;&nbsp;🧑‍🤝‍🧑 Ami&nbsp;&nbsp;·&nbsp;&nbsp;💼 Collègue&nbsp;&nbsp;·&nbsp;&nbsp;👥 Équipe
             </p>
-            <p className="mt-6 text-sm font-bold text-white sm:text-base">
+            <p className="mt-5 text-sm font-bold text-white sm:mt-6 sm:text-base">
               L'IA au service de vos relations. Et gratuitement !
             </p>
+            </div>
           </div>
         </div>
 
         <div className="bg-card">
-          <div className="mx-auto max-w-5xl px-4 py-6">
+          <div className="mx-auto max-w-5xl px-4 py-4 sm:py-6">
             {!user && (
               <RegistrationBlock resultId={resultId} />
             )}
 
-          <div className="mt-5 flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Progression</span>
-                <span>
-                  {answeredCount} / 60
-                </span>
-              </div>
-              <Progress value={(answeredCount / 60) * 100} className="mt-1.5 h-2" />
-            </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-5 sm:gap-4">
             {user ? (
-              <div className="flex items-center gap-2">
-                <Link to="/mon-espace">
-                  <Button variant="outline" size="sm">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                <Link to="/mon-espace" className="flex-1 sm:flex-none">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
                     👥 Mon Espace
                   </Button>
                 </Link>
@@ -443,19 +398,20 @@ function Index() {
                   onClick={reloadFromAccount}
                   disabled={reloading}
                   title="Récupérer les réponses enregistrées sur votre compte"
+                  className="flex-1 sm:flex-none"
                 >
-                  {reloading ? "Chargement…" : "↻ Recharger mes réponses"}
+                  {reloading ? "Chargement…" : "↻ Recharger"}
                 </Button>
-                <span className="text-xs text-muted-foreground">
+                <span className="hidden text-xs text-muted-foreground sm:inline">
                   {user.firstName || user.email}
                 </span>
-                <Button variant="ghost" size="sm" onClick={signOut}>
+                <Button variant="ghost" size="sm" onClick={signOut} className="hidden sm:inline-flex">
                   Déconnexion
                 </Button>
               </div>
             ) : null}
             {isAdmin && (
-              <>
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <Link to="/stats">
                   <Button variant="outline" size="sm">
                     Statistiques
@@ -467,16 +423,27 @@ function Index() {
                   </Button>
                 </Link>
                 <Button variant="outline" size="sm" onClick={checkAll}>
-                      Tout cocher ✅
-                    </Button>
-                  </>
-                )}
+                  Tout cocher ✅
+                </Button>
+              </div>
+            )}
           </div>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      {/* Barre de progression collante : repère permanent pendant le défilement */}
+      <div className="sticky top-12 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="mx-auto max-w-5xl px-4 py-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Progression</span>
+            <span className="tabular-nums">{answeredCount} / 60</span>
+          </div>
+          <Progress value={(answeredCount / 60) * 100} className="mt-1.5 h-2" />
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-5xl px-4 py-5 sm:py-8">
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
           <section aria-label="Questions" className="space-y-2">
             {QUESTIONS.map((q, i) => {
@@ -484,13 +451,13 @@ function Index() {
               return (
                 <Card
                   key={i}
-                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4"
                 >
-                  <div className="flex gap-3">
-                    <span className="text-sm font-semibold text-muted-foreground w-6 shrink-0">
+                  <div className="flex gap-2 sm:gap-3">
+                    <span className="w-5 shrink-0 text-sm font-semibold text-muted-foreground sm:w-6">
                       {i + 1}.
                     </span>
-                    <p className="text-sm text-foreground">{q}</p>
+                    <p className="text-sm leading-snug text-foreground">{q}</p>
                   </div>
                   <div className="flex gap-2 sm:shrink-0">
                     <Button
@@ -499,7 +466,8 @@ function Index() {
                       onClick={() => setAnswer(i, true)}
                       className="flex-1 sm:flex-none"
                     >
-                      Plutôt vrai
+                      <span className="sm:hidden">Vrai</span>
+                      <span className="hidden sm:inline">Plutôt vrai</span>
                     </Button>
                     <Button
                       size="sm"
@@ -507,7 +475,8 @@ function Index() {
                       onClick={() => setAnswer(i, false)}
                       className="flex-1 sm:flex-none"
                     >
-                      Plutôt faux
+                      <span className="sm:hidden">Faux</span>
+                      <span className="hidden sm:inline">Plutôt faux</span>
                     </Button>
                   </div>
                 </Card>
@@ -515,130 +484,9 @@ function Index() {
             })}
           </section>
 
-          <aside className="lg:sticky lg:top-4 lg:self-start">
-            <Card className="p-5">
-              <div className="flex items-baseline justify-between">
-                <h2 className="text-lg font-semibold">Votre égogramme</h2>
-                <span className="text-xs text-muted-foreground">
-                  Σ = {total}
-                </span>
-              </div>
-
-              <>
-                  {/* Bar chart */}
-                  <div className="mt-5">
-                    <div className="flex gap-2">
-                      {/* Y axis 0-10 */}
-                      <div className="flex h-72 flex-col-reverse justify-between py-1 pr-1 text-[10px] tabular-nums text-muted-foreground">
-                        {Array.from({ length: 11 }, (_, n) => (
-                          <span key={n} className="leading-none">
-                            {n}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Chart area */}
-                      <div className="relative flex-1">
-                        {/* Gridlines */}
-                        <div className="absolute inset-0 flex flex-col-reverse justify-between">
-                          {Array.from({ length: 11 }, (_, n) => (
-                            <div
-                              key={n}
-                              className={
-                                "border-t " +
-                                (n === 0
-                                  ? "border-foreground/40"
-                                  : "border-border/60")
-                              }
-                            />
-                          ))}
-                        </div>
-
-                        {/* Bars */}
-                        <div className="relative flex h-72 items-end gap-2">
-                          {CATEGORIES.map((cat) => {
-                            const score = scores[cat.key];
-                            const heightPct = (score / 10) * 100;
-                            const isMax = score === maxScore && score > 0;
-                            return (
-                              <div
-                                key={cat.key}
-                                className="flex h-full flex-1 flex-col items-center justify-end"
-                              >
-                                <div
-                                  className="relative flex w-full items-end justify-center"
-                                  style={{ height: `${heightPct}%` }}
-                                >
-                                  <div
-                                    className="absolute -top-5 text-xs font-semibold tabular-nums text-foreground"
-                                  >
-                                    {score}
-                                  </div>
-                                  <div
-                                    className="w-full rounded-t-md transition-all duration-500 ease-out"
-                                    style={{
-                                      height: "100%",
-                                      backgroundColor: cat.color,
-                                      minHeight: score > 0 ? "3px" : "0",
-                                      outline: isMax
-                                        ? "2px solid var(--foreground)"
-                                        : undefined,
-                                      outlineOffset: isMax ? "1px" : undefined,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* X axis labels */}
-                    <div className="mt-2 flex gap-2 pl-5">
-                      {CATEGORIES.map((cat) => (
-                        <div
-                          key={cat.key}
-                          className="flex-1 text-center text-[11px] font-semibold text-foreground"
-                          title={cat.label}
-                        >
-                          {cat.short}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Legend / details */}
-                  <ul className="mt-5 space-y-2">
-                    {CATEGORIES.map((cat) => (
-                      <li key={cat.key} className="flex items-start gap-2 text-xs">
-                        <span
-                          className="mt-0.5 h-3 w-3 shrink-0 rounded-sm"
-                          style={{ backgroundColor: cat.color }}
-                        />
-                        <div className="flex-1">
-                          <div className="flex justify-between gap-2">
-                            <span className="font-medium text-foreground">
-                              {cat.label}
-                            </span>
-                            <span className="tabular-nums text-muted-foreground">
-                              {scores[cat.key]}/10
-                            </span>
-                          </div>
-                          <p className="text-muted-foreground">
-                            {cat.description}
-                          </p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-              </>
-
-              <p className="mt-5 border-t border-border pt-3 text-[11px] text-muted-foreground">
-                D'après Michel Josien, « Techniques de communication
-                interpersonnelle », Les Éditions d'Organisation.
-              </p>
-            </Card>
+          {/* Colonne latérale : grand écran uniquement */}
+          <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
+            <EgogramCard scores={scores} total={total} maxScore={maxScore} />
           </aside>
         </div>
       </main>
@@ -648,6 +496,27 @@ function Index() {
           <ResultSection scores={scores} answers={answers} resultId={resultId} setResultId={setResultId} referredBy={referredBy} invToken={invToken} user={user} userFirstName={user?.firstName} userLastName={user?.lastName} />
         </section>
       )}
+
+      {/* Panneau égogramme mobile : le graphique reste accessible pendant le test */}
+      <div className="sticky bottom-0 z-40 lg:hidden">
+        {chartOpen && (
+          <div className="max-h-[65vh] overflow-y-auto border-t border-border bg-background px-4 pb-3 pt-4 shadow-lg">
+            <EgogramCard scores={scores} total={total} maxScore={maxScore} className="p-4" />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setChartOpen((v) => !v)}
+          aria-expanded={chartOpen}
+          className="flex w-full items-center justify-between border-t border-border bg-foreground px-4 py-3 text-sm font-semibold text-background"
+        >
+          <span>📊 {chartOpen ? "Masquer mon égogramme" : "Voir mon égogramme"}</span>
+          <span className="flex items-center gap-2">
+            <span className="text-xs font-normal opacity-75 tabular-nums">Σ = {total}</span>
+            <span>{chartOpen ? "▼" : "▲"}</span>
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
