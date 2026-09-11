@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarkdownText } from "@/components/markdown-text";
+import { EgogramCard } from "@/components/egogram-card";
 import { supabase } from "@/integrations/supabase/client";
 import {
   linkResultToUser,
@@ -91,109 +92,70 @@ const SCORE_LABELS: Record<string, string> = {
 
 const SCORE_KEYS: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
 
-const CATEGORIES: {
-  key: string;
-  label: string;
-  short: string;
-  color: string;
-  description: string;
-}[] = [
-  { key: "PN", label: "Parent Nourricier", short: "PNr", color: "oklch(0.72 0.15 30)", description: "Bienveillant, protecteur, encourageant." },
-  { key: "PNo", label: "Parent Normatif", short: "PNf", color: "oklch(0.6 0.15 60)", description: "Cadre, règles, autorité, transmission de valeurs." },
-  { key: "A", label: "Adulte", short: "A", color: "oklch(0.55 0.15 250)", description: "Rationnel, objectif, analytique, factuel." },
-  { key: "EL", label: "Enfant Libre", short: "EL", color: "oklch(0.7 0.17 140)", description: "Spontané, créatif, expressif, joueur." },
-  { key: "EAS", label: "Enfant Adapté Soumis", short: "EAS", color: "oklch(0.6 0.13 310)", description: "Conforme, poli, s'adapte aux attentes." },
-  { key: "EAR", label: "Enfant Adapté Rebelle", short: "EAR", color: "oklch(0.6 0.2 20)", description: "Oppositionnel, provocateur, contestataire." },
-];
+/** Libellés courts, identiques aux en-têtes du tableau (vue mobile en cartes). */
+const SCORE_SHORT: Record<CatKey, string> = {
+  PN: "PNr",
+  PNo: "PNf",
+  A: "A",
+  EL: "EL",
+  EAS: "EAS",
+  EAR: "EAR",
+};
 
-function EgogrammeChart({ title, scores, subtitle }: { title: string; scores: Record<string, number>; subtitle?: string }) {
-  const total = CATEGORIES.reduce((s, c) => s + (scores[c.key] ?? 0), 0);
-  const maxScore = Math.max(...CATEGORIES.map((c) => scores[c.key] ?? 0));
-
+/**
+ * Section repliable : l'en-tête reste toujours visible avec un résumé, le
+ * contenu ne se déploie qu'à la demande. Évite une page de 6 000 px sur
+ * mobile et reprend le motif « déplier » déjà utilisé sur la page Test.
+ */
+function Section({
+  step,
+  icon,
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  step?: number;
+  icon?: string;
+  title: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <Card className="p-5 flex-1 min-w-0">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-base font-semibold">{title}</h2>
-        <span className="text-xs text-muted-foreground">Σ = {total}</span>
-      </div>
-
-      {/* Bar chart */}
-      <div className="mt-4">
-        <div className="flex gap-2">
-          {/* Y axis */}
-          <div className="flex h-52 flex-col-reverse justify-between py-1 pr-1 text-[10px] tabular-nums text-muted-foreground">
-            {Array.from({ length: 11 }, (_, n) => (
-              <span key={n} className="leading-none">{n}</span>
-            ))}
-          </div>
-          {/* Chart area */}
-          <div className="relative flex-1">
-            {/* Gridlines */}
-            <div className="absolute inset-0 flex flex-col-reverse justify-between">
-              {Array.from({ length: 11 }, (_, n) => (
-                <div key={n} className={"border-t " + (n === 0 ? "border-foreground/40" : "border-border/60")} />
-              ))}
-            </div>
-            {/* Bars */}
-            <div className="relative flex h-52 items-end gap-1">
-              {CATEGORIES.map((cat) => {
-                const score = scores[cat.key] ?? 0;
-                const heightPct = (score / 10) * 100;
-                const isMax = score === maxScore && score > 0;
-                return (
-                  <div key={cat.key} className="flex h-full flex-1 flex-col items-center justify-end">
-                    <div className="relative flex w-full items-end justify-center" style={{ height: `${heightPct}%` }}>
-                      <div className="absolute -top-5 text-xs font-semibold tabular-nums text-foreground">{score}</div>
-                      <div
-                        className="w-full rounded-t-md transition-all duration-500 ease-out"
-                        style={{
-                          height: "100%",
-                          backgroundColor: cat.color,
-                          minHeight: score > 0 ? "3px" : "0",
-                          outline: isMax ? "2px solid var(--foreground)" : undefined,
-                          outlineOffset: isMax ? "1px" : undefined,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        {/* X axis labels */}
-        <div className="mt-2 flex gap-1 pl-5">
-          {CATEGORIES.map((cat) => (
-            <div key={cat.key} className="flex-1 text-center text-[10px] font-semibold text-foreground" title={cat.label}>
-              {cat.short}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <ul className="mt-4 space-y-1.5">
-        {CATEGORIES.map((cat) => (
-          <li key={cat.key} className="flex items-start gap-2 text-[11px]">
-            <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cat.color }} />
-            <div className="flex-1">
-              <div className="flex justify-between gap-2">
-                <span className="font-medium text-foreground">{cat.label}</span>
-                <span className="tabular-nums text-muted-foreground">{scores[cat.key] ?? 0}/10</span>
-              </div>
-              <p className="text-muted-foreground">{cat.description}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <p className="mt-3 border-t border-border pt-2 text-[10px] text-muted-foreground">
-        D'après Michel Josien, « Techniques de communication interpersonnelle », Les Éditions d'Organisation.
-      </p>
-      {subtitle && <p className="mt-1 text-[10px] text-muted-foreground">{subtitle}</p>}
+    <Card className="overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center gap-2.5 p-4 text-left transition-colors hover:bg-muted/40"
+      >
+        {step !== undefined ? (
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+            {step}
+          </span>
+        ) : icon ? (
+          <span className="shrink-0 text-base" aria-hidden="true">{icon}</span>
+        ) : null}
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground sm:text-base">{title}</span>
+          {summary && (
+            <span className="block truncate text-xs text-muted-foreground">{summary}</span>
+          )}
+        </span>
+        <span
+          className={"shrink-0 text-muted-foreground transition-transform " + (open ? "rotate-180" : "")}
+          aria-hidden="true"
+        >
+          ▾
+        </span>
+      </button>
+      {open && <div className="border-t border-border p-4">{children}</div>}
     </Card>
   );
 }
+
 
 function MonEspace() {
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -1015,11 +977,6 @@ function Dashboard({ user }: { user: UserInfo }) {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/";
-  };
-
   const handleSaveName = async () => {
     if (!myResult) return;
     setSavingName(true);
@@ -1072,55 +1029,56 @@ function Dashboard({ user }: { user: UserInfo }) {
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold">Mon Espace Égogramme</h1>
-            {myResult && !editingName ? (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span>
-                  {myResult.first_name || user.firstName} {myResult.last_name || user.lastName} · {user.email}
-                </span>
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingName(true)}>
-                  Modifier prénom/nom
-                </Button>
+      {/* Identité — compacte : le nom et la déconnexion sont déjà dans la NavBar */}
+      <div className="border-b border-border bg-card">
+        <div className="mx-auto max-w-7xl px-4 py-2.5">
+          {!editingName ? (
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-800">
+                {((myResult?.first_name || user.firstName || user.email)[0] ?? "?").toUpperCase()}
+                {((myResult?.last_name || user.lastName || "")[0] ?? "").toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold leading-tight">
+                  {myResult?.first_name || user.firstName} {myResult?.last_name || user.lastName}
+                </p>
+                <p className="truncate text-[11px] leading-tight text-muted-foreground">{user.email}</p>
               </div>
-            ) : (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Input
-                  value={nameDraft.first}
-                  onChange={(e) => setNameDraft((prev) => ({ ...prev, first: e.target.value }))}
-                  placeholder="Prénom"
-                  className="h-8 w-36"
-                />
-                <Input
-                  value={nameDraft.last}
-                  onChange={(e) => setNameDraft((prev) => ({ ...prev, last: e.target.value }))}
-                  placeholder="Nom"
-                  className="h-8 w-36"
-                />
-                <Button size="sm" onClick={handleSaveName} disabled={savingName}>
-                  {savingName ? "Enregistrement…" : "Enregistrer"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingName(false)} disabled={savingName}>
-                  Annuler
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Link to="/" className="text-xs text-primary underline">
-              Refaire le test
-            </Link>
-            <Button size="sm" variant="ghost" onClick={handleSignOut}>
-              Se déconnecter
-            </Button>
-          </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 px-2 text-xs"
+                onClick={() => setEditingName(true)}
+              >
+                Modifier
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={nameDraft.first}
+                onChange={(e) => setNameDraft((prev) => ({ ...prev, first: e.target.value }))}
+                placeholder="Prénom"
+                className="h-8 w-32 flex-1 sm:flex-none"
+              />
+              <Input
+                value={nameDraft.last}
+                onChange={(e) => setNameDraft((prev) => ({ ...prev, last: e.target.value }))}
+                placeholder="Nom"
+                className="h-8 w-32 flex-1 sm:flex-none"
+              />
+              <Button size="sm" onClick={handleSaveName} disabled={savingName}>
+                {savingName ? "Enregistrement…" : "Enregistrer"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditingName(false)} disabled={savingName}>
+                Annuler
+              </Button>
+            </div>
+          )}
         </div>
-      </header>
+      </div>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 pb-32 space-y-8">
+      <main className="mx-auto max-w-7xl px-4 py-5 pb-32 space-y-4 sm:py-8 sm:space-y-8">
         {saveError && (
           <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
             <strong>⚠️ Enregistrement impossible.</strong>
@@ -1139,16 +1097,20 @@ function Dashboard({ user }: { user: UserInfo }) {
         {/* My Profile */}
         {myResult && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <EgogrammeChart
+            <EgogramCard
               title="Votre égogramme"
               scores={myResult.scores}
               subtitle={`Test passé le ${formatDate(myResult.created_at)}`}
+              compact
+              className="p-5 flex-1 min-w-0"
             />
             {teamAverage ? (
-              <EgogrammeChart
+              <EgogramCard
                 title="Votre égogramme d'équipe"
                 scores={teamAverage}
                 subtitle={`Moyenne de ${teamMembers.length} profil${teamMembers.length > 1 ? "s" : ""}`}
+                compact
+                className="p-5 flex-1 min-w-0"
               />
             ) : (
               <Card className="p-5 flex-1 flex flex-col items-center justify-center text-center">
@@ -1176,11 +1138,15 @@ function Dashboard({ user }: { user: UserInfo }) {
         )}
 
         {/* Invite Section */}
-        <Card className="p-6">
-          <h2 className="text-base font-semibold mb-2">
-            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">1</span>
-            Inviter des personnes
-          </h2>
+        <Section
+          step={1}
+          title="Inviter des personnes"
+          summary={
+            invitations.length === 0
+              ? "Aucune invitation pour l'instant"
+              : `${invitations.length} invité${invitations.length > 1 ? "s" : ""} · ${completedInvitations.length} ${completedInvitations.length > 1 ? "ont répondu" : "a répondu"}`
+          }
+        >
           <p className="text-xs text-muted-foreground mb-4">
             Invitez des amis, collègues ou votre équipe. Chacun recevra son analyse individuelle,
             puis vous pourrez générer une analyse collective.
@@ -1234,21 +1200,237 @@ function Dashboard({ user }: { user: UserInfo }) {
               📋 Copier
             </Button>
           </div>
-        </Card>
+        </Section>
 
         {/* Invitations List */}
         {(invitations.length > 0 || myResult) && (
-          <Card className="p-6">
-            <h2 className="text-base font-semibold mb-2">
-              <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">2</span>
-              Sélectionner les profils et générer une analyse
-            </h2>
+          <Section
+            step={2}
+            title="Sélectionner les profils et générer"
+            summary={
+              selectedResultIds.length === 0
+                ? "Aucun profil coché"
+                : `${selectedResultIds.length} profil${selectedResultIds.length > 1 ? "s" : ""} sélectionné${selectedResultIds.length > 1 ? "s" : ""}`
+            }
+            defaultOpen
+          >
             <p className="text-xs text-muted-foreground mb-4">
               {completedInvitations.length} / {invitations.length} personne(s) ont répondu · cochez
               <strong className="mx-1">1 profil</strong>pour une analyse individuelle,
               <strong className="mx-1">2 ou plus</strong>pour une analyse collective.
             </p>
-            <div className="overflow-x-auto">
+            {/* Vue mobile : cartes empilées — le tableau reste sur grand écran */}
+            <div className="lg:hidden">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {selectedResultIds.length} profil{selectedResultIds.length > 1 ? "s" : ""} sélectionné{selectedResultIds.length > 1 ? "s" : ""}
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 shrink-0 px-2 text-xs"
+                  onClick={toggleSelectAll}
+                >
+                  {allSelected ? "Tout décocher" : "Tout cocher"}
+                </Button>
+              </div>
+
+              <div className="space-y-2.5">
+                {myResult && (
+                  <div
+                    className={
+                      "rounded-xl border p-3 " +
+                      (selfSelected ? "border-indigo-300 bg-indigo-50/60" : "border-border bg-card")
+                    }
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-primary"
+                        checked={selfSelected}
+                        onChange={() => toggleSelectedInvitation("__self__")}
+                        aria-label="Inclure votre profil dans l'analyse collective"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">
+                          {myResult.first_name || user.firstName || "Vous"}{" "}
+                          {myResult.last_name || user.lastName || ""}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">{user.email}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-800">
+                        👤 Vous
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {SCORE_KEYS.map((key) => (
+                        <span
+                          key={key}
+                          className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] tabular-nums"
+                        >
+                          {SCORE_SHORT[key]}{" "}
+                          <b className="text-primary">{myResult.scores[key] ?? "—"}</b>
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-1.5 text-[10px] text-muted-foreground">
+                      Test passé le {formatDate(myResult.created_at)}
+                    </p>
+                  </div>
+                )}
+
+                {invitations.map((inv) => {
+                  const s = inv.result_id ? invScores[inv.result_id] : undefined;
+                  const editable = inv.status === "pending";
+                  const selectable = Boolean(inv.result_id) && inv.status !== "deleted";
+                  const checked = selectedInvitationIds.includes(inv.id);
+                  return (
+                    <div
+                      key={inv.id}
+                      className={
+                        "rounded-xl border p-3 " +
+                        (checked ? "border-indigo-300 bg-indigo-50/60" : "border-border bg-card") +
+                        (inv.status === "deleted" ? " opacity-60" : "")
+                      }
+                    >
+                      <div className="flex items-start gap-2.5">
+                        {selectable ? (
+                          <input
+                            type="checkbox"
+                            className="mt-2 h-5 w-5 shrink-0 cursor-pointer accent-primary"
+                            checked={checked}
+                            onChange={() => toggleSelectedInvitation(inv.id)}
+                            aria-label={`Sélectionner ${inv.invitee_first_name || inv.invitee_name || "cette personne"}`}
+                          />
+                        ) : (
+                          <span
+                            className="mt-2 flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground"
+                            title="Saisissez d'abord les scores"
+                          >
+                            —
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex gap-1.5">
+                            <Input
+                              value={nameDrafts[inv.id]?.first ?? inv.invitee_first_name ?? inv.invitee_name ?? ""}
+                              onChange={(e) => handleNameChange(inv, "first", e.target.value)}
+                              onBlur={() => handleSaveInvitationName(inv)}
+                              className="h-8 min-w-0 flex-1"
+                              placeholder="Prénom"
+                            />
+                            <Input
+                              value={nameDrafts[inv.id]?.last ?? inv.invitee_last_name ?? ""}
+                              onChange={(e) => handleNameChange(inv, "last", e.target.value)}
+                              onBlur={() => handleSaveInvitationName(inv)}
+                              className="h-8 min-w-0 flex-1"
+                              placeholder="Nom"
+                            />
+                          </div>
+                          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                            {inv.invitee_email || "—"}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-[10px] font-semibold">
+                          {inv.status === "completed" ? (
+                            <span className="text-green-600">✅ Répondu</span>
+                          ) : inv.status === "deleted" ? (
+                            <span className="text-red-500">🗑️ Supprimé</span>
+                          ) : inv.result_id ? (
+                            <span className="text-indigo-600">✍️ Saisi</span>
+                          ) : (
+                            <span className="text-amber-600">⏳ Attente</span>
+                          )}
+                        </span>
+                      </div>
+
+                      {editable ? (
+                        <div className="mt-2.5">
+                          <p className="mb-1 text-[10px] font-medium text-muted-foreground">
+                            Saisir les scores (0 à 10)
+                          </p>
+                          <div className="grid grid-cols-6 gap-1">
+                            {SCORE_KEYS.map((key) => (
+                              <div key={key} className="text-center">
+                                <span className="block text-[9px] text-muted-foreground">
+                                  {SCORE_SHORT[key]}
+                                </span>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={10}
+                                  step={1}
+                                  value={scoreDrafts[inv.id]?.[key] ?? (s?.[key] === undefined ? "" : String(s[key]))}
+                                  onChange={(e) => handleScoreChange(inv, key, e.target.value)}
+                                  className="h-8 w-full px-0.5 text-center text-xs"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {SCORE_KEYS.map((key) => (
+                            <span
+                              key={key}
+                              className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] tabular-nums"
+                            >
+                              {SCORE_SHORT[key]} <b className="text-primary">{s?.[key] ?? "—"}</b>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2">
+                        <span className="mr-auto text-[10px] text-muted-foreground">
+                          Invité le {formatDate(inv.created_at)}
+                          {inv.reminded_at ? ` · relancé le ${formatDate(inv.reminded_at)}` : ""}
+                        </span>
+                        {savingNameId === inv.id && (
+                          <span className="text-[10px] text-muted-foreground">enregistrement…</span>
+                        )}
+                        {savedNameId === inv.id && (
+                          <span className="text-[10px] text-green-600">✓ nom enregistré</span>
+                        )}
+                        {inv.status === "pending" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => handleSaveScores(inv)}
+                            disabled={savingScoresId === inv.id}
+                          >
+                            {savingScoresId === inv.id ? "…" : "💾 Enregistrer"}
+                          </Button>
+                        )}
+                        {(inv.status === "pending" || inv.status === "deleted") && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => handleRemind(inv)}
+                            disabled={remindingId === inv.id}
+                          >
+                            {remindingId === inv.id ? "…" : "🔔 Relancer"}
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-red-600 hover:bg-red-50"
+                          onClick={() => handleDeleteInv(inv)}
+                          disabled={deletingId === inv.id}
+                        >
+                          {deletingId === inv.id ? "…" : "🗑️"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
@@ -1454,8 +1636,9 @@ function Dashboard({ user }: { user: UserInfo }) {
                 </p>
               )}
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={handleGenerateIndividual}
                   disabled={generatingIndiv || generatingTeam || !canGenerateIndividual || cooldownLeft > 0}
                 >
@@ -1468,6 +1651,7 @@ function Dashboard({ user }: { user: UserInfo }) {
                         : `📊 Générer une analyse individuelle${individualTargetName ? ` — ${individualTargetName}` : ""}`}
                 </Button>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={handleGenerateTeam}
                   disabled={generatingTeam || generatingIndiv || !canGenerateSelectedTeam || cooldownLeft > 0}
                 >
@@ -1487,13 +1671,12 @@ function Dashboard({ user }: { user: UserInfo }) {
                   : null}
               </p>
             </div>
-          </Card>
+          </Section>
         )}
 
         {/* Individual Analysis Result */}
         {individualAnalysis && (
-          <Card className="p-6">
-            <h2 className="text-base font-semibold mb-4">📊 Mon analyse individuelle</h2>
+          <Section icon="📊" title="Mon analyse individuelle" summary="Rapport détaillé — appuyez pour lire" defaultOpen>
             <MarkdownText text={individualAnalysis} />
             <div className="mt-6 flex flex-wrap gap-2">
               {indivUrls ? (
@@ -1523,13 +1706,12 @@ function Dashboard({ user }: { user: UserInfo }) {
             {storingIndiv && !indivUrls && (
               <p className="mt-2 text-xs text-muted-foreground">💾 Sauvegarde du rapport en cours…</p>
             )}
-          </Card>
+          </Section>
         )}
 
         {/* Team Analysis Result */}
         {teamAnalysis && (
-          <Card className="p-6">
-            <h2 className="text-base font-semibold mb-4">🤝 Analyse collective</h2>
+          <Section icon="🤝" title="Analyse collective" summary="Rapport d'équipe — appuyez pour lire" defaultOpen>
             <MarkdownText text={teamAnalysis} />
             <div className="mt-6 flex flex-wrap gap-2">
               {teamUrls ? (
@@ -1559,16 +1741,17 @@ function Dashboard({ user }: { user: UserInfo }) {
             {storingTeam && !teamUrls && (
               <p className="mt-2 text-xs text-muted-foreground">💾 Sauvegarde du rapport en cours…</p>
             )}
-          </Card>
+          </Section>
         )}
 
         {/* ③ Bibliothèque d'analyses */}
-        <Card className="p-6 scroll-mt-24" ref={libraryRef}>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h2 className="text-base font-semibold">
-              <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">3</span>
-              Bibliothèque d'analyses ({storedTeamAnalyses.length})
-            </h2>
+        <div className="scroll-mt-24" ref={libraryRef}>
+        <Section
+          step={3}
+          title="Bibliothèque d'analyses"
+          summary={`${storedTeamAnalyses.length} analyse${storedTeamAnalyses.length > 1 ? "s" : ""} · ${individualCount} individuelle${individualCount > 1 ? "s" : ""}, ${collectiveCount} collective${collectiveCount > 1 ? "s" : ""}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <Input
               value={librarySearch}
               onChange={(e) => setLibrarySearch(e.target.value)}
@@ -1769,7 +1952,8 @@ function Dashboard({ user }: { user: UserInfo }) {
               </p>
             </div>
           )}
-        </Card>
+        </Section>
+        </div>
       </main>
 
       {/* Barre d'action collante */}
@@ -1782,12 +1966,13 @@ function Dashboard({ user }: { user: UserInfo }) {
                 {selfSelected ? "vous inclus" : "sans vous"}
               </span>
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setSelectedInvitationIds([])}>
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              <Button size="sm" variant="ghost" className="hidden sm:inline-flex" onClick={() => setSelectedInvitationIds([])}>
                 Tout décocher
               </Button>
               <Button
                 size="sm"
+                className="flex-1 sm:flex-none"
                 onClick={handleGenerateIndividual}
                 disabled={generatingIndiv || generatingTeam || !canGenerateIndividual || cooldownLeft > 0}
                 title={
@@ -1806,6 +1991,7 @@ function Dashboard({ user }: { user: UserInfo }) {
               </Button>
               <Button
                 size="sm"
+                className="flex-1 sm:flex-none"
                 onClick={handleGenerateTeam}
                 disabled={generatingTeam || generatingIndiv || !canGenerateSelectedTeam || cooldownLeft > 0}
                 title={
