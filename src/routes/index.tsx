@@ -112,8 +112,8 @@ const QUESTIONS: string[] = [
 
 
 const MAPPING: Record<CategoryKey, number[]> = {
-  PN: [4, 8, 14, 22, 28, 33, 36, 50, 57, 60],
-  PNo: [6, 12, 16, 24, 26, 32, 37, 48, 52, 56],
+  PNr: [4, 8, 14, 22, 28, 33, 36, 50, 57, 60],
+  PNf: [6, 12, 16, 24, 26, 32, 37, 48, 52, 56],
   A: [1, 11, 17, 19, 27, 29, 38, 42, 44, 54],
   EL: [5, 7, 15, 23, 25, 41, 43, 47, 53, 59],
   EAS: [3, 9, 13, 21, 31, 34, 40, 46, 51, 58],
@@ -281,8 +281,8 @@ function Index() {
 
   const scores = useMemo(() => {
     const s: Record<CategoryKey, number> = {
-      PN: 0,
-      PNo: 0,
+      PNr: 0,
+      PNf: 0,
       A: 0,
       EL: 0,
       EAS: 0,

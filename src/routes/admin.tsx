@@ -1,8 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { isAdminEmail } from "@/lib/admin-config";
+import { normalizeScores } from "@/lib/ego-states";
 import {
   listAdminResults,
   deleteAdminResult as deleteAdminResultFn,
@@ -39,7 +40,7 @@ export const Route = createFileRoute("/admin")({
   component: Admin,
 });
 
-type CategoryKey = "PN" | "PNo" | "A" | "EL" | "EAS" | "EAR";
+type CategoryKey = "PNr" | "PNf" | "A" | "EL" | "EAS" | "EAR";
 type Scores = Record<CategoryKey, number>;
 
 const CATEGORIES: {
@@ -48,8 +49,8 @@ const CATEGORIES: {
   short: string;
   color: string;
 }[] = [
-  { key: "PN", label: "Parent Nourricier", short: "PNr", color: "oklch(0.72 0.15 30)" },
-  { key: "PNo", label: "Parent Normatif", short: "PNf", color: "oklch(0.6 0.15 60)" },
+  { key: "PNr", label: "Parent Nourricier", short: "PNr", color: "oklch(0.72 0.15 30)" },
+  { key: "PNf", label: "Parent Normatif", short: "PNf", color: "oklch(0.6 0.15 60)" },
   { key: "A", label: "Adulte", short: "A", color: "oklch(0.55 0.15 250)" },
   { key: "EL", label: "Enfant Libre", short: "EL", color: "oklch(0.7 0.17 140)" },
   { key: "EAS", label: "Enfant Adapté Soumis", short: "EAS", color: "oklch(0.6 0.13 310)" },
@@ -57,8 +58,8 @@ const CATEGORIES: {
 ];
 
 const DOMINANT_DESCRIPTIONS: Record<CategoryKey, string> = {
-  PN: "Parent Nourricier marqué : posture chaleureuse, protectrice, orientée vers le soin et l'encouragement des autres. Attention au risque de sur-protection ou de sauvetage (triangle dramatique de Karpman).",
-  PNo: "Parent Normatif fort : sens du cadre, des règles et des valeurs. Peut être structurant pour l'entourage, mais gare à la rigidité, au jugement ou au discours moralisateur.",
+  PNr: "Parent Nourricier marqué : posture chaleureuse, protectrice, orientée vers le soin et l'encouragement des autres. Attention au risque de sur-protection ou de sauvetage (triangle dramatique de Karpman).",
+  PNf: "Parent Normatif fort : sens du cadre, des règles et des valeurs. Peut être structurant pour l'entourage, mais gare à la rigidité, au jugement ou au discours moralisateur.",
   A: "Adulte solide : traitement rationnel de l'information, prise de décision fondée sur les faits, capacité à négocier et à résoudre les problèmes de manière posée.",
   EL: "Enfant Libre présent : spontanéité, créativité, expression émotionnelle assumée, capacité à jouer et à ressentir du plaisir. Peut parfois manquer de filtre selon le contexte.",
   EAS: "Enfant Adapté Soumis dominant : forte capacité d'adaptation, politesse, coopération. Risque de se sur-adapter, d'avoir du mal à dire non et d'accumuler du ressentiment.",
@@ -66,8 +67,8 @@ const DOMINANT_DESCRIPTIONS: Record<CategoryKey, string> = {
 };
 
 const LOW_DESCRIPTIONS: Record<CategoryKey, string> = {
-  PN: "Peu de Parent Nourricier : difficulté à se montrer bienveillant, à réconforter ou à se réconforter soi-même.",
-  PNo: "Peu de Parent Normatif : difficulté à poser un cadre, à faire respecter des règles ou à s'auto-discipliner.",
+  PNr: "Peu de Parent Nourricier : difficulté à se montrer bienveillant, à réconforter ou à se réconforter soi-même.",
+  PNf: "Peu de Parent Normatif : difficulté à poser un cadre, à faire respecter des règles ou à s'auto-discipliner.",
   A: "Adulte peu mobilisé : décisions plus souvent guidées par l'émotion ou l'injonction que par l'analyse objective.",
   EL: "Enfant Libre discret : peu d'expression spontanée, du plaisir ou de la créativité ; risque de rigidité intérieure.",
   EAS: "Enfant Adapté Soumis faible : peu de conformisme social ; peut compliquer l'insertion dans des cadres très normés.",
@@ -90,7 +91,7 @@ function buildInterpretation(scores: Scores) {
   const top = sorted.filter((e) => e.score === sorted[0].score);
   const lows = sorted.filter((e) => e.score <= 2);
 
-  const P = scores.PN + scores.PNo;
+  const P = scores.PNr + scores.PNf;
   const A = scores.A;
   const E = scores.EL + scores.EAS + scores.EAR;
   const total = P + A + E || 1;
@@ -121,8 +122,8 @@ function buildInterpretation(scores: Scores) {
   }
 
   const tParts: string[] = [];
-  if (scores.PN >= 7) tParts.push("posture d'aidant naturel, à surveiller pour ne pas glisser vers le sauvetage");
-  if (scores.PNo >= 7) tParts.push("tendance à structurer, évaluer, parfois juger");
+  if (scores.PNr >= 7) tParts.push("posture d'aidant naturel, à surveiller pour ne pas glisser vers le sauvetage");
+  if (scores.PNf >= 7) tParts.push("tendance à structurer, évaluer, parfois juger");
   if (scores.EL >= 7) tParts.push("expressivité et enthousiasme communicatifs");
   if (scores.EAS >= 7) tParts.push("forte adaptabilité sociale, avec un risque d'oubli de soi");
   if (scores.EAR >= 7) tParts.push("énergie d'opposition qui peut ressourcer comme user la relation");
@@ -138,13 +139,13 @@ function buildInterpretation(scores: Scores) {
     advice.push("Travailler l'affirmation de soi pour transformer la sur-adaptation en accord conscient (dire un vrai « oui » ou un vrai « non »).");
   if (scores.EAR >= 7)
     advice.push("Distinguer l'opposition automatique du désaccord argumenté, pour préserver la qualité du lien.");
-  if (scores.PN >= 8)
+  if (scores.PNr >= 8)
     advice.push("Vérifier que l'aide apportée est demandée et respecte l'autonomie de l'autre (éviter le rôle de Sauveur).");
-  if (scores.PNo >= 8)
+  if (scores.PNf >= 8)
     advice.push("Assouplir le discours normatif : passer du « il faut » au « je propose », pour ouvrir le dialogue.");
   if (scores.EL <= 3)
     advice.push("Faire une place au plaisir et à la spontanéité : activités créatives, jeu, expression des émotions positives.");
-  if (scores.PN <= 3)
+  if (scores.PNr <= 3)
     advice.push("Cultiver l'auto-bienveillance : se parler à soi-même comme on parlerait à un ami cher.");
   if (advice.length === 0)
     advice.push("Continuer à observer, dans les situations tendues, quel état du moi prend le devant — c'est déjà un excellent levier de conscience.");
@@ -239,10 +240,11 @@ function shortHash(h: string): string {
 }
 
 function averageScores(rows: ResultRow[]): Scores {
-  const out = { PN: 0, PNo: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores;
+  const out = { PNr: 0, PNf: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores;
   if (rows.length === 0) return out;
+  const normalized = rows.map((r) => normalizeScores(r.scores));
   (Object.keys(out) as CategoryKey[]).forEach((k) => {
-    const sum = rows.reduce((acc, r) => acc + (r.scores?.[k] ?? 0), 0);
+    const sum = normalized.reduce((acc, s) => acc + s[k], 0);
     out[k] = Math.round((sum / rows.length) * 10) / 10;
   });
   return out;
@@ -396,7 +398,7 @@ function ResultDetail({
       const input = {
         name: fullName,
         date: dateLabel,
-        scores: row.scores,
+        scores: normalizeScores(row.scores),
         analysis,
       };
       if (kind === "pdf") await downloadIndividualReportPdf(input);
@@ -651,7 +653,14 @@ function AdminDashboard() {
       try {
         const data = await listAdminResults();
         if (cancelled) return;
-        setRows((data as unknown) as ResultRow[]);
+        // Normalisation à la source : les résultats enregistrés avant le renommage
+        // des clés (PN/PNo) deviennent canoniques (PNr/PNf) pour tout l'écran.
+        setRows(
+          ((data as unknown) as ResultRow[]).map((r) => ({
+            ...r,
+            scores: normalizeScores(r.scores),
+          })),
+        );
 
         // Load team analyses
         const { data: taData } = await supabase
@@ -755,9 +764,7 @@ function AdminDashboard() {
     members: teamRows.map((r, i) => ({
       name: memberName(r, i),
       date: formatDate(r.created_at),
-      scores: (Object.fromEntries(
-        CATEGORIES.map((c) => [c.key, r.scores?.[c.key] ?? 0]),
-      ) as Scores),
+      scores: normalizeScores(r.scores),
     })),
     analysis: analysis ?? "",
   });
@@ -1189,8 +1196,8 @@ function AdminDashboard() {
                                 name,
                                 date: memberRows[i] ? formatDate(memberRows[i].created_at) : "",
                                 scores: memberRows[i]
-                                  ? (Object.fromEntries(CATEGORIES.map((c) => [c.key, memberRows[i].scores?.[c.key] ?? 0])) as Scores)
-                                  : ({ PN: 0, PNo: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores),
+                                  ? normalizeScores(memberRows[i].scores)
+                                  : ({ PNr: 0, PNf: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores),
                               }));
                               await downloadTeamReportPdf({ teamName: ta.team_name, average: avg, members, analysis: ta.analysis });
                             } catch { toast.error("Export PDF impossible."); }
@@ -1214,8 +1221,8 @@ function AdminDashboard() {
                                 name,
                                 date: memberRows[i] ? formatDate(memberRows[i].created_at) : "",
                                 scores: memberRows[i]
-                                  ? (Object.fromEntries(CATEGORIES.map((c) => [c.key, memberRows[i].scores?.[c.key] ?? 0])) as Scores)
-                                  : ({ PN: 0, PNo: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores),
+                                  ? normalizeScores(memberRows[i].scores)
+                                  : ({ PNr: 0, PNf: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores),
                               }));
                               await downloadTeamReportImage({ teamName: ta.team_name, average: avg, members, analysis: ta.analysis });
                             } catch { toast.error("Export image impossible."); }

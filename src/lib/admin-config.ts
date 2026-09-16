@@ -8,8 +8,8 @@ export function isAdminEmail(email?: string | null): boolean {
 }
 
 export const TEAM_ANALYSIS_LABELS: Record<string, string> = {
-  PN: "Parent Nourricier",
-  PNo: "Parent Normatif",
+  PNr: "Parent Nourricier",
+  PNf: "Parent Normatif",
   A: "Adulte",
   EL: "Enfant Libre",
   EAS: "Enfant Adapté Soumis",

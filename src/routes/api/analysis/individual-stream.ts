@@ -1,16 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { buildIndividualPrompt } from "@/lib/analysis-prompts";
+import { egoScoresSchema } from "@/lib/ego-scores.schema";
 import { streamGeminiText } from "@/lib/gemini-stream.server";
 
-const scoresSchema = z.object({
-  PN: z.number().int().min(0).max(10),
-  PNo: z.number().int().min(0).max(10),
-  A: z.number().int().min(0).max(10),
-  EL: z.number().int().min(0).max(10),
-  EAS: z.number().int().min(0).max(10),
-  EAR: z.number().int().min(0).max(10),
-});
+const scoresSchema = egoScoresSchema;
 
 export const Route = createFileRoute("/api/analysis/individual-stream")({
   server: {

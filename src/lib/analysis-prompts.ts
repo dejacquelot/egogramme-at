@@ -1,32 +1,22 @@
-import { TEAM_ANALYSIS_LABELS } from "@/lib/admin-config";
-
-const IND_LABELS: Record<string, string> = {
-  PN: "Parent Nourricier",
-  PNo: "Parent Normatif",
-  A: "Adulte",
-  EL: "Enfant Libre",
-  EAS: "Enfant Adapté Soumis",
-  EAR: "Enfant Adapté Rebelle",
-};
+import { EGO_STATE_LABELS, EGO_STATE_KEYS, normalizeScores } from "@/lib/ego-states";
 
 export function buildIndividualPrompt(scores: Record<string, number>, firstName?: string) {
-  const line = Object.keys(IND_LABELS)
-    .map((k) => `${IND_LABELS[k]} : ${scores[k] ?? 0}/10`)
-    .join("\n");
+  const s = normalizeScores(scores);
+  const line = EGO_STATE_KEYS.map((k) => `${EGO_STATE_LABELS[k]} : ${s[k]}/10`).join("\n");
 
-  const v = (k: string) => scores[k] ?? 0;
-  const parentTotal = v("PN") + v("PNo");
-  const adulteTotal = v("A");
-  const enfantTotal = v("EL") + v("EAS") + v("EAR");
+  const parentTotal = s.PNr + s.PNf;
+  const adulteTotal = s.A;
+  const enfantTotal = s.EL + s.EAS + s.EAR;
+  // Le bloc n'expose que des libellés complets : l'IA n'a aucune abréviation à recopier.
   const paeBlock =
-    `:::pae\nPN: ${v("PN")} | PNo: ${v("PNo")} | A: ${v("A")} | EL: ${v("EL")} | EAS: ${v("EAS")} | EAR: ${v("EAR")}\n:::`;
+    `:::pae\n${EGO_STATE_KEYS.map((k) => `${EGO_STATE_LABELS[k]}: ${s[k]}`).join(" | ")}\n:::`;
 
   const system =
-    "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, Claude Steiner, Fanita English). Tu maîtrises les concepts d'égogramme de John Dusay, les positions de vie (OK/OK), les drivers de Kahler, les jeux psychologiques, les scénarios de vie, les transactions croisées et les méconnaissances. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown standard. Tu illustres tes analyses par des exemples comportementaux concrets et quotidiens. Tu ne fais aucun disclaimer. RÈGLES DE FORMAT STRICTES : Utilise UNIQUEMENT les tableaux Markdown standard (format pipe : | col1 | col2 |, avec la ligne séparateur |---|---| OBLIGATOIRE juste après la ligne d'en-tête). N'utilise JAMAIS de tableaux ASCII-art (+---+---+), JAMAIS de blocs de code (```), JAMAIS de schémas ASCII (<--->, /\\, [ PARENT ] [ ADULTE ]). Ne dessine JAMAIS toi-même de représentation visuelle : les seuls visuels autorisés sont les blocs :::karpman et :::pae décrits ci-dessous. Pour le triangle de Karpman, utilise EXACTEMENT ce format :\n:::karpman\nPersécuteur: [NOM] ([état])\nSauveur: [NOM] ([état])\nVictime: [NOM] ([état])\n:::";
+    "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, Claude Steiner, Fanita English). Tu maîtrises les concepts d'égogramme de John Dusay, les positions de vie (OK/OK), les drivers de Kahler, les jeux psychologiques, les scénarios de vie, les transactions croisées et les méconnaissances. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown standard. Tu illustres tes analyses par des exemples comportementaux concrets et quotidiens. Tu ne fais aucun disclaimer. RÈGLES DE FORMAT STRICTES : Utilise UNIQUEMENT les tableaux Markdown standard (format pipe : | col1 | col2 |, avec la ligne séparateur |---|---| OBLIGATOIRE juste après la ligne d'en-tête). N'utilise JAMAIS de tableaux ASCII-art (+---+---+), JAMAIS de blocs de code (```), JAMAIS de schémas ASCII (<--->, /\\, [ PARENT ] [ ADULTE ]). Ne dessine JAMAIS toi-même de représentation visuelle : les seuls visuels autorisés sont les blocs :::karpman et :::pae décrits ci-dessous.     Pour le triangle de Karpman, utilise EXACTEMENT ce format :\n:::karpman\nPersécuteur: [NOM] ([état])\nSauveur: [NOM] ([état])\nVictime: [NOM] ([état])\n:::\nVOCABULAIRE OBLIGATOIRE : désigne TOUJOURS un état du moi par son nom complet — « Parent Nourricier », « Parent Normatif », « Adulte », « Enfant Libre », « Enfant Adapté Soumis », « Enfant Adapté Rebelle ». N'utilise JAMAIS d'abréviation (ni PN, ni PNo, ni PNr, ni PNf, ni EL, ni EAS, ni EAR), y compris entre parenthèses et dans les tableaux. Écris par exemple « Parent Normatif (8/10) », jamais « PNf 8 » ni « PNo 8 ».";
 
-  const user =
-    `Voici l'égogramme${firstName ? ` de ${firstName}` : ""} (analyse transactionnelle selon Dusay, scores de 0 à 10 par état du moi) :\n` +
-    line +
+      const user =
+        `Voici l'égogramme${firstName ? ` de ${firstName}` : ""} (analyse transactionnelle selon Dusay, scores de 0 à 10 par état du moi) :\n` +
+        line +
     `\n\nRédige une analyse individuelle approfondie en markdown, en français, avec ces sections :\n` +
     `## 🎯 Portrait global\nSynthèse en 3-4 phrases de la structure de personnalité révélée par cet égogramme. Nomme la position de vie probable (OK+/OK+, OK+/OK-, etc.).\n` +
     `## 📊 États du moi dominants\nAnalyse détaillée des 2-3 états les plus élevés. Pour chacun, donne 2-3 exemples concrets de comportements au quotidien (en réunion, en famille, sous stress). Explique comment ils interagissent entre eux.\n` +
@@ -45,14 +35,13 @@ export type TeamPromptMember = { name: string; scores: Record<string, number> };
 
 export function buildTeamPrompt(members: TeamPromptMember[], teamName?: string) {
   const memberLines = members.map((m) => {
-    const line = Object.keys(TEAM_ANALYSIS_LABELS)
-      .map((k) => `${TEAM_ANALYSIS_LABELS[k]} ${m.scores[k] ?? 0}/10`)
-      .join(", ");
+    const s = normalizeScores(m.scores);
+    const line = EGO_STATE_KEYS.map((k) => `${EGO_STATE_LABELS[k]} ${s[k]}/10`).join(", ");
     return `- ${m.name} : ${line}`;
   });
 
   const system =
-    "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, John Dusay, Claude Steiner). Tu analyses des égogrammes d'équipe pour un coach professionnel. Tu maîtrises les dynamiques de groupe, les transactions croisées, les jeux systémiques, les positions de vie, les symbioses institutionnelles et les processus de groupe. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown standard. Tu illustres par des exemples concrets de situations d'équipe. Tu ne fais aucun disclaimer. RÈGLES DE FORMAT STRICTES : Utilise UNIQUEMENT les tableaux Markdown standard (format pipe : | col1 | col2 |, avec la ligne séparateur |---|---| OBLIGATOIRE juste après la ligne d'en-tête, et exactement le même nombre de colonnes sur toutes les lignes). N'utilise JAMAIS de tableaux ASCII-art (+---+---+), JAMAIS de blocs de code (```), JAMAIS de schémas ASCII. Ne dessine JAMAIS toi-même de représentation visuelle : le seul visuel autorisé est le bloc :::karpman. Pour le triangle de Karpman, utilise EXACTEMENT ce format (sur 3 lignes, avec les noms réels des membres) :\n:::karpman\nPersécuteur: [NOM] ([état])\nSauveur: [NOM] ([état])\nVictime: [NOM] ([état])\n:::";
+    "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, John Dusay, Claude Steiner). Tu analyses des égogrammes d'équipe pour un coach professionnel. Tu maîtrises les dynamiques de groupe, les transactions croisées, les jeux systémiques, les positions de vie, les symbioses institutionnelles et les processus de groupe. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown standard. Tu illustres par des exemples concrets de situations d'équipe. Tu ne fais aucun disclaimer. RÈGLES DE FORMAT STRICTES : Utilise UNIQUEMENT les tableaux Markdown standard (format pipe : | col1 | col2 |, avec la ligne séparateur |---|---| OBLIGATOIRE juste après la ligne d'en-tête, et exactement le même nombre de colonnes sur toutes les lignes). N'utilise JAMAIS de tableaux ASCII-art (+---+---+), JAMAIS de blocs de code (```), JAMAIS de schémas ASCII. Ne dessine JAMAIS toi-même de représentation visuelle : le seul visuel autorisé est le bloc :::karpman. Pour le triangle de Karpman, utilise EXACTEMENT ce format (sur 3 lignes, avec les noms réels des membres) :\n:::karpman\nPersécuteur: [NOM] ([état])\nSauveur: [NOM] ([état])\nVictime: [NOM] ([état])\n:::\nVOCABULAIRE OBLIGATOIRE : désigne TOUJOURS un état du moi par son nom complet — « Parent Nourricier », « Parent Normatif », « Adulte », « Enfant Libre », « Enfant Adapté Soumis », « Enfant Adapté Rebelle ». N'utilise JAMAIS d'abréviation (ni PN, ni PNo, ni PNr, ni PNf, ni EL, ni EAS, ni EAR), y compris entre parenthèses et dans les en-têtes de tableaux.";
 
   const user =
     `Équipe${teamName ? ` « ${teamName} »` : ""} composée de ${members.length} personnes ayant passé un égogramme (analyse transactionnelle selon Dusay, scores de 0 à 10 par état du moi) :\n` +

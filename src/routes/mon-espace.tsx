@@ -1,10 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarkdownText } from "@/components/markdown-text";
+import { normalizeScores } from "@/lib/ego-states";
 import { EgogramCard } from "@/components/egogram-card";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -82,20 +83,20 @@ type StoredTeamAnalysis = {
 };
 
 const SCORE_LABELS: Record<string, string> = {
-  PN: "Parent Nourricier",
-  PNo: "Parent Normatif",
+  PNr: "Parent Nourricier",
+  PNf: "Parent Normatif",
   A: "Adulte",
   EL: "Enfant Libre",
   EAS: "Enfant Adapté Soumis",
   EAR: "Enfant Adapté Rebelle",
 };
 
-const SCORE_KEYS: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+const SCORE_KEYS: CatKey[] = ["PNr", "PNf", "A", "EL", "EAS", "EAR"];
 
 /** Libellés courts, identiques aux en-têtes du tableau (vue mobile en cartes). */
 const SCORE_SHORT: Record<CatKey, string> = {
-  PN: "PNr",
-  PNo: "PNf",
+  PNr: "PNr",
+  PNf: "PNf",
   A: "A",
   EL: "EL",
   EAS: "EAS",
@@ -325,7 +326,12 @@ function Dashboard({ user }: { user: UserInfo }) {
           );
         }
 
-        const result = resultSettled.status === "fulfilled" ? resultSettled.value : null;
+        const rawResult = resultSettled.status === "fulfilled" ? resultSettled.value : null;
+        // Normalisation à la source : un résultat enregistré sous les anciennes clés
+        // (PN/PNo) devient canonique (PNr/PNf) pour tout l'écran.
+        const result = rawResult
+          ? { ...rawResult, scores: normalizeScores(rawResult.scores) }
+          : null;
         const invs = invsSettled.status === "fulfilled" ? invsSettled.value : [];
         const storedTeams = teamsSettled.status === "fulfilled" ? teamsSettled.value : [];
 
@@ -342,7 +348,7 @@ function Dashboard({ user }: { user: UserInfo }) {
         // Compute team average if there are answered or manually filled invitations
         const invitationsWithScores = invs.filter((i: Invitation) => i.result_id);
         if (result && invitationsWithScores.length > 0) {
-          const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+          const cats: CatKey[] = ["PNr", "PNf", "A", "EL", "EAS", "EAR"];
           const resultIds = [result.id, ...invitationsWithScores.map((i: Invitation) => i.result_id!).filter(Boolean)];
           try {
             const memberRows = await getResultsByIds({ data: { ids: resultIds } });
@@ -352,13 +358,15 @@ function Dashboard({ user }: { user: UserInfo }) {
             const scoresMap: Record<string, Record<string, number>> = {};
             const namesMap: Record<string, string> = {};
             const validIds = new Set<string>();
-            const scoreKeys = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
             memberRows.forEach((r: any) => {
               const realName = [r.first_name, r.last_name].filter(Boolean).join(" ").trim();
               if (realName) namesMap[r.id] = realName;
-              const hasScores = r.scores && scoreKeys.some((k) => typeof r.scores[k] === "number" && r.scores[k] > 0);
+              // Test fait sur les scores normalisés, sinon un résultat enregistré
+              // sous les anciennes clés serait considéré comme vide.
+              const normalized = normalizeScores(r.scores);
+              const hasScores = SCORE_KEYS.some((k) => normalized[k] > 0);
               if (hasScores) {
-                scoresMap[r.id] = r.scores;
+                scoresMap[r.id] = normalized;
                 validIds.add(r.id);
               }
             });
@@ -378,7 +386,7 @@ function Dashboard({ user }: { user: UserInfo }) {
             const members: ReportMember[] = validMembers.map((r: any) => ({
               name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
               date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
-              scores: Object.fromEntries(cats.map((c) => [c, r.scores[c] ?? 0])) as ReportScores,
+              scores: normalizeScores(r.scores),
             }));
             setTeamMembers(members);
             if (members.length >= 2) {
@@ -495,13 +503,14 @@ function Dashboard({ user }: { user: UserInfo }) {
     }
 
     const memberRows = await getResultsByIds({ data: { ids: resultIds } });
-    const validMembers = memberRows.filter((r) =>
-      SCORE_KEYS.some((key) => typeof r.scores?.[key] === "number"),
-    );
+    const validMembers = memberRows.filter((r) => {
+      const normalized = normalizeScores(r.scores);
+      return SCORE_KEYS.some((key) => normalized[key] > 0);
+    });
     const members: ReportMember[] = validMembers.map((r) => ({
       name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
       date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
-      scores: Object.fromEntries(SCORE_KEYS.map((c) => [c, r.scores[c] ?? 0])) as ReportScores,
+      scores: normalizeScores(r.scores),
     }));
     setTeamMembers(members);
     if (members.length >= 2) {
@@ -834,11 +843,11 @@ function Dashboard({ user }: { user: UserInfo }) {
           // sur la bibliothèque.
           try {
             const memberRows = await getResultsByIds({ data: { ids: resultIds } });
-            const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+            const cats: CatKey[] = ["PNr", "PNf", "A", "EL", "EAS", "EAR"];
             const members: ReportMember[] = memberRows.map((r) => ({
               name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "Membre",
               date: new Date(r.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
-              scores: Object.fromEntries(cats.map((c) => [c, r.scores?.[c] ?? 0])) as ReportScores,
+              scores: normalizeScores(r.scores),
             }));
             if (members.length > 0) {
               setTeamMembers(members);
@@ -917,7 +926,7 @@ function Dashboard({ user }: { user: UserInfo }) {
         if (!row) throw new Error("Profil introuvable.");
         firstName = row.first_name || "Participant";
         lastName = row.last_name || "";
-        scores = row.scores as Record<string, number>;
+        scores = normalizeScores(row.scores);
         createdAt = row.created_at;
       }
 
@@ -961,11 +970,11 @@ function Dashboard({ user }: { user: UserInfo }) {
           }
 
           try {
-            const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+            const cats: CatKey[] = ["PNr", "PNf", "A", "EL", "EAS", "EAR"];
             const uploads = await buildIndividualReportUploads({
               name: fullName,
               date: new Date(createdAt).toLocaleDateString("fr-FR", { dateStyle: "long" }),
-              scores: Object.fromEntries(cats.map((c) => [c, scores[c] ?? 0])) as ReportScores,
+              scores: normalizeScores(scores),
               analysis: analysisText,
             });
             const urls = await storeReportFiles({
@@ -1006,11 +1015,11 @@ function Dashboard({ user }: { user: UserInfo }) {
     setDownloadingIndiv(kind);
     try {
       const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Résultat individuel";
-      const cats: CatKey[] = ["PN", "PNo", "A", "EL", "EAS", "EAR"];
+      const cats: CatKey[] = ["PNr", "PNf", "A", "EL", "EAS", "EAR"];
       const input = {
         name: fullName,
         date: new Date(myResult.created_at).toLocaleDateString("fr-FR", { dateStyle: "long" }),
-        scores: Object.fromEntries(cats.map((c) => [c, myResult.scores[c] ?? 0])) as ReportScores,
+        scores: normalizeScores(myResult.scores),
         analysis: individualAnalysis,
       };
       if (kind === "pdf") await downloadIndividualReportPdf(input);

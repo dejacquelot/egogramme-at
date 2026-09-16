@@ -1,12 +1,13 @@
 import logoUrl from "@/assets/team-performance-logo.png";
 import { parsePaeBlock, type PaeInstance } from "@/lib/pae";
+import { expandEgoStateAbbreviations } from "@/lib/ego-states";
 
-export type CatKey = "PN" | "PNo" | "A" | "EL" | "EAS" | "EAR";
+export type CatKey = "PNr" | "PNf" | "A" | "EL" | "EAS" | "EAR";
 export type ReportScores = Record<CatKey, number>;
 
 export const REPORT_CATEGORIES: { key: CatKey; label: string; short: string; color: string }[] = [
-  { key: "PN", label: "Parent Nourricier", short: "PNr", color: "#e2825a" },
-  { key: "PNo", label: "Parent Normatif", short: "PNf", color: "#c98a2e" },
+  { key: "PNr", label: "Parent Nourricier", short: "PNr", color: "#e2825a" },
+  { key: "PNf", label: "Parent Normatif", short: "PNf", color: "#c98a2e" },
   { key: "A", label: "Adulte", short: "A", color: "#4a6fd0" },
   { key: "EL", label: "Enfant Libre", short: "EL", color: "#3fa863" },
   { key: "EAS", label: "Enfant Adapté Soumis", short: "EAS", color: "#8f68c2" },
@@ -69,7 +70,8 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
 }
 
 function stripMd(s: string) {
-  return s
+  // Même garde-fou que sur l'écran : pas d'abréviation d'état du moi dans le texte.
+  return expandEgoStateAbbreviations(s)
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/\*\*/g, "")
     .replace(/\*([^*\n]+)\*/g, "$1")

@@ -1,5 +1,6 @@
 /** Full Markdown renderer: headings, bold, italic, lists, pipe tables, :::karpman / :::pae blocks. */
 import { parsePaeBlock } from "@/lib/pae";
+import { expandEgoStateAbbreviations } from "@/lib/ego-states";
 
 export function MarkdownText({ text }: { text: string }) {
   const html = markdownToHtml(text);
@@ -33,7 +34,10 @@ function escapeHtml(s: string): string {
 }
 
 function inlineMarkdown(s: string): string {
-  return escapeHtml(s)
+  // Garde-fou : les analyses enregistrées avant l'interdiction des abréviations
+  // contiennent encore « PNo 8 » ou « PNf 8 ». On rétablit le libellé complet à
+  // l'affichage. Le bloc :::pae et le triangle de Karpman ne passent pas par ici.
+  return escapeHtml(expandEgoStateAbbreviations(s))
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
     .replace(/_([^_]+)_/g, "<em>$1</em>");

@@ -6,8 +6,9 @@
  * explicitement désigné comme manquant.
  */
 
-export type TeaserRole = "Persécuteur" | "Sauveur" | "Victime";
+import { normalizeScores } from "@/lib/ego-states";
 
+export type TeaserRole = "Persécuteur" | "Sauveur" | "Victime";
 export type DuoTeaser = {
   /** Rôle que la personne occupe le plus facilement dans le triangle. */
   role: TeaserRole;
@@ -34,18 +35,19 @@ const ROLE_ICON: Record<TeaserRole, string> = {
 };
 
 export function buildDuoTeaser(scores: Record<string, number>): DuoTeaser {
-  const pn = scores.PN ?? 0;
-  const pno = scores.PNo ?? 0;
-  const eas = scores.EAS ?? 0;
-  const ear = scores.EAR ?? 0;
-  const a = scores.A ?? 0;
+  const s = normalizeScores(scores);
+  const nourricier = s.PNr;
+  const normatif = s.PNf;
+  const eas = s.EAS;
+  const ear = s.EAR;
+  const a = s.A;
 
   // Correspondance classique entre états du moi et rôles du triangle :
   // Parent Normatif → Persécuteur, Parent Nourricier → Sauveur,
   // Enfant Adapté Soumis → Victime.
   const candidates: Array<{ role: TeaserRole; label: string; score: number }> = [
-    { role: "Persécuteur", label: "Parent Normatif", score: pn },
-    { role: "Sauveur", label: "Parent Nourricier", score: pno },
+    { role: "Persécuteur", label: "Parent Normatif", score: normatif },
+    { role: "Sauveur", label: "Parent Nourricier", score: nourricier },
     { role: "Victime", label: "Enfant Adapté Soumis", score: eas },
   ];
   const top = candidates.reduce((best, c) => (c.score > best.score ? c : best));
@@ -56,7 +58,7 @@ export function buildDuoTeaser(scores: Record<string, number>): DuoTeaser {
 
   if (top.role === "Persécuteur") {
     headline =
-      `Avec un Parent Normatif à ${pn}/10, vous prenez facilement la place du ` +
+      `Avec un Parent Normatif à ${normatif}/10, vous prenez facilement la place du ` +
       `Persécuteur : vous rappelez le cadre, vous corrigez, vous attendez que ce soit fait correctement.`;
     mechanism =
       "Face à quelqu'un dont l'Enfant Adapté Soumis domine, le triangle se referme en quelques minutes : " +
@@ -67,7 +69,7 @@ export function buildDuoTeaser(scores: Record<string, number>): DuoTeaser {
       "Lequel de ces trois scénarios est le vôtre dépend entièrement de la personne en face de vous.";
   } else if (top.role === "Sauveur") {
     headline =
-      `Avec un Parent Nourricier à ${pno}/10, vous glissez naturellement vers le rôle du ` +
+      `Avec un Parent Nourricier à ${nourricier}/10, vous glissez naturellement vers le rôle du ` +
       `Sauveur : vous aidez souvent avant même qu'on vous l'ait demandé.`;
     mechanism =
       "Le Sauveur fabrique la Victime qu'il soulage : plus vous prenez en charge, moins l'autre a de raisons " +

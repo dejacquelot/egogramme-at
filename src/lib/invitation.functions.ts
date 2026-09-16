@@ -1,14 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { egoScoresSchema } from "@/lib/ego-scores.schema";
 
-const scoresSchema = z.object({
-  PN: z.number().int().min(0).max(10),
-  PNo: z.number().int().min(0).max(10),
-  A: z.number().int().min(0).max(10),
-  EL: z.number().int().min(0).max(10),
-  EAS: z.number().int().min(0).max(10),
-  EAR: z.number().int().min(0).max(10),
-});
+const scoresSchema = egoScoresSchema;
 
 /** Fetch results by IDs (for report generation) */
 export const getResultsByIds = createServerFn({ method: "POST" })

@@ -3,8 +3,8 @@
  * Partagés entre la page Test et la carte de l'égogramme.
  */
 export type CategoryKey =
-  | "PN"
-  | "PNo"
+  | "PNr"
+  | "PNf"
   | "A"
   | "EL"
   | "EAS"
@@ -18,14 +18,14 @@ export const CATEGORIES: {
   description: string;
 }[] = [
   {
-    key: "PN",
+    key: "PNr",
     label: "Parent Nourricier",
     short: "PNr",
     color: "oklch(0.72 0.15 30)",
     description: "Bienveillant, protecteur, encourageant.",
   },
   {
-    key: "PNo",
+    key: "PNf",
     label: "Parent Normatif",
     short: "PNf",
     color: "oklch(0.6 0.15 60)",
