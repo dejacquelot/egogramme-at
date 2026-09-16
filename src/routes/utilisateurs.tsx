@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { NavBar } from "@/components/nav-bar";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/admin-config";
-import { listAdminUsers } from "@/lib/admin.functions";
+import { deleteAdminUser, listAdminUsers } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/utilisateurs")({
   head: () => ({
@@ -36,14 +36,20 @@ type AdminUser = {
 
 function Utilisateurs() {
   const [authorized, setAuthorized] = useState(false);
+  const [adminEmail, setAdminEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [confirmEmailInput, setConfirmEmailInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (data.user && isAdminEmail(data.user.email ?? "")) {
         setAuthorized(true);
+        setAdminEmail(data.user.email ?? null);
         try {
           const result = await listAdminUsers();
           setUsers(result as AdminUser[]);
@@ -54,6 +60,45 @@ function Utilisateurs() {
       setLoading(false);
     });
   }, []);
+
+  const openDeleteConfirm = (userId: string) => {
+    setDeleteTarget(userId);
+    setConfirmEmailInput("");
+    setDeleteError(null);
+  };
+
+  const cancelDeleteConfirm = () => {
+    setDeleteTarget(null);
+    setConfirmEmailInput("");
+    setDeleteError(null);
+  };
+
+  const confirmDelete = async (u: AdminUser) => {
+    if (!adminEmail) return;
+    if (confirmEmailInput.trim().toLowerCase() !== u.email.trim().toLowerCase()) {
+      setDeleteError("L'email tapé ne correspond pas à celui du compte.");
+      return;
+    }
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAdminUser({
+        data: {
+          userId: u.id,
+          requestedByEmail: adminEmail,
+          confirmEmail: confirmEmailInput.trim(),
+        },
+      });
+      setUsers((prev) => prev.filter((x) => x.id !== u.id));
+      setExpandedUser((prev) => (prev === u.id ? null : prev));
+      setDeleteTarget(null);
+      setConfirmEmailInput("");
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Échec de la suppression.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const fmt = (d: string | null) =>
     d
@@ -236,6 +281,55 @@ function Utilisateurs() {
                     </table>
                   )}
                 </div>
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-border/50">
+                {deleteTarget === u.id ? (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                    <p className="text-xs font-semibold text-red-700 mb-1">
+                      ⚠️ Suppression RGPD irréversible
+                    </p>
+                    <p className="text-xs text-red-700/80 mb-2">
+                      Supprime le compte, ses résultats, ses invitations et ses analyses d'équipe.
+                      Pour confirmer, retapez l'email exact :{" "}
+                      <span className="font-semibold">{u.email}</span>
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="email"
+                        value={confirmEmailInput}
+                        onChange={(e) => setConfirmEmailInput(e.target.value)}
+                        placeholder="email exact du compte"
+                        className="flex-1 rounded-md border border-red-300 px-2 py-1.5 text-xs"
+                        disabled={deleting}
+                      />
+                      <button
+                        onClick={() => confirmDelete(u)}
+                        disabled={deleting || confirmEmailInput.trim().length === 0}
+                        className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer"
+                      >
+                        {deleting ? "Suppression…" : "Confirmer la suppression"}
+                      </button>
+                      <button
+                        onClick={cancelDeleteConfirm}
+                        disabled={deleting}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted cursor-pointer"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                    {deleteError && (
+                      <p className="text-xs text-red-700 mt-2">{deleteError}</p>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => openDeleteConfirm(u.id)}
+                    className="text-xs font-medium text-red-600 hover:text-red-800 underline cursor-pointer"
+                  >
+                    🗑️ Supprimer ce compte (demande RGPD)
+                  </button>
+                )}
               </div>
             </Card>
           );

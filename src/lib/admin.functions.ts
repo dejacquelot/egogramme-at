@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { ADMIN_EMAILS, isAdminEmail } from "@/lib/admin-config";
 
 export const listAdminResults = createServerFn({ method: "GET" })
   .handler(async () => {
@@ -370,5 +371,85 @@ export const listAdminStatsData = createServerFn({ method: "GET" })
           created_at: ta.created_at as string,
           creator_user_id: ta.creator_user_id as string,
         })),
+    };
+  });
+
+/**
+ * Suppression RGPD complète d'un compte utilisateur : ses résultats, ses
+ * invitations, ses analyses d'équipe et son compte Supabase Auth.
+ *
+ * Double garde-fou avant toute purge :
+ *  - `requestedByEmail` doit être un email admin whitelisté ;
+ *  - `confirmEmail` doit correspondre exactement à l'email du compte visé
+ *    (retapé côté client), pour éviter une suppression accidentelle en un
+ *    seul clic sur une action irréversible.
+ *
+ * Ne conserve aucune donnée personnelle après coup : seul un compteur
+ * anonyme est journalisé dans `admin_deletion_log` (preuve de conformité).
+ */
+export const deleteAdminUser = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string; requestedByEmail: string; confirmEmail: string }) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        requestedByEmail: z.string().email(),
+        confirmEmail: z.string().email(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const requestedBy = data.requestedByEmail.trim().toLowerCase();
+    if (!isAdminEmail(requestedBy)) throw new Error("Forbidden");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(
+      data.userId,
+    );
+    if (getUserError || !userData?.user) throw new Error("Utilisateur introuvable.");
+
+    const actualEmail = (userData.user.email ?? "").trim().toLowerCase();
+    const confirmed = data.confirmEmail.trim().toLowerCase();
+    if (!actualEmail || confirmed !== actualEmail) {
+      throw new Error("L'email de confirmation ne correspond pas au compte ciblé.");
+    }
+
+    const { data: deletedResults, error: resultsError } = await supabaseAdmin
+      .from("results")
+      .delete()
+      .eq("user_id", data.userId)
+      .select("id");
+    if (resultsError) throw resultsError;
+
+    const { data: deletedInvitations, error: invitationsError } = await supabaseAdmin
+      .from("invitations")
+      .delete()
+      .eq("inviter_user_id", data.userId)
+      .select("id");
+    if (invitationsError) throw invitationsError;
+
+    const { data: deletedTeamAnalyses, error: teamAnalysesError } = await supabaseAdmin
+      .from("team_analyses")
+      .delete()
+      .eq("creator_user_id", data.userId)
+      .select("id");
+    if (teamAnalysesError) throw teamAnalysesError;
+
+    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (authDeleteError) throw authDeleteError;
+
+    await supabaseAdmin.from("admin_deletion_log").insert({
+      deleted_user_id: data.userId,
+      requested_by: requestedBy,
+      results_deleted: deletedResults?.length ?? 0,
+      invitations_deleted: deletedInvitations?.length ?? 0,
+      team_analyses_deleted: deletedTeamAnalyses?.length ?? 0,
+    });
+
+    return {
+      ok: true as const,
+      resultsDeleted: deletedResults?.length ?? 0,
+      invitationsDeleted: deletedInvitations?.length ?? 0,
+      teamAnalysesDeleted: deletedTeamAnalyses?.length ?? 0,
     };
   });
