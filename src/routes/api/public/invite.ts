@@ -155,16 +155,25 @@ export const Route = createFileRoute("/api/public/invite")({
 
           // Recherche par jeton : utilisée côté invité pour retrouver le
           // résultat de la personne qui l'a invité (nécessaire au rapport
-          // de binôme sans compte).
+          // de binôme sans compte) et personnaliser l'accueil (scénario J4).
           if (token) {
             const { data, error } = await supabaseAdmin
               .from("invitations")
-              .select("id, inviter_result_id, result_id, status")
+              .select("id, inviter_result_id, result_id, status, invitee_first_name")
               .eq("token", z.string().min(1).parse(token))
               .maybeSingle();
             if (error) throw error;
             if (!data) {
               return Response.json({ ok: false, error: "Invitation introuvable." }, { status: 404 });
+            }
+            let inviterFirstName: string | null = null;
+            if (data.inviter_result_id) {
+              const { data: inviterResult } = await supabaseAdmin
+                .from("results")
+                .select("first_name")
+                .eq("id", data.inviter_result_id)
+                .maybeSingle();
+              inviterFirstName = inviterResult?.first_name ?? null;
             }
             return Response.json({
               ok: true,
@@ -172,6 +181,8 @@ export const Route = createFileRoute("/api/public/invite")({
                 inviterResultId: data.inviter_result_id as string | null,
                 inviteeResultId: data.result_id as string | null,
                 status: data.status as string,
+                inviterFirstName,
+                inviteeFirstName: data.invitee_first_name as string | null,
               },
             });
           }

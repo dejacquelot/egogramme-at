@@ -319,6 +319,33 @@ function Index() {
   // Save result only when analysis is generated (not on 60-question completion)
   const [resultId, setResultId] = useState<string | null>(null);
 
+  // J4 : personnalise le haut de page pour la personne invitée — qui l'a
+  // invitée et pour qui, avec repli en cascade si l'un des prénoms manque.
+  const [inviteContext, setInviteContext] = useState<{
+    inviterFirstName: string | null;
+    inviteeFirstName: string | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!invToken) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/public/invite?token=${encodeURIComponent(invToken)}`);
+        const json = await res.json().catch(() => null);
+        if (cancelled || !json?.ok) return;
+        setInviteContext({
+          inviterFirstName: json.invitation.inviterFirstName ?? null,
+          inviteeFirstName: json.invitation.inviteeFirstName ?? null,
+        });
+      } catch {
+        /* pas bloquant : la page reste utilisable sans bandeau personnalisé */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [invToken]);
+
   // Bandeau d'accueil : replié par défaut sur mobile pour ne pas repousser
   // la première question sous la ligne de flottaison. Toujours ouvert sur grand écran.
   const [heroOpen, setHeroOpen] = useState(false);
@@ -348,6 +375,19 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
+      {invToken && (
+        <div className="border-b border-violet-200 bg-violet-50">
+          <div className="mx-auto max-w-5xl px-4 py-2.5 text-center text-sm font-medium text-violet-900 sm:py-3">
+            {inviteContext?.inviterFirstName && inviteContext?.inviteeFirstName
+              ? `${inviteContext.inviterFirstName} a pensé à vous, ${inviteContext.inviteeFirstName} 👋 — faites le test, vous recevrez chacun votre rapport, plus un 3ᵉ rapport à deux.`
+              : inviteContext?.inviterFirstName
+                ? `${inviteContext.inviterFirstName} vous invite à découvrir votre profil relationnel — vous recevrez chacun votre rapport, plus un 3ᵉ rapport à deux.`
+                : inviteContext?.inviteeFirstName
+                  ? `Bonjour ${inviteContext.inviteeFirstName} 👋, quelqu'un vous invite à découvrir votre profil relationnel. Vous recevrez chacun votre rapport, plus un 3ᵉ rapport à deux.`
+                  : "👋 Vous avez été invité(e) à faire ce test — vos deux rapports serviront à créer votre rapport de binôme."}
+          </div>
+        </div>
+      )}
       <header className="border-b border-border">
         <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-600">
           <div className="mx-auto max-w-5xl px-4 py-7 text-center sm:py-12">
