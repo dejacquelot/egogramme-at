@@ -851,6 +851,10 @@ function ResultSection({
     const url = resultId ? `${base}/?ref=${resultId}` : `${base}/`;
     const text =
       "Je viens de faire ce test d'égogramme : 5 minutes pour comprendre son profil relationnel, avec une analyse personnalisée à la clé.";
+    // Le lien est fusionné dans "text" plutôt que passé séparément : certaines
+    // applications reçues via le partage système (Outlook, Gmail…) n'utilisent
+    // que l'un des deux champs et font disparaître l'autre selon l'app cible.
+    const fullMessage = `${text}\n\n${url}`;
 
     const nav = navigator as Navigator & {
       share?: (data: { title?: string; text?: string; url?: string }) => Promise<void>;
@@ -858,7 +862,7 @@ function ResultSection({
 
     if (nav.share) {
       try {
-        await nav.share({ title: "Test égogramme", text, url });
+        await nav.share({ title: "Test égogramme", text: fullMessage });
         setShareState("shared");
         void fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
         return;
@@ -869,13 +873,29 @@ function ResultSection({
     }
 
     try {
-      await navigator.clipboard.writeText(`${text}\n\n${url}`);
+      await navigator.clipboard.writeText(fullMessage);
       setShareState("copied");
       void fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
     } catch {
       setShareState("error");
     }
   };
+
+  // Alternative fiable au partage système : mailto: avec sujet et corps
+  // toujours corrects, quel que soit le client de messagerie de destination.
+  const handleShareByEmail = () => {
+    if (typeof window === "undefined") return;
+    const base = window.location.origin;
+    const url = resultId ? `${base}/?ref=${resultId}` : `${base}/`;
+    const text =
+      "Je viens de faire ce test d'égogramme : 5 minutes pour comprendre son profil relationnel, avec une analyse personnalisée à la clé.";
+    window.open(
+      `mailto:?subject=${encodeURIComponent("Découvre ton profil relationnel")}&body=${encodeURIComponent(`${text}\n\n${url}`)}`,
+      "_blank",
+    );
+    void fetch("/api/public/track-share", { method: "POST" }).catch(() => {});
+  };
+
 
   useEffect(() => {
     if (shareState === "idle") return;
@@ -1044,6 +1064,9 @@ function ResultSection({
             )}
             <Button variant="outline" onClick={handleShare}>
               Partager le test
+            </Button>
+            <Button variant="outline" onClick={handleShareByEmail}>
+              ✉️ Envoyer par email
             </Button>
           </div>
           {shareState !== "idle" && (
