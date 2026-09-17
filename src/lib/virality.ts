@@ -27,6 +27,7 @@ export type StatsPayload = {
   results: StatsResult[];
   teamAnalyses: { id: string; created_at: string; creator_user_id: string | null }[];
   shareEvents: { id: string; created_at: string }[];
+  binomeInfoClicks: { id: string; created_at: string }[];
 };
 
 export const EMPTY_STATS: StatsPayload = {
@@ -35,6 +36,7 @@ export const EMPTY_STATS: StatsPayload = {
   results: [],
   teamAnalyses: [],
   shareEvents: [],
+  binomeInfoClicks: [],
 };
 
 export async function loadStats(): Promise<StatsPayload> {
@@ -54,6 +56,7 @@ export async function loadStats(): Promise<StatsPayload> {
     results: body.results ?? [],
     teamAnalyses: body.teamAnalyses ?? [],
     shareEvents: body.shareEvents ?? [],
+    binomeInfoClicks: body.binomeInfoClicks ?? [],
   };
 }
 
@@ -83,6 +86,7 @@ export type Virality = {
   distinctInviters: number;
   secondGeneration: number;
   shares: number;
+  binomeInfoClicks: number;
   arrivalsFromLink: number;
   teamAnalyses: number;
   accounts: number;
@@ -126,6 +130,7 @@ export function computeVirality(
     distinctInviters: inviters.size,
     secondGeneration,
     shares: payload.shareEvents.filter((s) => inRange(s.created_at, since)).length,
+    binomeInfoClicks: payload.binomeInfoClicks.filter((c) => inRange(c.created_at, since)).length,
     arrivalsFromLink: results.filter((r) => Boolean(r.referred_by)).length,
     teamAnalyses: payload.teamAnalyses.filter((t) => inRange(t.created_at, since)).length,
     accounts: payload.users.filter((u) => inRange(u.created_at, since)).length,

@@ -326,6 +326,14 @@ function Index() {
   // Panneau égogramme accessible pendant le test sur mobile
   const [chartOpen, setChartOpen] = useState(false);
 
+  // Détail "comment ça marche avec un binôme" : accordéon inline sous le
+  // schéma des 3 rapports, avec comptage du clic pour /statistiques.
+  const [binomeInfoOpen, setBinomeInfoOpen] = useState(false);
+  const handleBinomeInfoClick = () => {
+    setBinomeInfoOpen((v) => !v);
+    void fetch("/api/public/track-binome-info", { method: "POST" }).catch(() => {});
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
@@ -375,6 +383,92 @@ function Index() {
             <p className="mt-5 text-sm font-bold text-white sm:mt-6 sm:text-base">
               L'IA au service de vos relations. Et gratuitement !
             </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Scénario A corrigé (E1+E2+E5) : schéma allégé "2 rapports individuels
+            + 1 rapport de binôme", un seul lien secondaire (pas de 2e CTA). */}
+        <div className="border-t border-border bg-background">
+          <div className="mx-auto grid max-w-5xl gap-8 px-4 py-8 sm:py-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <div>
+              <h2 className="max-w-md text-xl font-bold leading-snug tracking-tight text-foreground sm:text-2xl">
+                Un test pour vous. Une analyse en plus pour votre relation.
+              </h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+                Chacun reçoit son rapport individuel. En comparant vos profils, Égogramme
+                génère un troisième rapport consacré à votre fonctionnement en binôme.
+              </p>
+              <button
+                type="button"
+                onClick={handleBinomeInfoClick}
+                className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 hover:underline"
+                aria-expanded={binomeInfoOpen}
+              >
+                Comment ça marche avec un binôme {binomeInfoOpen ? "▲" : "→"}
+              </button>
+              {binomeInfoOpen && (
+                <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
+                  Invitez une deuxième personne depuis « Mon Espace » après votre test. Une fois
+                  son test terminé, le rapport du binôme se génère automatiquement à partir de
+                  vos deux profils — sans étape supplémentaire de votre côté.
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-center gap-4 rounded-2xl border border-border bg-muted/40 p-5 sm:gap-5 sm:p-6">
+              <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm text-white">
+                    A
+                  </span>
+                  <span className="text-xs font-semibold text-foreground sm:text-sm">
+                    Rapport individuel A
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm text-white">
+                    B
+                  </span>
+                  <span className="text-xs font-semibold text-foreground sm:text-sm">
+                    Rapport individuel B
+                  </span>
+                </div>
+              </div>
+              <span className="text-xl font-light text-muted-foreground" aria-hidden="true">
+                →
+              </span>
+              <div className="w-56 rounded-lg border-2 border-violet-200 bg-card p-3.5 shadow-sm sm:w-64 sm:p-4">
+                <div className="mb-2.5 text-xs font-bold text-foreground">
+                  Rapport du binôme <span className="text-violet-700">A + B</span>
+                </div>
+                <div className="grid gap-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground sm:text-xs">
+                    <i className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-emerald-600 text-[10px] font-extrabold not-italic text-white">
+                      +
+                    </i>
+                    Forces du binôme
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground sm:text-xs">
+                    <i className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-amber-500 text-[10px] font-extrabold not-italic text-white">
+                      !
+                    </i>
+                    Risques de tensions
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground sm:text-xs">
+                    <i className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-rose-500 text-[10px] font-extrabold not-italic text-white">
+                      △
+                    </i>
+                    Jeux psychologiques
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground sm:text-xs">
+                    <i className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-blue-500 text-[10px] font-extrabold not-italic text-white">
+                      ↔
+                    </i>
+                    Leviers de coopération
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

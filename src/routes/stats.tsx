@@ -184,6 +184,7 @@ function StatsContent() {
   const [invitationRows, setInvitationRows] = useState<{ created_at: string }[]>([]);
   const [teamRows, setTeamRows] = useState<{ created_at: string }[]>([]);
   const [teamByUsersRows, setTeamByUsersRows] = useState<{ created_at: string }[]>([]);
+  const [binomeClickRows, setBinomeClickRows] = useState<{ created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalResults, setTotalResults] = useState<number | null>(null);
   const [totalAccounts, setTotalAccounts] = useState<number | null>(null);
@@ -252,6 +253,7 @@ function StatsContent() {
           .filter((row) => Boolean(row.creator_user_id))
           .filter((row) => new Date(row.created_at) >= since),
       );
+      setBinomeClickRows(payload.binomeInfoClicks.filter((row) => new Date(row.created_at) >= since));
       setTeamRows(((teamsRes as { data: { created_at: string }[] | null }).data) ?? []);
       setLoading(false);
     })();
@@ -269,6 +271,7 @@ function StatsContent() {
     const invitationsMap = new Map<string, number>();
     const teamsMap = new Map<string, number>();
     const teamsByUsersMap = new Map<string, number>();
+    const binomeClicksMap = new Map<string, number>();
     keys.forEach((k) => {
       visitorsMap.set(k, 0);
       completedMap.set(k, 0);
@@ -276,6 +279,7 @@ function StatsContent() {
       invitationsMap.set(k, 0);
       teamsMap.set(k, 0);
       teamsByUsersMap.set(k, 0);
+      binomeClicksMap.set(k, 0);
     });
     rows.forEach((r) => {
       const d = period === "hour" ? new Date(r.created_at) : new Date(r.visit_date + "T00:00:00Z");
@@ -307,6 +311,11 @@ function StatsContent() {
       const key = bucketKey(d, period);
       if (teamsByUsersMap.has(key)) teamsByUsersMap.set(key, (teamsByUsersMap.get(key) ?? 0) + 1);
     });
+    binomeClickRows.forEach((r) => {
+      const d = new Date(r.created_at);
+      const key = bucketKey(d, period);
+      if (binomeClicksMap.has(key)) binomeClicksMap.set(key, (binomeClicksMap.get(key) ?? 0) + 1);
+    });
     return keys.map((k) => ({
       label: bucketLabel(k, period),
       visitors: visitorsMap.get(k) ?? 0,
@@ -315,8 +324,9 @@ function StatsContent() {
       invitations: invitationsMap.get(k) ?? 0,
       teams: teamsMap.get(k) ?? 0,
       teamsByUsers: teamsByUsersMap.get(k) ?? 0,
+      binomeClicks: binomeClicksMap.get(k) ?? 0,
     }));
-  }, [rows, resultRows, accountRows, invitationRows, teamRows, teamByUsersRows, period]);
+  }, [rows, resultRows, accountRows, invitationRows, teamRows, teamByUsersRows, binomeClickRows, period]);
 
   const totalVisitors = chartData.reduce((a, b) => a + b.visitors, 0);
   const totalCompleted = chartData.reduce((a, b) => a + b.completed, 0);
@@ -541,6 +551,15 @@ function StatsContent() {
                     activeDot={{ r: 5 }}
                     name="Tests collectifs générés (Mon Espace)"
                   />
+                  <Line
+                    type="monotone"
+                    dataKey="binomeClicks"
+                    stroke="oklch(0.6 0.2 25)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                    name="Clics « Comment ça marche avec un binôme »"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -595,7 +614,7 @@ function StatsContent() {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
             {[
               {
                 label: "Invitations par participant",
@@ -621,6 +640,11 @@ function StatsContent() {
                 label: "Liens partagés",
                 value: String(viral.shares),
                 all: String(viralAllTime.shares),
+              },
+              {
+                label: "Clics « Comment ça marche avec un binôme »",
+                value: String(viral.binomeInfoClicks),
+                all: String(viralAllTime.binomeInfoClicks),
               },
               {
                 label: "Arrivées via un lien",
