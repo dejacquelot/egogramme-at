@@ -336,8 +336,13 @@ function Index() {
 
   // CTA d'engagement conscient : fait défiler jusqu'à la première question
   // plutôt que de laisser le test démarrer "en silence" au fil du scroll.
-  const scrollToQuestions = () => {
-    document.getElementById("questions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // G2 : deux parcours d'entrée pointent vers le même test ; le parcours
+  // duo ouvre en plus l'accordéon d'explication binôme sur mobile.
+  const scrollToQuestions = (opts?: { duo?: boolean }) => {
+    if (opts?.duo) setHeroOpen(true);
+    requestAnimationFrame(() => {
+      document.getElementById("questions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   return (
@@ -359,13 +364,47 @@ function Index() {
               </span>
             </p>
 
-            <button
-              type="button"
-              onClick={scrollToQuestions}
-              className="mt-5 inline-flex min-h-[42px] items-center justify-center rounded-lg bg-white px-6 text-sm font-bold text-violet-700 shadow-sm sm:mt-6"
-            >
-              Commencer le test (5 min) ↓
-            </button>
+            {/* G2 : deux parcours d'entrée — le test est identique, seuls le
+                cadrage et la suite diffèrent (rapport solo, ou solo + duo). */}
+            <div className="mx-auto mt-6 grid max-w-lg gap-3 text-left sm:mt-7 sm:max-w-2xl sm:grid-cols-2 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => scrollToQuestions()}
+                className="rounded-2xl border border-white/25 bg-white/10 p-4 text-white transition hover:bg-white/15 sm:p-5"
+              >
+                <span className="inline-flex h-9 items-center justify-center rounded-lg bg-white/20 px-3 text-lg">
+                  🙂
+                </span>
+                <p className="mt-3 text-sm font-bold sm:text-base">Mon profil relationnel</p>
+                <p className="mt-1 text-xs leading-relaxed text-white/80">
+                  Faites le test seul(e) et recevez votre analyse personnelle en 5 minutes.
+                </p>
+                <span className="mt-3 flex min-h-[38px] w-full items-center justify-center rounded-lg bg-white px-4 text-xs font-bold text-violet-700">
+                  Commencer seul(e) →
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToQuestions({ duo: true })}
+                className="rounded-2xl border border-white/40 bg-white/15 p-4 text-white transition hover:bg-white/20 sm:p-5"
+              >
+                <span className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-white/20 px-3 text-lg">
+                  <span>🙂</span>
+                  <span>🙂</span>
+                </span>
+                <p className="mt-3 text-sm font-bold sm:text-base">Notre dynamique à deux</p>
+                <p className="mt-1 text-xs leading-relaxed text-white/80">
+                  Faites le test, puis invitez quelqu'un : vous recevrez chacun votre rapport, plus
+                  un 3ᵉ rapport de binôme.
+                </p>
+                <span className="mt-3 flex min-h-[38px] w-full items-center justify-center rounded-lg bg-white px-4 text-xs font-bold text-violet-700">
+                  Commencer à deux →
+                </span>
+              </button>
+            </div>
+            <p className="mt-4 text-xs text-white/85">
+              🔒 Anonyme, sans inscription obligatoire — les deux parcours utilisent le même test.
+            </p>
 
             <button
               type="button"
