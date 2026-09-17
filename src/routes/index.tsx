@@ -346,6 +346,28 @@ function Index() {
     };
   }, [invToken]);
 
+  // K4 : personnalise le bandeau des liens de partage informel (?ref=) —
+  // cite le prénom du partageur quand il est connu, sinon repli générique
+  // qui explique la valeur du test sans dépendre d'un nom.
+  const [referrerFirstName, setReferrerFirstName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!referredBy || invToken) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/public/share-context?resultId=${encodeURIComponent(referredBy)}`);
+        const json = await res.json().catch(() => null);
+        if (cancelled || !json?.ok) return;
+        setReferrerFirstName(json.firstName ?? null);
+      } catch {
+        /* pas bloquant : repli générique déjà prévu dans le rendu */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [referredBy, invToken]);
+
   // Bandeau d'accueil : replié par défaut sur mobile pour ne pas repousser
   // la première question sous la ligne de flottaison. Toujours ouvert sur grand écran.
   const [heroOpen, setHeroOpen] = useState(false);
@@ -385,6 +407,15 @@ function Index() {
                 : inviteContext?.inviteeFirstName
                   ? `Bonjour ${inviteContext.inviteeFirstName} 👋, quelqu'un vous invite à découvrir votre profil relationnel. Vous recevrez chacun votre rapport, plus un 3ᵉ rapport à deux.`
                   : "👋 Vous avez été invité(e) à faire ce test — vos deux rapports serviront à créer votre rapport de binôme."}
+          </div>
+        </div>
+      )}
+      {!invToken && referredBy && (
+        <div className="border-b border-violet-200 bg-violet-50">
+          <div className="mx-auto max-w-5xl px-4 py-2.5 text-center text-sm font-medium text-violet-900 sm:py-3">
+            {referrerFirstName
+              ? `${referrerFirstName} vous partage ce test 👋 — 5 minutes pour découvrir votre profil relationnel. Faites-le à deux : un 3ᵉ rapport de binôme se génère en plus.`
+              : "👋 Ce test de 5 minutes révèle votre profil relationnel. Faites-le à deux : vous recevrez en plus un rapport de binôme."}
           </div>
         </div>
       )}
