@@ -118,6 +118,12 @@ export const Route = createFileRoute("/api/public/duo-report")({
             .select("id")
             .single();
           if (error) throw error;
+          // Tracking H3 : distingue ces rapports (sans compte) de ceux
+          // générés depuis Mon Espace pour la courbe /statistiques.
+          await supabaseAdmin.from("duo_reports_generated").insert({}).then(
+            () => {},
+            () => {},
+          );
           return Response.json({ ok: true, teamAnalysisId: inserted?.id ?? null });
         } catch (e) {
           return Response.json({ ok: false, error: errorMessage(e) }, { status: 400 });

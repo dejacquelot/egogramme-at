@@ -185,6 +185,7 @@ function StatsContent() {
   const [teamRows, setTeamRows] = useState<{ created_at: string }[]>([]);
   const [teamByUsersRows, setTeamByUsersRows] = useState<{ created_at: string }[]>([]);
   const [binomeClickRows, setBinomeClickRows] = useState<{ created_at: string }[]>([]);
+  const [duoReportRows, setDuoReportRows] = useState<{ created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalResults, setTotalResults] = useState<number | null>(null);
   const [totalAccounts, setTotalAccounts] = useState<number | null>(null);
@@ -254,6 +255,7 @@ function StatsContent() {
           .filter((row) => new Date(row.created_at) >= since),
       );
       setBinomeClickRows(payload.binomeInfoClicks.filter((row) => new Date(row.created_at) >= since));
+      setDuoReportRows(payload.duoReportsGenerated.filter((row) => new Date(row.created_at) >= since));
       setTeamRows(((teamsRes as { data: { created_at: string }[] | null }).data) ?? []);
       setLoading(false);
     })();
@@ -272,6 +274,7 @@ function StatsContent() {
     const teamsMap = new Map<string, number>();
     const teamsByUsersMap = new Map<string, number>();
     const binomeClicksMap = new Map<string, number>();
+    const duoReportsMap = new Map<string, number>();
     keys.forEach((k) => {
       visitorsMap.set(k, 0);
       completedMap.set(k, 0);
@@ -280,6 +283,7 @@ function StatsContent() {
       teamsMap.set(k, 0);
       teamsByUsersMap.set(k, 0);
       binomeClicksMap.set(k, 0);
+      duoReportsMap.set(k, 0);
     });
     rows.forEach((r) => {
       const d = period === "hour" ? new Date(r.created_at) : new Date(r.visit_date + "T00:00:00Z");
@@ -316,6 +320,11 @@ function StatsContent() {
       const key = bucketKey(d, period);
       if (binomeClicksMap.has(key)) binomeClicksMap.set(key, (binomeClicksMap.get(key) ?? 0) + 1);
     });
+    duoReportRows.forEach((r) => {
+      const d = new Date(r.created_at);
+      const key = bucketKey(d, period);
+      if (duoReportsMap.has(key)) duoReportsMap.set(key, (duoReportsMap.get(key) ?? 0) + 1);
+    });
     return keys.map((k) => ({
       label: bucketLabel(k, period),
       visitors: visitorsMap.get(k) ?? 0,
@@ -325,8 +334,19 @@ function StatsContent() {
       teams: teamsMap.get(k) ?? 0,
       teamsByUsers: teamsByUsersMap.get(k) ?? 0,
       binomeClicks: binomeClicksMap.get(k) ?? 0,
+      duoReports: duoReportsMap.get(k) ?? 0,
     }));
-  }, [rows, resultRows, accountRows, invitationRows, teamRows, teamByUsersRows, binomeClickRows, period]);
+  }, [
+    rows,
+    resultRows,
+    accountRows,
+    invitationRows,
+    teamRows,
+    teamByUsersRows,
+    binomeClickRows,
+    duoReportRows,
+    period,
+  ]);
 
   const totalVisitors = chartData.reduce((a, b) => a + b.visitors, 0);
   const totalCompleted = chartData.reduce((a, b) => a + b.completed, 0);
@@ -560,6 +580,15 @@ function StatsContent() {
                     activeDot={{ r: 5 }}
                     name="Clics « Comment ça marche avec un binôme »"
                   />
+                  <Line
+                    type="monotone"
+                    dataKey="duoReports"
+                    stroke="oklch(0.55 0.2 300)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                    name="Rapports de binôme générés (sans compte)"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -614,7 +643,7 @@ function StatsContent() {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-8">
             {[
               {
                 label: "Invitations par participant",
@@ -645,6 +674,11 @@ function StatsContent() {
                 label: "Clics « Comment ça marche avec un binôme »",
                 value: String(viral.binomeInfoClicks),
                 all: String(viralAllTime.binomeInfoClicks),
+              },
+              {
+                label: "Rapports de binôme générés (sans compte)",
+                value: String(viral.duoReportsGenerated),
+                all: String(viralAllTime.duoReportsGenerated),
               },
               {
                 label: "Arrivées via un lien",
