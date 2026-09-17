@@ -148,13 +148,38 @@ export const Route = createFileRoute("/api/public/invite")({
       GET: async ({ request }) => {
         try {
           const url = new URL(request.url);
+          const token = url.searchParams.get("token");
+          const { supabaseAdmin } = await import(
+            "@/integrations/supabase/client.server"
+          );
+
+          // Recherche par jeton : utilisée côté invité pour retrouver le
+          // résultat de la personne qui l'a invité (nécessaire au rapport
+          // de binôme sans compte).
+          if (token) {
+            const { data, error } = await supabaseAdmin
+              .from("invitations")
+              .select("id, inviter_result_id, result_id, status")
+              .eq("token", z.string().min(1).parse(token))
+              .maybeSingle();
+            if (error) throw error;
+            if (!data) {
+              return Response.json({ ok: false, error: "Invitation introuvable." }, { status: 404 });
+            }
+            return Response.json({
+              ok: true,
+              invitation: {
+                inviterResultId: data.inviter_result_id as string | null,
+                inviteeResultId: data.result_id as string | null,
+                status: data.status as string,
+              },
+            });
+          }
+
           const resultId = z
             .string()
             .uuid()
             .parse(url.searchParams.get("resultId"));
-          const { supabaseAdmin } = await import(
-            "@/integrations/supabase/client.server"
-          );
           const { data, error } = await supabaseAdmin
             .from("invitations")
             .select(

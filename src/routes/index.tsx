@@ -1026,7 +1026,7 @@ function ResultSection({
             </p>
           )}
 
-          <DuoNextStep scores={scores} resultId={resultId} user={user} />
+          <DuoNextStep scores={scores} resultId={resultId} user={user} invToken={invToken} />
           </>
           )}
         </div>

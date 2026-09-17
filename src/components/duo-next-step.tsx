@@ -3,7 +3,9 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MarkdownText } from "@/components/markdown-text";
 import { supabase } from "@/integrations/supabase/client";
+import { streamAnalysis } from "@/lib/stream-client";
 import { buildDuoTeaser, DUO_SECTIONS, type TeaserRole } from "@/lib/karpman-teaser";
 
 type UserInfo = { id?: string; email: string } | null;
@@ -336,6 +338,102 @@ function AccountGateway({
 }
 
 /**
+ * H3 — génération du rapport de binôme à la demande, sans compte requis.
+ * N'appelle l'IA que si quelqu'un clique réellement ; le résultat est
+ * réutilisé (via team_analyses) pour toute personne redemandant la paire.
+ */
+function DuoReportPanel({
+  resultIdA,
+  resultIdB,
+}: {
+  resultIdA: string;
+  resultIdB: string;
+}) {
+  const [checking, setChecking] = useState(true);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/public/duo-report?a=${encodeURIComponent(resultIdA)}&b=${encodeURIComponent(resultIdB)}`,
+        );
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (json?.ok && json.exists) setAnalysis(json.analysis as string);
+      } catch {
+        /* pas bloquant : le bouton de génération reste disponible */
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resultIdA, resultIdB]);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setError(null);
+    try {
+      const text = await streamAnalysis(
+        "/api/analysis/team-stream",
+        { ids: [resultIdA, resultIdB] },
+        (partial) => setAnalysis(partial),
+      );
+      if (text) {
+        await fetch("/api/public/duo-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resultIdA, resultIdB, analysis: text }),
+        }).catch(() => {});
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Génération impossible.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  if (checking) {
+    return (
+      <p className="text-xs text-muted-foreground">Vérification du rapport de binôme…</p>
+    );
+  }
+
+  if (analysis) {
+    return (
+      <div className="rounded-xl border-2 border-violet-300 bg-violet-50 p-4 sm:p-5">
+        <p className="text-sm font-semibold text-violet-900">
+          🤝 Votre rapport de binôme
+        </p>
+        <div className="mt-2 text-sm leading-relaxed text-violet-950">
+          <MarkdownText text={analysis} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border-2 border-violet-300 bg-violet-50 p-4 sm:p-5">
+      <p className="text-sm font-semibold text-violet-900">
+        Votre binôme a terminé — le rapport peut être généré
+      </p>
+      <p className="mt-1 text-xs text-violet-800">
+        Aucun compte nécessaire : un clic suffit pour obtenir votre analyse à deux.
+      </p>
+      <Button size="sm" className="mt-3" onClick={handleGenerate} disabled={generating}>
+        {generating ? "Génération en cours…" : "🤝 Générer notre rapport à deux"}
+      </Button>
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+/**
  * Retour de l'inviteur sans compte : ses invitations sont conservées en local,
  * on vérifie si quelqu'un a répondu. C'est le moment où le compte cesse d'être
  * un péage pour devenir la clé d'un coffre déjà rempli.
@@ -343,6 +441,7 @@ function AccountGateway({
 export function InviteReturnBanner({ user }: { user: UserInfo }) {
   const [answered, setAnswered] = useState<string[]>([]);
   const [originResultId, setOriginResultId] = useState<string | null>(null);
+  const [partnerResultId, setPartnerResultId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user || typeof window === "undefined") return;
@@ -365,13 +464,18 @@ export function InviteReturnBanner({ user }: { user: UserInfo }) {
         );
         const json = await res.json();
         if (cancelled || !json?.ok) return;
-        const done = (json.invitations ?? [])
-          .filter((i: { status: string }) => i.status === "completed")
-          .map(
-            (i: { invitee_first_name: string | null; invitee_name: string | null }) =>
-              i.invitee_first_name || i.invitee_name || "Votre invité",
-          );
+        const completedInvitations = (json.invitations ?? []).filter(
+          (i: { status: string }) => i.status === "completed",
+        );
+        const done = completedInvitations.map(
+          (i: { invitee_first_name: string | null; invitee_name: string | null }) =>
+            i.invitee_first_name || i.invitee_name || "Votre invité",
+        );
         setAnswered(done);
+        const firstPartnerResultId = completedInvitations.find(
+          (i: { result_id: string | null }) => i.result_id,
+        )?.result_id as string | undefined;
+        if (firstPartnerResultId) setPartnerResultId(firstPartnerResultId);
       } catch {
         /* hors ligne : non bloquant */
       }
@@ -395,11 +499,17 @@ export function InviteReturnBanner({ user }: { user: UserInfo }) {
         analyse à {answered.length === 1 ? "deux" : "plusieurs"} est prête à être
         générée.
       </p>
-      <p className="text-xs text-emerald-800">
-        Créez votre compte pour l'ouvrir : elle vous attend dans votre espace
-        personnel.
-      </p>
-      <AccountGateway resultId={originResultId} invited />
+      {originResultId && partnerResultId ? (
+        <DuoReportPanel resultIdA={originResultId} resultIdB={partnerResultId} />
+      ) : (
+        <>
+          <p className="text-xs text-emerald-800">
+            Créez votre compte pour l'ouvrir : elle vous attend dans votre espace
+            personnel.
+          </p>
+          <AccountGateway resultId={originResultId} invited />
+        </>
+      )}
     </div>
   );
 }
@@ -412,16 +522,48 @@ export function DuoNextStep({
   scores,
   resultId,
   user,
+  invToken,
 }: {
   scores: Record<string, number>;
   resultId: string | null;
   user: UserInfo;
+  invToken?: string | null;
 }) {
   const [invited, setInvited] = useState(false);
+
+  // Côté invité (arrivé via un lien ?inv=) : retrouve le résultat de la
+  // personne qui a invité, pour proposer le rapport de binôme sans compte.
+  const [inviterResultId, setInviterResultId] = useState<string | null>(null);
+  useEffect(() => {
+    if (user || !invToken) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/public/invite?token=${encodeURIComponent(invToken)}`);
+        const json = await res.json().catch(() => null);
+        if (cancelled || !json?.ok) return;
+        const inv = json.invitation as {
+          inviterResultId: string | null;
+          status: string;
+        };
+        if (inv?.status === "completed" && inv.inviterResultId) {
+          setInviterResultId(inv.inviterResultId);
+        }
+      } catch {
+        /* non bloquant */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, invToken]);
 
   return (
     <div className="mt-8 space-y-4 border-t border-border pt-6">
       <DuoTeaser scores={scores} />
+      {!user && inviterResultId && resultId && (
+        <DuoReportPanel resultIdA={inviterResultId} resultIdB={resultId} />
+      )}
       {user ? (
         <div className="rounded-xl border border-indigo-200 bg-white p-4 shadow-sm sm:p-5">
           <p className="text-sm font-semibold text-indigo-900">
