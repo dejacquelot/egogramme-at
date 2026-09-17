@@ -598,7 +598,7 @@ function Index() {
           que si vous en créez un.
         </p>
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-          <section id="questions" aria-label="Questions" className="space-y-2">
+          <section id="questions" aria-label="Questions" className="scroll-mt-28 space-y-2">
             {QUESTIONS.map((q, i) => {
               const val = answers[i];
               return (
