@@ -334,6 +334,12 @@ function Index() {
     void fetch("/api/public/track-binome-info", { method: "POST" }).catch(() => {});
   };
 
+  // CTA d'engagement conscient : fait défiler jusqu'à la première question
+  // plutôt que de laisser le test démarrer "en silence" au fil du scroll.
+  const scrollToQuestions = () => {
+    document.getElementById("questions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
@@ -352,6 +358,14 @@ function Index() {
                 {" "}Puis analysez les dynamiques d'un couple, d'une famille, d'une équipe ou d'un collectif.
               </span>
             </p>
+
+            <button
+              type="button"
+              onClick={scrollToQuestions}
+              className="mt-5 inline-flex min-h-[42px] items-center justify-center rounded-lg bg-white px-6 text-sm font-bold text-violet-700 shadow-sm sm:mt-6"
+            >
+              Commencer le test (5 min) ↓
+            </button>
 
             <button
               type="button"
@@ -388,8 +402,10 @@ function Index() {
         </div>
 
         {/* Scénario A corrigé (E1+E2+E5) : schéma allégé "2 rapports individuels
-            + 1 rapport de binôme", un seul lien secondaire (pas de 2e CTA). */}
-        <div className="border-t border-border bg-background">
+            + 1 rapport de binôme", un seul lien secondaire (pas de 2e CTA).
+            F1 : replié par défaut sur mobile, dans le même accordéon que le
+            hero, pour raccourcir le trajet jusqu'à la première question. */}
+        <div className={`border-t border-border bg-background ${heroOpen ? "" : "hidden sm:block"}`}>
           <div className="mx-auto grid max-w-5xl gap-8 px-4 py-8 sm:py-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div>
               <h2 className="max-w-md text-xl font-bold leading-snug tracking-tight text-foreground sm:text-2xl">
@@ -536,8 +552,14 @@ function Index() {
       </div>
 
       <main className="mx-auto max-w-5xl px-4 py-5 sm:py-8">
+        {/* F2 : réassurance RGPD juste avant la première question — le moment
+            où l'utilisateur décide réellement de répondre. */}
+        <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground sm:mb-5">
+          🔒 Anonyme, sans inscription obligatoire — vos réponses ne sont liées à un compte
+          que si vous en créez un.
+        </p>
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-          <section aria-label="Questions" className="space-y-2">
+          <section id="questions" aria-label="Questions" className="space-y-2">
             {QUESTIONS.map((q, i) => {
               const val = answers[i];
               return (
