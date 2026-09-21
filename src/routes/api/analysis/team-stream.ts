@@ -32,7 +32,9 @@ export const Route = createFileRoute("/api/analysis/team-stream")({
           }));
 
           const { system, user } = buildTeamPrompt(members, teamName);
-          return await streamGeminiText(system, user);
+          return await streamGeminiText(system, user, {
+            completionMarker: "Points de vigilance individuels",
+          });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           console.error("team-stream error", msg);

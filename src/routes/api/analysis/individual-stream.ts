@@ -16,7 +16,9 @@ export const Route = createFileRoute("/api/analysis/individual-stream")({
           const firstName =
             typeof body?.firstName === "string" ? body.firstName.slice(0, 80) : undefined;
           const { system, user } = buildIndividualPrompt(scores, firstName);
-          return await streamGeminiText(system, user);
+          return await streamGeminiText(system, user, {
+            completionMarker: "Pistes de développement et coaching",
+          });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           console.error("individual-stream error", msg);

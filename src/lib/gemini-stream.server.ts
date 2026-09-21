@@ -17,10 +17,21 @@ function isDailyQuota(body: string): boolean {
   return /PerDay|per day|FreeTier/i.test(body);
 }
 
-export async function streamGeminiText(system: string, user: string): Promise<Response> {
-  const apiKey = process.env["GEMINI_API_KEY"];
-  if (!apiKey) return new Response("Clé IA manquante.", { status: 500 });
+/** Résultat d'une tentative d'appel Gemini avec retry. */
+type GeminiAttemptResult =
+  | { ok: true; upstream: Response }
+  | { ok: false; errorResponse: Response };
 
+/**
+ * Envoie une requête à Gemini (system + user) avec la logique de retry
+ * habituelle (503/429/500, repli sans thinkingConfig sur 400). Utilisée à la
+ * fois pour la génération initiale et pour les appels de continuation.
+ */
+async function fetchGeminiWithRetry(
+  apiKey: string,
+  system: string,
+  user: string,
+): Promise<GeminiAttemptResult> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
 
   // Le mode « réflexion » du modèle retarde le premier mot de 20 à 30 secondes
@@ -42,7 +53,7 @@ export async function streamGeminiText(system: string, user: string): Promise<Re
   // On réessaie avec un backoff exponentiel avant d'abandonner.
   const RETRIABLE = new Set([429, 500, 503]);
   const MAX_ATTEMPTS = 4;
-  const MAX_TOTAL_WAIT_MS = 12_000; // garde-fou : durée max d'une fonction serverless
+  const MAX_TOTAL_WAIT_MS = 12_000; // garde-fou : durée max d'une tentative de connexion
   let upstream: Response | null = null;
   let lastStatus = 0;
   let lastBody = "";
@@ -105,83 +116,140 @@ export async function streamGeminiText(system: string, user: string): Promise<Re
   if (!upstream || !upstream.ok || !upstream.body) {
     console.error("gemini stream error", lastStatus, lastBody.slice(0, 500));
     if (lastStatus === 503) {
-      return new Response(
-        "Le service d'IA est momentanément surchargé. Merci de réessayer dans quelques instants.",
-        { status: 503 },
-      );
+      return {
+        ok: false,
+        errorResponse: new Response(
+          "Le service d'IA est momentanément surchargé. Merci de réessayer dans quelques instants.",
+          { status: 503 },
+        ),
+      };
     }
     if (lastStatus === 429) {
       if (isDailyQuota(lastBody)) {
-        return new Response(
-          "Quota journalier de l'IA atteint. Les analyses redeviendront disponibles demain, " +
-            "ou immédiatement en activant la facturation sur la clé Gemini.",
-          { status: 429 },
-        );
+        return {
+          ok: false,
+          errorResponse: new Response(
+            "Quota journalier de l'IA atteint. Les analyses redeviendront disponibles demain, " +
+              "ou immédiatement en activant la facturation sur la clé Gemini.",
+            { status: 429 },
+          ),
+        };
       }
       const suggested = parseRetryDelayMs(lastBody);
       const seconds = suggested ? Math.ceil(suggested / 1000) : 30;
-      return new Response(
-        `Limite de vitesse de l'IA atteinte (trop d'analyses coup sur coup). ` +
-          `Patientez environ ${seconds} secondes puis relancez.`,
-        { status: 429 },
-      );
+      return {
+        ok: false,
+        errorResponse: new Response(
+          `Limite de vitesse de l'IA atteinte (trop d'analyses coup sur coup). ` +
+            `Patientez environ ${seconds} secondes puis relancez.`,
+          { status: 429 },
+        ),
+      };
     }
-    return new Response("Analyse indisponible pour le moment.", { status: 502 });
+    return { ok: false, errorResponse: new Response("Analyse indisponible pour le moment.", { status: 502 }) };
   }
 
-  const reader = upstream.body.getReader();
+  return { ok: true, upstream };
+}
+
+/**
+ * Consomme le corps SSE d'une réponse Gemini et retourne les fragments de
+ * texte au fur et à mesure (générateur async), afin d'être ré-utilisable
+ * aussi bien pour la génération initiale que pour une continuation.
+ */
+async function* sseTextChunks(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+  const reader = body.getReader();
   const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
   let buffer = "";
 
+  const parseLine = (raw: string): string | null => {
+    const trimmed = raw.trim();
+    if (!trimmed.startsWith("data:")) return null;
+    const payload = trimmed.slice(5).trim();
+    if (!payload || payload === "[DONE]") return null;
+    try {
+      const parsed = JSON.parse(payload) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+      return parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+    } catch {
+      return null; // fragment JSON incomplet — ignoré
+    }
+  };
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        const text = parseLine(buffer.trim());
+        if (text) yield text;
+        return;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const raw of lines) {
+        const text = parseLine(raw);
+        if (text) yield text;
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+}
+
+export async function streamGeminiText(
+  system: string,
+  user: string,
+  opts?: { completionMarker?: string },
+): Promise<Response> {
+  const apiKey = process.env["GEMINI_API_KEY"];
+  if (!apiKey) return new Response("Clé IA manquante.", { status: 500 });
+
+  const first = await fetchGeminiWithRetry(apiKey, system, user);
+  if (first.ok === false) return first.errorResponse;
+
+  const encoder = new TextEncoder();
+  // Le flux Gemini se fait parfois couper (probablement par la passerelle
+  // Google elle-même, autour de ~60s) avant la fin de la génération, ce qui
+  // tronquait les analyses les plus longues (dernières sections manquantes).
+  // Si un marqueur de fin attendu n'est pas trouvé, on relance automatiquement
+  // un appel de continuation qui reprend exactement où le texte s'est arrêté.
+  const MAX_CONTINUATIONS = 3;
+  const completionMarker = opts?.completionMarker;
+
   const stream = new ReadableStream<Uint8Array>({
-    async pull(controller) {
+    async start(controller) {
+      let fullText = "";
       try {
-        const { done, value } = await reader.read();
-        if (done) {
-          // Flush a trailing event that wasn't newline-terminated
-          const trimmed = buffer.trim();
-          if (trimmed.startsWith("data:")) {
-            const payload = trimmed.slice(5).trim();
-            if (payload && payload !== "[DONE]") {
-              try {
-                const parsed = JSON.parse(payload) as {
-                  candidates?: { content?: { parts?: { text?: string }[] } }[];
-                };
-                const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) controller.enqueue(encoder.encode(text));
-              } catch {
-                /* ignoré */
-              }
-            }
+        let upstream = first.upstream;
+        for (let round = 0; round <= MAX_CONTINUATIONS; round++) {
+          for await (const chunk of sseTextChunks(upstream.body!)) {
+            fullText += chunk;
+            controller.enqueue(encoder.encode(chunk));
           }
-          controller.close();
-          return;
+
+          const isComplete = !completionMarker || fullText.includes(completionMarker);
+          if (isComplete || round === MAX_CONTINUATIONS) break;
+
+          console.warn(
+            `gemini stream: texte tronqué (marqueur de fin absent), continuation ${round + 1}/${MAX_CONTINUATIONS}`,
+          );
+          const continuationUser =
+            `${user}\n\n---\n` +
+            `Voici le texte que tu as déjà rédigé pour cette même demande, interrompu en plein milieu :\n\n` +
+            `${fullText}\n\n` +
+            `---\nContinue directement la rédaction à partir de là où le texte ci-dessus s'arrête, ` +
+            `sans rien répéter de ce qui précède, sans réintroduire de titre déjà traité, et sans commentaire ` +
+            `sur la coupure. Termine toutes les sections restantes demandées initialement.`;
+          const next = await fetchGeminiWithRetry(apiKey, system, continuationUser);
+          if (next.ok === false) break; // on garde ce qui a déjà été généré plutôt que d'échouer
+          upstream = next.upstream;
         }
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const raw of lines) {
-          const trimmed = raw.trim();
-          if (!trimmed.startsWith("data:")) continue;
-          const payload = trimmed.slice(5).trim();
-          if (!payload || payload === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(payload) as {
-              candidates?: { content?: { parts?: { text?: string }[] } }[];
-            };
-            const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) controller.enqueue(encoder.encode(text));
-          } catch {
-            /* fragment JSON incomplet — ignoré */
-          }
-        }
+        controller.close();
       } catch (e) {
         controller.error(e);
       }
-    },
-    cancel() {
-      reader.cancel().catch(() => {});
     },
   });
 
