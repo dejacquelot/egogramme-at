@@ -20,7 +20,7 @@ import {
   deleteInvitation,
   updateInvitationName,
 } from "@/lib/invitation.functions";
-import { updateMyResultName } from "@/lib/admin.functions";
+import { updateMyResultName, deleteMyAccount } from "@/lib/admin.functions";
 import { libraryApi } from "@/lib/library-api";
 import {
   downloadTeamReportPdf,
@@ -212,6 +212,26 @@ function Dashboard({ user }: { user: UserInfo }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState({ first: "", last: "" });
   const [savingName, setSavingName] = useState(false);
+
+  // Suppression de compte en libre-service : ré-saisie de l'email en guise
+  // de confirmation, sur le même principe que la suppression admin.
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteAccountEmail, setDeleteAccountEmail] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
+
+  const handleDeleteAccount = async () => {
+    setDeleteAccountError(null);
+    setDeletingAccount(true);
+    try {
+      await deleteMyAccount({ data: { userId: user.id, confirmEmail: deleteAccountEmail.trim() } });
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch (e) {
+      setDeleteAccountError(e instanceof Error ? e.message : "Suppression impossible.");
+      setDeletingAccount(false);
+    }
+  };
 
   // Invite form
   const [invFirstName, setInvFirstName] = useState("");
@@ -2020,6 +2040,71 @@ function Dashboard({ user }: { user: UserInfo }) {
               </p>
             </div>
           )}
+        </Section>
+
+        <Section icon="🔒" title="Compte & confidentialité">
+          <div className="space-y-4 text-sm">
+            <ul className="space-y-1.5 text-xs text-muted-foreground">
+              <li>🔒 Vos réponses et vos rapports restent strictement privés — personne d'autre n'y a accès sans votre action.</li>
+              <li>🚫 Aucune donnée n'est revendue ni utilisée à des fins publicitaires.</li>
+              <li>🗑️ Vous pouvez supprimer votre compte et toutes vos données à tout moment, ci-dessous.</li>
+            </ul>
+            <div>
+              {!deleteAccountOpen ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => setDeleteAccountOpen(true)}
+                >
+                  🗑️ Supprimer mon compte et mes données
+                </Button>
+              ) : (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-semibold text-red-900">
+                    Cette action est irréversible
+                  </p>
+                  <p className="mt-1 text-xs text-red-800">
+                    Vos résultats, vos invitations et vos analyses seront supprimés définitivement.
+                    Pour confirmer, retapez votre email : <strong>{user.email}</strong>
+                  </p>
+                  <Input
+                    value={deleteAccountEmail}
+                    onChange={(e) => setDeleteAccountEmail(e.target.value)}
+                    placeholder={user.email}
+                    className="mt-3 h-9 max-w-sm"
+                  />
+                  {deleteAccountError && (
+                    <p className="mt-2 text-xs text-red-700">{deleteAccountError}</p>
+                  )}
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={
+                        deletingAccount ||
+                        deleteAccountEmail.trim().toLowerCase() !== user.email.trim().toLowerCase()
+                      }
+                      onClick={handleDeleteAccount}
+                    >
+                      {deletingAccount ? "Suppression…" : "Confirmer la suppression"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setDeleteAccountOpen(false);
+                        setDeleteAccountEmail("");
+                        setDeleteAccountError(null);
+                      }}
+                    >
+                      Annuler
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </Section>
         </div>
       </main>

@@ -266,6 +266,7 @@ function AccountGateway({
   invited: boolean;
 }) {
   const [registering, setRegistering] = useState(false);
+  const [faqOpen, setFaqOpen] = useState(false);
 
   const handleOAuth = async (provider: "google" | "linkedin_oidc") => {
     setRegistering(true);
@@ -295,6 +296,14 @@ function AccountGateway({
           ? "Votre compte vous permet de suivre les réponses, de générer l'analyse à deux et de la retrouver depuis n'importe quel appareil."
           : "Votre espace personnel conserve vos réponses, vos invitations et vos analyses, sur tous vos appareils."}
       </p>
+      {/* L1 : réassurance visible avant de cliquer, pour lever la peur de
+          "je ne sais pas ce qui va arriver à mes données" avant qu'elle
+          ne bloque le clic. */}
+      <ul className="mt-3 space-y-1 text-xs text-gray-600">
+        <li>🔒 Strictement privé — personne d'autre n'y a accès sans votre action.</li>
+        <li>🚫 Jamais revendu ni utilisé à des fins publicitaires.</li>
+        <li>🗑️ Suppression de votre compte et de vos données en un clic, à tout moment.</li>
+      </ul>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           onClick={() => handleOAuth("google")}
@@ -333,6 +342,37 @@ function AccountGateway({
         </a>
         .
       </p>
+
+      {/* L3 : FAQ dépliable pour répondre aux objections précises sans
+          quitter la page ("qui voit mes données ?", "combien de temps ?"). */}
+      <button
+        type="button"
+        onClick={() => setFaqOpen((v) => !v)}
+        className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-indigo-700 hover:underline"
+        aria-expanded={faqOpen}
+      >
+        Que devient mon profil ? {faqOpen ? "▲" : "→"}
+      </button>
+      {faqOpen && (
+        <dl className="mt-2 space-y-2.5 rounded-lg bg-gray-50 p-3 text-xs text-gray-700">
+          <div>
+            <dt className="font-semibold text-gray-900">Qui peut voir mes réponses ?</dt>
+            <dd className="mt-0.5">Personne d'autre que vous, sauf si vous invitez explicitement quelqu'un pour un rapport de binôme partagé.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-gray-900">Est-ce utilisé pour entraîner une IA ?</dt>
+            <dd className="mt-0.5">Non. Vos réponses servent uniquement à générer votre propre rapport.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-gray-900">Combien de temps mes données sont-elles conservées ?</dt>
+            <dd className="mt-0.5">Tant que vous gardez votre compte. Vous pouvez le supprimer à tout moment depuis « Mon Espace ».</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-gray-900">Comment tout supprimer ?</dt>
+            <dd className="mt-0.5">Un bouton « Supprimer mon compte et mes données » est disponible dans Mon Espace, section « Compte & confidentialité ».</dd>
+          </div>
+        </dl>
+      )}
     </div>
   );
 }

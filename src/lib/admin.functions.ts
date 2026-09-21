@@ -453,3 +453,75 @@ export const deleteAdminUser = createServerFn({ method: "POST" })
       teamAnalysesDeleted: deletedTeamAnalyses?.length ?? 0,
     };
   });
+
+/**
+ * Suppression de compte en libre-service, sans passer par un administrateur.
+ * Même effet que `deleteAdminUser` (résultats, invitations, analyses d'équipe,
+ * puis le compte auth), mais la garde-fou est ici la ré-saisie du propre
+ * email du demandeur — `userId` reste passé par le client comme pour les
+ * autres server functions de ce fichier (aucune vérification de session
+ * côté serveur n'est en place ailleurs dans ce projet), donc le seul rempart
+ * contre un appel accidentel ou malveillant est cette confirmation d'email.
+ */
+export const deleteMyAccount = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string; confirmEmail: string }) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        confirmEmail: z.string().email(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(
+      data.userId,
+    );
+    if (getUserError || !userData?.user) throw new Error("Compte introuvable.");
+
+    const actualEmail = (userData.user.email ?? "").trim().toLowerCase();
+    const confirmed = data.confirmEmail.trim().toLowerCase();
+    if (!actualEmail || confirmed !== actualEmail) {
+      throw new Error("L'email saisi ne correspond pas à votre compte.");
+    }
+
+    const { data: deletedResults, error: resultsError } = await supabaseAdmin
+      .from("results")
+      .delete()
+      .eq("user_id", data.userId)
+      .select("id");
+    if (resultsError) throw resultsError;
+
+    const { data: deletedInvitations, error: invitationsError } = await supabaseAdmin
+      .from("invitations")
+      .delete()
+      .eq("inviter_user_id", data.userId)
+      .select("id");
+    if (invitationsError) throw invitationsError;
+
+    const { data: deletedTeamAnalyses, error: teamAnalysesError } = await supabaseAdmin
+      .from("team_analyses")
+      .delete()
+      .eq("creator_user_id", data.userId)
+      .select("id");
+    if (teamAnalysesError) throw teamAnalysesError;
+
+    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (authDeleteError) throw authDeleteError;
+
+    await supabaseAdmin.from("admin_deletion_log").insert({
+      deleted_user_id: data.userId,
+      requested_by: `self:${actualEmail}`,
+      results_deleted: deletedResults?.length ?? 0,
+      invitations_deleted: deletedInvitations?.length ?? 0,
+      team_analyses_deleted: deletedTeamAnalyses?.length ?? 0,
+    });
+
+    return {
+      ok: true as const,
+      resultsDeleted: deletedResults?.length ?? 0,
+      invitationsDeleted: deletedInvitations?.length ?? 0,
+      teamAnalysesDeleted: deletedTeamAnalyses?.length ?? 0,
+    };
+  });
