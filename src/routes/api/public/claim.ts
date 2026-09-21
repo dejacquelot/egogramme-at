@@ -41,9 +41,21 @@ export const Route = createFileRoute("/api/public/claim")({
             .select("id");
           if (invitationError) throw invitationError;
 
+          // O3 : rattache aussi le(s) rapport(s) de binôme générés sans
+          // compte (H3) impliquant ce résultat, pour qu'ils apparaissent
+          // dans Mon Espace après création du compte.
+          const { data: claimedTeamAnalyses, error: teamAnalysesError } = await supabaseAdmin
+            .from("team_analyses")
+            .update({ creator_user_id: userId } as Record<string, unknown>)
+            .is("creator_user_id", null)
+            .contains("member_ids", [resultId])
+            .select("id");
+          if (teamAnalysesError) throw teamAnalysesError;
+
           return Response.json({
             ok: true,
             invitationsClaimed: (claimed ?? []).length,
+            teamAnalysesClaimed: (claimedTeamAnalyses ?? []).length,
           });
         } catch (e) {
           const msg = errorMessage(e);

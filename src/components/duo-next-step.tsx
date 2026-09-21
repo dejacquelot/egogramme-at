@@ -261,9 +261,13 @@ function InviteGateway({
 function AccountGateway({
   resultId,
   invited,
+  heading,
+  description,
 }: {
   resultId: string | null;
   invited: boolean;
+  heading?: string;
+  description?: string;
 }) {
   const [registering, setRegistering] = useState(false);
   const [faqOpen, setFaqOpen] = useState(false);
@@ -287,14 +291,16 @@ function AccountGateway({
   return (
     <div className="rounded-xl border border-indigo-200 bg-white p-4 shadow-sm sm:p-5">
       <p className="text-sm font-semibold text-indigo-900">
-        {invited
-          ? "Soyez prévenu dès que la réponse arrive"
-          : "Retrouvez votre analyse plus tard"}
+        {heading ??
+          (invited
+            ? "Soyez prévenu dès que la réponse arrive"
+            : "Retrouvez votre analyse plus tard")}
       </p>
       <p className="mt-1 text-xs text-gray-600">
-        {invited
-          ? "Votre compte vous permet de suivre les réponses, de générer l'analyse à deux et de la retrouver depuis n'importe quel appareil."
-          : "Votre espace personnel conserve vos réponses, vos invitations et vos analyses, sur tous vos appareils."}
+        {description ??
+          (invited
+            ? "Votre compte vous permet de suivre les réponses, de générer l'analyse à deux et de la retrouver depuis n'importe quel appareil."
+            : "Votre espace personnel conserve vos réponses, vos invitations et vos analyses, sur tous vos appareils.")}
       </p>
       {/* L1 : réassurance visible avant de cliquer, pour lever la peur de
           "je ne sais pas ce qui va arriver à mes données" avant qu'elle
@@ -385,9 +391,11 @@ function AccountGateway({
 function DuoReportPanel({
   resultIdA,
   resultIdB,
+  ownResultId,
 }: {
   resultIdA: string;
   resultIdB: string;
+  ownResultId?: string | null;
 }) {
   const [checking, setChecking] = useState(true);
   const [analysis, setAnalysis] = useState<string | null>(null);
@@ -446,13 +454,23 @@ function DuoReportPanel({
 
   if (analysis) {
     return (
-      <div className="rounded-xl border-2 border-violet-300 bg-violet-50 p-4 sm:p-5">
-        <p className="text-sm font-semibold text-violet-900">
-          🤝 Votre rapport de binôme
-        </p>
-        <div className="mt-2 text-sm leading-relaxed text-violet-950">
-          <MarkdownText text={analysis} />
+      <div className="space-y-3">
+        <div className="rounded-xl border-2 border-violet-300 bg-violet-50 p-4 sm:p-5">
+          <p className="text-sm font-semibold text-violet-900">
+            🤝 Votre rapport de binôme
+          </p>
+          <div className="mt-2 text-sm leading-relaxed text-violet-950">
+            <MarkdownText text={analysis} />
+          </div>
         </div>
+        {/* O3 : une fois le duo prêt, proposer de le sécuriser dans un
+            compte plutôt que de dépendre uniquement du lien de suivi. */}
+        <AccountGateway
+          resultId={ownResultId ?? null}
+          invited
+          heading="💾 Envie de le retrouver plus facilement la prochaine fois ?"
+          description="Créez un compte en 1 clic pour sauvegarder définitivement ce rapport et vos deux profils dans votre espace personnel."
+        />
       </div>
     );
   }
@@ -540,7 +558,7 @@ export function InviteReturnBanner({ user }: { user: UserInfo }) {
         générée.
       </p>
       {originResultId && partnerResultId ? (
-        <DuoReportPanel resultIdA={originResultId} resultIdB={partnerResultId} />
+        <DuoReportPanel resultIdA={originResultId} resultIdB={partnerResultId} ownResultId={originResultId} />
       ) : (
         <>
           <p className="text-xs text-emerald-800">
@@ -602,7 +620,7 @@ export function DuoNextStep({
     <div className="mt-8 space-y-4 border-t border-border pt-6">
       <DuoTeaser scores={scores} />
       {!user && inviterResultId && resultId && (
-        <DuoReportPanel resultIdA={inviterResultId} resultIdB={resultId} />
+        <DuoReportPanel resultIdA={inviterResultId} resultIdB={resultId} ownResultId={resultId} />
       )}
       {user ? (
         <div className="rounded-xl border border-indigo-200 bg-white p-4 shadow-sm sm:p-5">
