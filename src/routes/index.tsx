@@ -383,6 +383,10 @@ function Index() {
     void fetch("/api/public/track-binome-info", { method: "POST" }).catch(() => {});
   };
 
+  // M2 : accordéon de réassurance sur l'Analyse Transactionnelle — beaucoup
+  // de visiteurs ne savent pas ce que c'est et hésitent par méconnaissance.
+  const [atInfoOpen, setAtInfoOpen] = useState(false);
+
   // CTA d'engagement conscient : fait défiler jusqu'à la première question
   // plutôt que de laisser le test démarrer "en silence" au fil du scroll.
   // G2 : deux parcours d'entrée pointent vers le même test ; le parcours
@@ -433,6 +437,9 @@ function Index() {
               <span className={heroOpen ? "" : "hidden sm:inline"}>
                 {" "}Puis analysez les dynamiques d'un couple, d'une famille, d'une équipe ou d'un collectif.
               </span>
+            </p>
+            <p className="mx-auto mt-2 max-w-2xl text-xs text-white/75">
+              🎓 Une méthode utilisée depuis plus de 50 ans en entreprise et en coaching — pas un diagnostic clinique, juste une grille de lecture pour mieux communiquer.
             </p>
 
             {/* G2 : deux parcours d'entrée — le test est identique, seuls le
@@ -511,12 +518,47 @@ function Index() {
           </div>
         </div>
 
+        {/* M2 : réassurance dépliable sur l'Analyse Transactionnelle — les
+            visiteurs qui ne connaissent pas la méthode hésitent souvent par
+            méconnaissance plutôt que par désintérêt. */}
+        <div className="border-t border-border bg-muted/20">
+          <div className="mx-auto max-w-5xl px-4 py-5 sm:py-6">
+            <button
+              type="button"
+              onClick={() => setAtInfoOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 hover:underline"
+              aria-expanded={atInfoOpen}
+            >
+              🎓 Qu'est-ce que l'Analyse Transactionnelle ? {atInfoOpen ? "▲" : "→"}
+            </button>
+            {atInfoOpen && (
+              <div className="mt-3 max-w-2xl space-y-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                <p>
+                  C'est un modèle de psychologie créé dans les années 1960, aujourd'hui largement
+                  utilisé en entreprise, en coaching et en formation, pour mieux comprendre comment
+                  on communique et interagit avec les autres.
+                </p>
+                <p>
+                  Concrètement, elle décrit 3 « états du moi » (Parent, Adulte, Enfant) que chacun
+                  utilise plus ou moins selon les situations. Votre égogramme montre la répartition
+                  qui vous est propre.
+                </p>
+                <p>
+                  Ce n'est ni un diagnostic clinique, ni un test de personnalité figé : c'est une
+                  grille de lecture simple pour identifier vos forces et vos points de vigilance
+                  dans vos relations — vous seul(e) en avez le contrôle et l'accès.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Scénario A corrigé (E1+E2+E5) : schéma allégé "2 rapports individuels
             + 1 rapport de binôme", un seul lien secondaire (pas de 2e CTA).
             F1 : replié par défaut sur mobile, dans le même accordéon que le
             hero, pour raccourcir le trajet jusqu'à la première question. */}
         <div className={`border-t border-border bg-background ${heroOpen ? "" : "hidden sm:block"}`}>
-          <div className="mx-auto grid max-w-5xl gap-8 px-4 py-8 sm:py-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+          <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
             <div>
               <h2 className="max-w-md text-xl font-bold leading-snug tracking-tight text-foreground sm:text-2xl">
                 Un test pour vous. Une analyse en plus pour votre relation.
@@ -540,61 +582,6 @@ function Index() {
                   vos deux profils — sans étape supplémentaire de votre côté.
                 </p>
               )}
-            </div>
-
-            <div className="flex items-center justify-center gap-4 rounded-2xl border border-border bg-muted/40 p-5 sm:gap-5 sm:p-6">
-              <div className="flex flex-col gap-3 sm:gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm text-white">
-                    A
-                  </span>
-                  <span className="text-xs font-semibold text-foreground sm:text-sm">
-                    Rapport individuel A
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm text-white">
-                    B
-                  </span>
-                  <span className="text-xs font-semibold text-foreground sm:text-sm">
-                    Rapport individuel B
-                  </span>
-                </div>
-              </div>
-              <span className="text-xl font-light text-muted-foreground" aria-hidden="true">
-                →
-              </span>
-              <div className="w-56 rounded-lg border-2 border-violet-200 bg-card p-3.5 shadow-sm sm:w-64 sm:p-4">
-                <div className="mb-2.5 text-xs font-bold text-foreground">
-                  Rapport du binôme <span className="text-violet-700">A + B</span>
-                </div>
-                <div className="grid gap-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground sm:text-xs">
-                    <i className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-emerald-600 text-[10px] font-extrabold not-italic text-white">
-                      +
-                    </i>
-                    Forces du binôme
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground sm:text-xs">
-                    <i className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-amber-500 text-[10px] font-extrabold not-italic text-white">
-                      !
-                    </i>
-                    Risques de tensions
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground sm:text-xs">
-                    <i className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-rose-500 text-[10px] font-extrabold not-italic text-white">
-                      △
-                    </i>
-                    Jeux psychologiques
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground sm:text-xs">
-                    <i className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-blue-500 text-[10px] font-extrabold not-italic text-white">
-                      ↔
-                    </i>
-                    Leviers de coopération
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
