@@ -22,11 +22,20 @@ import { progressApi } from "@/lib/progress-api";
 import { EgogramCard } from "@/components/egogram-card";
 import { type CategoryKey } from "@/lib/egogram-categories";
 import { DuoNextStep, InviteReturnBanner } from "@/components/duo-next-step";
+import {
+  QUESTION_VARIANTS,
+  QUESTION_VARIANT_LABELS,
+  isQuestionVariantKey,
+  type QuestionVariantKey,
+} from "@/lib/question-variants";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
     ref: (typeof search.ref === "string" ? search.ref : undefined) as string | undefined,
     inv: (typeof search.inv === "string" ? search.inv : undefined) as string | undefined,
+    contexte: (typeof search.contexte === "string" ? search.contexte : undefined) as
+      | string
+      | undefined,
   }),
   head: () => ({
     meta: [
@@ -47,70 +56,6 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const QUESTIONS: string[] = [
-  "On dit que j'ai du sang froid",
-  "J'aime bien rire aux dépens des autres",
-  "Je me laisse influencer facilement",
-  "Je rends visite aux copains malades",
-  "Je sais apprécier les imprévus",
-  "J'admets très mal la tricherie",
-  "J'aime beaucoup les voyages",
-  "Je remonte fréquemment le moral aux copains qui dépriment",
-  "Je n'arrive pas en retard pour ne pas me faire remarquer",
-  "Je suis souvent en désaccord avec mon entourage",
-  "On me trouve logique et rationnel",
-  "Il faut respecter les délais",
-  "Je ne contredis jamais un supérieur hiérarchique",
-  "J'aide sans qu'on me le demande",
-  "Je sympathise assez souvent avec des inconnus",
-  "Les absences doivent être justifiées",
-  "Avant d'effectuer un travail, je réfléchis sur la méthode à suivre",
-  "Je suis râleur, contestataire",
-  "Je suis organisé dans mon travail",
-  "Je repère facilement les défauts des autres",
-  "Je dis « oui » alors que je voulais dire « non »",
-  "Je prête facilement mes affaires",
-  "Quand quelqu'un me plaît je n'hésite pas à le lui dire",
-  "J'apprécie la discipline",
-  "Quand je suis en colère, on m'entend",
-  "Je porte souvent des appréciations sur les gens",
-  "Confronté à un échec, je réfléchis calmement",
-  "Je préfère donner que recevoir",
-  "Dans une situation difficile je garde ma présence d'esprit",
-  "Quand il convient d'être en smoking, j'ai tendance à mettre une chemise à fleurs",
-  "J'accorde de l'importance à ce qu'on pense de moi",
-  "Je n'aime pas partir dans l'inconnu, il faut que ce soit planifié",
-  "J'aime à rassurer mon entourage",
-  "J'évite de prendre des responsabilités",
-  "J'adore taquiner",
-  "J'ai tendance à passer beaucoup de temps à aider les autres",
-  "Ce n'est pas acceptable de doubler dans les files d'attente",
-  "Je prévois les conséquences de mes actions",
-  "Je choque souvent par mes propos",
-  "Je suis plutôt timide",
-  "On me trouve enthousiaste",
-  "Je remets mes opinions en questions quand il le faut",
-  "Quand je suis content ça se voit",
-  "Quand un problème se pose, j'amasse le plus de données possibles pour le résoudre objectivement",
-  "J'aime la satire et la dérision",
-  "J'ai le souci de ne pas importuner les autres",
-  "Je ne cache pas mes émotions",
-  "Il est intolérable de faire claquer des pétards dans les cimetières",
-  "J'ai l'esprit de contradiction",
-  "Ça ne me déplairait pas d'être médecin sans frontières",
-  "Je me fais petit devant l'autorité",
-  "Il est dommage que certaines valeurs se perdent",
-  "Avec moi on ne s'ennuie pas",
-  "Dans le doute je sais me documenter",
-  "Je suis réputé pour la férocité de mes remarques",
-  "Dure est la loi, mais c'est la loi",
-  "On me dit que je suis trop bon",
-  "J'essaie de ressembler à ce que mes parents voulaient que je fusse",
-  "J'ai toujours une histoire, drôle ou pas, à raconter",
-  "J'ai tendance à prendre les opprimés sous mon aile",
-];
-
-
 const MAPPING: Record<CategoryKey, number[]> = {
   PNr: [4, 8, 14, 22, 28, 33, 36, 50, 57, 60],
   PNf: [6, 12, 16, 24, 26, 32, 37, 48, 52, 56],
@@ -124,12 +69,36 @@ const ANSWERS_STORAGE_KEY = "egogramme_answers";
 
 function Index() {
   // Read search params from router
-  const { ref: routerRef, inv: routerInv } = Route.useSearch();
+  const { ref: routerRef, inv: routerInv, contexte: routerContexte } = Route.useSearch();
 
   // Auth state
   type UserInfo = { id: string; email: string; firstName: string; lastName: string } | null;
   const [user, setUser] = useState<UserInfo>(null);
   const isAdmin = user !== null && isAdminEmail(user.email);
+
+  // Sélecteur de contexte : permet d'adapter les libellés des 60 questions
+  // (scoutisme, association de parents d'élèves…) sans changer le scoring.
+  // Priorité : lien partagé (?contexte=) > choix précédent en localStorage > standard.
+  const [questionVariant, setQuestionVariant] = useState<QuestionVariantKey>(() => {
+    if (isQuestionVariantKey(routerContexte)) return routerContexte;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem("egogramme_question_variant");
+        if (isQuestionVariantKey(stored)) return stored;
+      } catch {
+        /* localStorage indisponible */
+      }
+    }
+    return "default";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("egogramme_question_variant", questionVariant);
+    } catch {
+      /* quota dépassé ou stockage indisponible */
+    }
+  }, [questionVariant]);
+  const QUESTIONS = QUESTION_VARIANTS[questionVariant];
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -308,10 +277,11 @@ function Index() {
   const [referredBy] = useState<string | null>(routerRef ?? null);
   const [invToken] = useState<string | null>(routerInv ?? null);
   useEffect(() => {
-    if (typeof window !== "undefined" && (routerRef || routerInv)) {
+    if (typeof window !== "undefined" && (routerRef || routerInv || routerContexte)) {
       const url = new URL(window.location.href);
       url.searchParams.delete("ref");
       url.searchParams.delete("inv");
+      url.searchParams.delete("contexte");
       window.history.replaceState({}, "", url.pathname);
     }
   }, []);
@@ -649,6 +619,26 @@ function Index() {
       </div>
 
       <main className="mx-auto max-w-5xl px-4 py-5 sm:py-8">
+        {/* Sélecteur de contexte : adapte les libellés des 60 questions à
+            l'univers du répondant (scoutisme, association de parents…) sans
+            changer le scoring ni les catégories. */}
+        <div className="mb-4 flex flex-wrap items-center gap-2 sm:mb-5">
+          <span className="text-xs font-medium text-muted-foreground">Contexte du test :</span>
+          <div className="flex flex-wrap gap-1.5">
+            {(Object.keys(QUESTION_VARIANT_LABELS) as QuestionVariantKey[]).map((key) => (
+              <Button
+                key={key}
+                type="button"
+                size="sm"
+                variant={questionVariant === key ? "default" : "outline"}
+                onClick={() => setQuestionVariant(key)}
+                className="h-7 px-2.5 text-xs"
+              >
+                {QUESTION_VARIANT_LABELS[key]}
+              </Button>
+            ))}
+          </div>
+        </div>
         {/* F2 : réassurance RGPD juste avant la première question — le moment
             où l'utilisateur décide réellement de répondre. */}
         <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground sm:mb-5">
