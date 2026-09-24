@@ -8,7 +8,7 @@ export type QuestionVariantKey = "default" | "scouts" | "ape";
 
 export const QUESTION_VARIANT_LABELS: Record<QuestionVariantKey, string> = {
   default: "Standard",
-  scouts: "Scouts et Guides de France",
+  scouts: "Scouts et Guides",
   ape: "Association de Parents d'Élèves",
 };
 
