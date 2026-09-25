@@ -9,7 +9,7 @@ export type QuestionVariantKey = "default" | "scouts" | "ape";
 export const QUESTION_VARIANT_LABELS: Record<QuestionVariantKey, string> = {
   default: "Standard",
   scouts: "Scouts et Guides",
-  ape: "Association de Parents d'Élèves",
+  ape: "APEL",
 };
 
 /**
@@ -36,7 +36,7 @@ export const QUESTION_VARIANT_CONTEXT_PROMPTS: Record<
   },
   ape: {
     audience:
-      "Le public ayant répondu est composé de membres actifs d'une Association de Parents d'Élèves (bureau de l'association, organisation d'événements scolaires). Adapte TOUS tes exemples concrets à cet univers (réunions de bureau, kermesse, sorties scolaires, buvette, relations avec l'école) plutôt qu'à un contexte professionnel classique.",
+      "Le public ayant répondu est composé de membres actifs d'une APEL (Association de Parents d'Élèves de l'Enseignement Libre) : bureau de l'association, organisation d'événements scolaires. Adapte TOUS tes exemples concrets à cet univers (réunions de bureau, kermesse, sorties scolaires, buvette, relations avec l'école) plutôt qu'à un contexte professionnel classique.",
     examples: "en réunion de bureau, en famille, lors d'un événement scolaire, sous stress",
     meetingContext: "en réunion de bureau ou lors de l'organisation d'un événement",
   },
