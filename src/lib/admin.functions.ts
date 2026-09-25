@@ -5,13 +5,25 @@ import { ADMIN_EMAILS, isAdminEmail } from "@/lib/admin-config";
 export const listAdminResults = createServerFn({ method: "GET" })
   .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from("results")
       .select(
-        "id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested, referred_by",
+        "id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested, referred_by, question_variant",
       )
       .order("created_at", { ascending: false })
       .limit(500);
+    // Retente sans `question_variant` si la colonne n'existe pas encore
+    if (error) {
+      const retry = await supabaseAdmin
+        .from("results")
+        .select(
+          "id, ip_hash, scores, created_at, first_name, last_name, phone, contact_requested, referred_by",
+        )
+        .order("created_at", { ascending: false })
+        .limit(500);
+      data = retry.data;
+      error = retry.error;
+    }
     if (error) throw error;
     return data ?? [];
   });

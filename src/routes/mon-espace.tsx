@@ -69,6 +69,7 @@ type MyResult = {
   first_name: string | null;
   last_name: string | null;
   created_at: string;
+  question_variant?: string | null;
 };
 
 type StoredTeamAnalysis = {
@@ -939,6 +940,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       let lastName = user.lastName || "";
       let scores = myResult?.scores ?? ({} as Record<string, number>);
       let createdAt = myResult?.created_at ?? new Date().toISOString();
+      let questionVariant = myResult?.question_variant ?? "default";
 
       if (!myResult || resultId !== myResult.id) {
         const rows = await getResultsByIds({ data: { ids: [resultId] } });
@@ -948,11 +950,12 @@ function Dashboard({ user }: { user: UserInfo }) {
         lastName = row.last_name || "";
         scores = normalizeScores(row.scores);
         createdAt = row.created_at;
+        questionVariant = row.question_variant ?? "default";
       }
 
       const analysisText = await streamAnalysis(
         "/api/analysis/individual-stream",
-        { scores, firstName },
+        { scores, firstName, questionVariant },
         (partial) => setIndividualAnalysis(partial),
       );
 

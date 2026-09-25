@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "crypto";
 import { z } from "zod";
 import { egoScoresSchema } from "@/lib/ego-scores.schema";
+import { isQuestionVariantKey } from "@/lib/question-variants";
 
 const SALT = "egogramme-josien-v1-static-salt";
 
@@ -38,6 +39,9 @@ export const Route = createFileRoute("/api/public/save-result")({
               ? body.userId
               : null;
           const referredBy = typeof body?.referred_by === "string" ? body.referred_by : null;
+          const questionVariant = isQuestionVariantKey(body?.questionVariant)
+            ? body.questionVariant
+            : null;
           const ip = getClientIp(request);
           const ipHash = hashIp(ip);
           const { supabaseAdmin } = await import(
@@ -49,13 +53,21 @@ export const Route = createFileRoute("/api/public/save-result")({
             const payload: Record<string, unknown> = { scores, ip_hash: ipHash };
             if (answers) payload.answers = answers;
             if (userId) payload.user_id = userId;
+            if (questionVariant) payload.question_variant = questionVariant;
             let { error } = await supabaseAdmin
               .from("results")
               .update(payload)
               .eq("id", existingId);
-            // Retente sans `answers` si la colonne n'existe pas encore
+            // Retente sans `question_variant` puis sans `answers` si les colonnes
+            // n'existent pas encore (migration pas encore appliquée).
+            if (error && questionVariant) {
+              const { question_variant: _omitV, ...withoutVariant } = payload;
+              error = (
+                await supabaseAdmin.from("results").update(withoutVariant).eq("id", existingId)
+              ).error;
+            }
             if (error && answers) {
-              const { answers: _omit, ...withoutAnswers } = payload;
+              const { answers: _omit, question_variant: _omitV2, ...withoutAnswers } = payload;
               error = (
                 await supabaseAdmin.from("results").update(withoutAnswers).eq("id", existingId)
               ).error;
@@ -69,14 +81,26 @@ export const Route = createFileRoute("/api/public/save-result")({
           if (referredBy) insertData.referred_by = referredBy;
           if (answers) insertData.answers = answers;
           if (userId) insertData.user_id = userId;
+          if (questionVariant) insertData.question_variant = questionVariant;
           let { data, error } = await supabaseAdmin
             .from("results")
             .insert(insertData)
             .select("id")
             .single();
-          // Retente sans `answers` si la colonne n'existe pas encore
+          // Retente sans `question_variant` puis sans `answers` si les colonnes
+          // n'existent pas encore (migration pas encore appliquée).
+          if (error && questionVariant) {
+            const { question_variant: _omitV, ...withoutVariant } = insertData;
+            const retry = await supabaseAdmin
+              .from("results")
+              .insert(withoutVariant)
+              .select("id")
+              .single();
+            data = retry.data;
+            error = retry.error;
+          }
           if (error && answers) {
-            const { answers: _omit, ...withoutAnswers } = insertData;
+            const { answers: _omit, question_variant: _omitV2, ...withoutAnswers } = insertData;
             const retry = await supabaseAdmin
               .from("results")
               .insert(withoutAnswers)

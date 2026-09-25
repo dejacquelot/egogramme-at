@@ -11,10 +11,19 @@ export const getResultsByIds = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
+    let { data: rows, error } = await supabaseAdmin
       .from("results")
-      .select("id, scores, first_name, last_name, created_at")
+      .select("id, scores, first_name, last_name, created_at, question_variant")
       .in("id", data.ids);
+    // Retente sans `question_variant` si la colonne n'existe pas encore
+    if (error) {
+      const retry = await supabaseAdmin
+        .from("results")
+        .select("id, scores, first_name, last_name, created_at")
+        .in("id", data.ids);
+      rows = retry.data;
+      error = retry.error;
+    }
     if (error) throw error;
     return (rows ?? []) as Array<{
       id: string;
@@ -22,6 +31,7 @@ export const getResultsByIds = createServerFn({ method: "POST" })
       first_name: string | null;
       last_name: string | null;
       created_at: string;
+      question_variant?: string | null;
     }>;
   });
 
@@ -113,15 +123,34 @@ export const getMyResult = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: result, error } = await supabaseAdmin
+    let { data: result, error } = await supabaseAdmin
       .from("results")
-      .select("id, scores, first_name, last_name, created_at")
+      .select("id, scores, first_name, last_name, created_at, question_variant")
       .eq("user_id", data.userId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    // Retente sans `question_variant` si la colonne n'existe pas encore
+    if (error) {
+      const retry = await supabaseAdmin
+        .from("results")
+        .select("id, scores, first_name, last_name, created_at")
+        .eq("user_id", data.userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      result = retry.data;
+      error = retry.error;
+    }
     if (error) throw error;
-    return result as { id: string; scores: Record<string, number>; first_name: string | null; last_name: string | null; created_at: string } | null;
+    return result as {
+      id: string;
+      scores: Record<string, number>;
+      first_name: string | null;
+      last_name: string | null;
+      created_at: string;
+      question_variant?: string | null;
+    } | null;
   });
 
 /** Create or update provisional scores for an invitation that has not been answered yet */

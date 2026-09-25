@@ -12,6 +12,36 @@ export const QUESTION_VARIANT_LABELS: Record<QuestionVariantKey, string> = {
   ape: "Association de Parents d'Élèves",
 };
 
+/**
+ * Contexte injecté dans les prompts d'analyse IA pour que les exemples
+ * concrets (situations, vocabulaire) correspondent au public ayant répondu
+ * avec cette variante de questions. `audience` est vide pour "default" (aucun
+ * ajout au prompt) ; `examples` et `meetingContext` remplacent des membres de
+ * phrase fixes dans analysis-prompts.ts.
+ */
+export const QUESTION_VARIANT_CONTEXT_PROMPTS: Record<
+  QuestionVariantKey,
+  { audience: string; examples: string; meetingContext: string }
+> = {
+  default: {
+    audience: "",
+    examples: "en réunion, en famille, sous stress",
+    meetingContext: "en réunion",
+  },
+  scouts: {
+    audience:
+      "Le public ayant répondu est composé de chefs et cheftaines Scouts et Guides, jeunes adultes ayant des responsabilités d'encadrement de jeunes. Adapte TOUS tes exemples concrets à cet univers (camps, veillées, réunions de chefs, activités avec les jeunes, la loi scoute) plutôt qu'à un contexte professionnel classique.",
+    examples: "en camp, en réunion de chefs, en veillée, sous stress",
+    meetingContext: "en réunion de chefs ou pendant un camp",
+  },
+  ape: {
+    audience:
+      "Le public ayant répondu est composé de membres actifs d'une Association de Parents d'Élèves (bureau de l'association, organisation d'événements scolaires). Adapte TOUS tes exemples concrets à cet univers (réunions de bureau, kermesse, sorties scolaires, buvette, relations avec l'école) plutôt qu'à un contexte professionnel classique.",
+    examples: "en réunion de bureau, en famille, lors d'un événement scolaire, sous stress",
+    meetingContext: "en réunion de bureau ou lors de l'organisation d'un événement",
+  },
+};
+
 const DEFAULT_QUESTIONS: string[] = [
   "On dit que j'ai du sang froid",
   "J'aime bien rire aux dépens des autres",

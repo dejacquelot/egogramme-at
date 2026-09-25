@@ -1,7 +1,16 @@
 import { EGO_STATE_LABELS, EGO_STATE_KEYS, normalizeScores } from "@/lib/ego-states";
+import {
+  QUESTION_VARIANT_CONTEXT_PROMPTS,
+  type QuestionVariantKey,
+} from "@/lib/question-variants";
 
-export function buildIndividualPrompt(scores: Record<string, number>, firstName?: string) {
+export function buildIndividualPrompt(
+  scores: Record<string, number>,
+  firstName?: string,
+  questionVariant: QuestionVariantKey = "default",
+) {
   const s = normalizeScores(scores);
+  const ctx = QUESTION_VARIANT_CONTEXT_PROMPTS[questionVariant];
   const line = EGO_STATE_KEYS.map((k) => `${EGO_STATE_LABELS[k]} : ${s[k]}/10`).join("\n");
 
   const parentTotal = s.PNr + s.PNf;
@@ -12,14 +21,15 @@ export function buildIndividualPrompt(scores: Record<string, number>, firstName?
     `:::pae\n${EGO_STATE_KEYS.map((k) => `${EGO_STATE_LABELS[k]}: ${s[k]}`).join(" | ")}\n:::`;
 
   const system =
-    "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, Claude Steiner, Fanita English). Tu maîtrises les concepts d'égogramme de John Dusay, les positions de vie (OK/OK), les drivers de Kahler, les jeux psychologiques, les scénarios de vie, les transactions croisées et les méconnaissances. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown standard. Tu illustres tes analyses par des exemples comportementaux concrets et quotidiens. Tu ne fais aucun disclaimer. RÈGLES DE FORMAT STRICTES : Utilise UNIQUEMENT les tableaux Markdown standard (format pipe : | col1 | col2 |, avec la ligne séparateur |---|---| OBLIGATOIRE juste après la ligne d'en-tête). N'utilise JAMAIS de tableaux ASCII-art (+---+---+), JAMAIS de blocs de code (```), JAMAIS de schémas ASCII (<--->, /\\, [ PARENT ] [ ADULTE ]). Ne dessine JAMAIS toi-même de représentation visuelle : les seuls visuels autorisés sont les blocs :::karpman et :::pae décrits ci-dessous.     Pour le triangle de Karpman, utilise EXACTEMENT ce format :\n:::karpman\nPersécuteur: [NOM] ([état])\nSauveur: [NOM] ([état])\nVictime: [NOM] ([état])\n:::\nVOCABULAIRE OBLIGATOIRE : désigne TOUJOURS un état du moi par son nom complet — « Parent Nourricier », « Parent Normatif », « Adulte », « Enfant Libre », « Enfant Adapté Soumis », « Enfant Adapté Rebelle ». N'utilise JAMAIS d'abréviation (ni PN, ni PNo, ni PNr, ni PNf, ni EL, ni EAS, ni EAR), y compris entre parenthèses et dans les tableaux. Écris par exemple « Parent Normatif (8/10) », jamais « PNf 8 » ni « PNo 8 ».";
+    "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, Claude Steiner, Fanita English). Tu maîtrises les concepts d'égogramme de John Dusay, les positions de vie (OK/OK), les drivers de Kahler, les jeux psychologiques, les scénarios de vie, les transactions croisées et les méconnaissances. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown standard. Tu illustres tes analyses par des exemples comportementaux concrets et quotidiens. Tu ne fais aucun disclaimer. RÈGLES DE FORMAT STRICTES : Utilise UNIQUEMENT les tableaux Markdown standard (format pipe : | col1 | col2 |, avec la ligne séparateur |---|---| OBLIGATOIRE juste après la ligne d'en-tête). N'utilise JAMAIS de tableaux ASCII-art (+---+---+), JAMAIS de blocs de code (```), JAMAIS de schémas ASCII (<--->, /\\, [ PARENT ] [ ADULTE ]). Ne dessine JAMAIS toi-même de représentation visuelle : les seuls visuels autorisés sont les blocs :::karpman et :::pae décrits ci-dessous.     Pour le triangle de Karpman, utilise EXACTEMENT ce format :\n:::karpman\nPersécuteur: [NOM] ([état])\nSauveur: [NOM] ([état])\nVictime: [NOM] ([état])\n:::\nVOCABULAIRE OBLIGATOIRE : désigne TOUJOURS un état du moi par son nom complet — « Parent Nourricier », « Parent Normatif », « Adulte », « Enfant Libre », « Enfant Adapté Soumis », « Enfant Adapté Rebelle ». N'utilise JAMAIS d'abréviation (ni PN, ni PNo, ni PNr, ni PNf, ni EL, ni EAS, ni EAR), y compris entre parenthèses et dans les tableaux. Écris par exemple « Parent Normatif (8/10) », jamais « PNf 8 » ni « PNo 8 »." +
+    (ctx.audience ? ` ${ctx.audience}` : "");
 
       const user =
         `Voici l'égogramme${firstName ? ` de ${firstName}` : ""} (analyse transactionnelle selon Dusay, scores de 0 à 10 par état du moi) :\n` +
         line +
     `\n\nRédige une analyse individuelle approfondie en markdown, en français, avec ces sections :\n` +
     `## 🎯 Portrait global\nSynthèse en 3-4 phrases de la structure de personnalité révélée par cet égogramme. Nomme la position de vie probable (OK+/OK+, OK+/OK-, etc.).\n` +
-    `## 📊 États du moi dominants\nAnalyse détaillée des 2-3 états les plus élevés. Pour chacun, donne 2-3 exemples concrets de comportements au quotidien (en réunion, en famille, sous stress). Explique comment ils interagissent entre eux.\n` +
+    `## 📊 États du moi dominants\nAnalyse détaillée des 2-3 états les plus élevés. Pour chacun, donne 2-3 exemples concrets de comportements au quotidien (${ctx.examples}). Explique comment ils interagissent entre eux.\n` +
     `## 📉 États du moi peu investis\nAnalyse des états faibles. Que signifie concrètement cette sous-utilisation ? Quelles situations sont difficiles à gérer ? Donne des exemples de transactions qui posent problème.\n` +
     `## ⚖️ Équilibre Parent / Adulte / Enfant\nTotaux déjà calculés, à reprendre tels quels sans les recalculer : Parent ${parentTotal}/20, Adulte ${adulteTotal}/10, Enfant ${enfantTotal}/30.\nCommence cette section par EXACTEMENT ce bloc, recopié caractère pour caractère, sans rien ajouter autour :\n${paeBlock}\nPuis, en texte rédigé uniquement (aucun tableau, aucun schéma), analyse l'équilibre entre les trois grandes instances. Y a-t-il contamination de l'Adulte ? Exclusion d'un état ? Comment cela se manifeste dans la prise de décision ?\n` +
     `## 🔄 Dynamiques relationnelles et transactions\nQuels types de transactions cette personne initie-t-elle le plus souvent (parallèles, croisées, ultérieures) ? Avec quels profils s'entend-elle naturellement ? Lesquels sont sources de friction ?\n` +
@@ -33,7 +43,12 @@ export function buildIndividualPrompt(scores: Record<string, number>, firstName?
 
 export type TeamPromptMember = { name: string; scores: Record<string, number> };
 
-export function buildTeamPrompt(members: TeamPromptMember[], teamName?: string) {
+export function buildTeamPrompt(
+  members: TeamPromptMember[],
+  teamName?: string,
+  questionVariant: QuestionVariantKey = "default",
+) {
+  const ctx = QUESTION_VARIANT_CONTEXT_PROMPTS[questionVariant];
   const memberLines = members.map((m) => {
     const s = normalizeScores(m.scores);
     const line = EGO_STATE_KEYS.map((k) => `${EGO_STATE_LABELS[k]} ${s[k]}/10`).join(", ");
@@ -41,7 +56,8 @@ export function buildTeamPrompt(members: TeamPromptMember[], teamName?: string) 
   });
 
   const system =
-    "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, John Dusay, Claude Steiner). Tu analyses des égogrammes d'équipe pour un coach professionnel. Tu maîtrises les dynamiques de groupe, les transactions croisées, les jeux systémiques, les positions de vie, les symbioses institutionnelles et les processus de groupe. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown standard. Tu illustres par des exemples concrets de situations d'équipe. Tu ne fais aucun disclaimer. RÈGLES DE FORMAT STRICTES : Utilise UNIQUEMENT les tableaux Markdown standard (format pipe : | col1 | col2 |, avec la ligne séparateur |---|---| OBLIGATOIRE juste après la ligne d'en-tête, et exactement le même nombre de colonnes sur toutes les lignes). N'utilise JAMAIS de tableaux ASCII-art (+---+---+), JAMAIS de blocs de code (```), JAMAIS de schémas ASCII. Ne dessine JAMAIS toi-même de représentation visuelle : le seul visuel autorisé est le bloc :::karpman. Pour le triangle de Karpman, utilise EXACTEMENT ce format (sur 3 lignes, avec les noms réels des membres) :\n:::karpman\nPersécuteur: [NOM] ([état])\nSauveur: [NOM] ([état])\nVictime: [NOM] ([état])\n:::\nVOCABULAIRE OBLIGATOIRE : désigne TOUJOURS un état du moi par son nom complet — « Parent Nourricier », « Parent Normatif », « Adulte », « Enfant Libre », « Enfant Adapté Soumis », « Enfant Adapté Rebelle ». N'utilise JAMAIS d'abréviation (ni PN, ni PNo, ni PNr, ni PNf, ni EL, ni EAS, ni EAR), y compris entre parenthèses et dans les en-têtes de tableaux.";
+    "Tu es psychiatre, superviseur et coach certifié, expert reconnu en analyse transactionnelle (Éric Berne, Stephen Karpman, Taibi Kahler, John Dusay, Claude Steiner). Tu analyses des égogrammes d'équipe pour un coach professionnel. Tu maîtrises les dynamiques de groupe, les transactions croisées, les jeux systémiques, les positions de vie, les symbioses institutionnelles et les processus de groupe. Tu rédiges des analyses cliniques riches, concrètes et nuancées, en français, en markdown standard. Tu illustres par des exemples concrets de situations d'équipe. Tu ne fais aucun disclaimer. RÈGLES DE FORMAT STRICTES : Utilise UNIQUEMENT les tableaux Markdown standard (format pipe : | col1 | col2 |, avec la ligne séparateur |---|---| OBLIGATOIRE juste après la ligne d'en-tête, et exactement le même nombre de colonnes sur toutes les lignes). N'utilise JAMAIS de tableaux ASCII-art (+---+---+), JAMAIS de blocs de code (```), JAMAIS de schémas ASCII. Ne dessine JAMAIS toi-même de représentation visuelle : le seul visuel autorisé est le bloc :::karpman. Pour le triangle de Karpman, utilise EXACTEMENT ce format (sur 3 lignes, avec les noms réels des membres) :\n:::karpman\nPersécuteur: [NOM] ([état])\nSauveur: [NOM] ([état])\nVictime: [NOM] ([état])\n:::\nVOCABULAIRE OBLIGATOIRE : désigne TOUJOURS un état du moi par son nom complet — « Parent Nourricier », « Parent Normatif », « Adulte », « Enfant Libre », « Enfant Adapté Soumis », « Enfant Adapté Rebelle ». N'utilise JAMAIS d'abréviation (ni PN, ni PNo, ni PNr, ni PNf, ni EL, ni EAS, ni EAR), y compris entre parenthèses et dans les en-têtes de tableaux." +
+    (ctx.audience ? ` ${ctx.audience}` : "");
 
   const user =
     `Équipe${teamName ? ` « ${teamName} »` : ""} composée de ${members.length} personnes ayant passé un égogramme (analyse transactionnelle selon Dusay, scores de 0 à 10 par état du moi) :\n` +
@@ -51,7 +67,7 @@ export function buildTeamPrompt(members: TeamPromptMember[], teamName?: string) 
     `## 📊 Cartographie des états du moi\nTableau comparatif en markdown (format pipe | col1 | col2 |) avec colonnes : État du moi | Score de chaque membre | Énergie globale | Dynamique du groupe. Qui porte quel état du moi pour le groupe ?\n` +
     `## 🤝 Complémentarités et synergies\nQuels binômes ou trinômes fonctionnent naturellement bien ensemble ? Pourquoi ? Donne des exemples concrets de situations de travail.\n` +
     `## ⚠️ Risques relationnels et jeux psychologiques\nIdentifie 3-4 jeux psychologiques probables ENTRE les membres. Inclus un bloc :::karpman avec les 3 rôles et les noms des membres concernés. Quelles symbioses institutionnelles peuvent émerger ? Quelles méconnaissances de groupe ?\n` +
-    `## 💬 Dynamiques de communication et de décision\nComment cette équipe prend-elle ses décisions ? Quels types de transactions dominent en réunion ? Qui parle à qui naturellement ?\n` +
+    `## 💬 Dynamiques de communication et de décision\nComment cette équipe prend-elle ses décisions ? Quels types de transactions dominent ${ctx.meetingContext} ? Qui parle à qui naturellement ?\n` +
     `## 🛠️ Recommandations pour le coach/manager\nPropose 5-6 actions concrètes : ateliers, rituels d'équipe, changements de posture, exercices de développement. Pour chaque recommandation, précise l'objectif et la mise en œuvre.\n` +
     `## 👤 Points de vigilance individuels\nPour chaque membre, 2-3 lignes personnalisées : sa contribution clé au groupe, son risque principal, et une piste de développement prioritaire.\n` +
     `\nAppuie CHAQUE affirmation sur les scores chiffrés des membres. Compare les profils entre eux. Sois précis, concret, engageant. Vise 1000 à 1500 mots.`;

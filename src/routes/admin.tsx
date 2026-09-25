@@ -163,6 +163,7 @@ type ResultRow = {
   phone: string | null;
   contact_requested: boolean;
   referred_by: string | null;
+  question_variant?: string | null;
 };
 
 function GoogleIcon() {
@@ -358,7 +359,11 @@ function ResultDetail({
 
       const analysisText = await streamAnalysis(
         "/api/analysis/individual-stream",
-        { scores, firstName: row.first_name?.trim() || undefined },
+        {
+          scores,
+          firstName: row.first_name?.trim() || undefined,
+          questionVariant: row.question_variant ?? "default",
+        },
         (partial) => setAnalysis(partial),
       );
 

@@ -694,7 +694,7 @@ function Index() {
 
       {answeredCount === 60 && (
         <section className="mx-auto max-w-5xl px-4 pb-12">
-          <ResultSection scores={scores} answers={answers} resultId={resultId} setResultId={setResultId} referredBy={referredBy} invToken={invToken} user={user} userFirstName={user?.firstName} userLastName={user?.lastName} />
+          <ResultSection scores={scores} answers={answers} resultId={resultId} setResultId={setResultId} referredBy={referredBy} invToken={invToken} user={user} userFirstName={user?.firstName} userLastName={user?.lastName} questionVariant={questionVariant} />
         </section>
       )}
 
@@ -736,6 +736,7 @@ function ResultSection({
   user,
   userFirstName,
   userLastName,
+  questionVariant,
 }: {
   scores: Scores;
   answers: (boolean | undefined)[];
@@ -746,6 +747,7 @@ function ResultSection({
   user: UserInfo;
   userFirstName?: string;
   userLastName?: string;
+  questionVariant: QuestionVariantKey;
 }) {
   const [firstName, setFirstName] = useState(userFirstName ?? "");
   const [lastName, setLastName] = useState(userLastName ?? "");
@@ -825,6 +827,7 @@ function ResultSection({
           referred_by: referredBy,
           answers: answers.map((v) => (v === undefined ? null : v)),
           userId: user?.id ?? null,
+          questionVariant,
         }),
       })
         .then((r) => r.json())
@@ -832,7 +835,7 @@ function ResultSection({
 
       const analysisPromise = streamAnalysis(
         "/api/analysis/individual-stream",
-        { scores, firstName: firstName.trim() },
+        { scores, firstName: firstName.trim(), questionVariant },
         (partial) => setAnalysis(partial),
       );
       // Marque la promesse comme gérée : sans cela, un échec de l'IA survenant
