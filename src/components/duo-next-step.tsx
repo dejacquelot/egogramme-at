@@ -231,6 +231,9 @@ function InviteGateway({
         Aucun compte nécessaire : indiquez un prénom, récupérez un lien, et
         envoyez-le à la personne concernée.
       </p>
+      <p className="mt-1 text-xs text-gray-500">
+        🔒 Votre proche verra votre résultat seulement après avoir répondu au sien — jamais avant.
+      </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="flex-1">
           <Label htmlFor="invitee-first-name" className="text-xs">

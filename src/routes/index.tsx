@@ -451,7 +451,7 @@ function Index() {
               </button>
             </div>
             <p className="mt-4 text-xs text-white/85">
-              🔒 Anonyme, sans inscription obligatoire — les deux parcours utilisent le même test.
+              🔒 Vous répondez d'abord, vous décidez ensuite si vous voulez garder une trace — les deux parcours utilisent le même test.
             </p>
 
             <button
@@ -1013,6 +1013,12 @@ function ResultSection({
           />
         </div>
       </div>
+      {/* Réassurance au moment précis de plus haute anxiété : on vient de
+          répondre à 60 questions intimes et on demande une identité juste
+          avant la récompense. */}
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+        🔒 Ce prénom sert uniquement à personnaliser votre rapport — il n'est jamais partagé ni utilisé à d'autres fins.
+      </p>
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
@@ -1025,6 +1031,9 @@ function ResultSection({
               : "Générer mon analyse"}
         </Button>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        En cliquant, vos réponses sont envoyées à notre IA le temps de rédiger votre rapport, puis supprimées du traitement — rien n'est conservé sans votre accord.
+      </p>
 
       {(analysis || loading) && (
         <div ref={resultRef} className="mt-6 scroll-mt-24 border-t border-border pt-6">
@@ -1052,6 +1061,9 @@ function ResultSection({
               <p className="mt-1 text-xs text-indigo-700">
                 Le texte s'affiche au fur et à mesure de sa rédaction. Restez sur
                 cette page, comptez environ deux minutes pour le rapport complet.
+              </p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-indigo-700">
+                🔒 Votre analyse est générée pour vous seul·e — elle n'est visible de personne d'autre tant que vous ne la partagez pas.
               </p>
               <div
                 aria-hidden="true"
