@@ -31,8 +31,9 @@ async function fetchGeminiWithRetry(
   apiKey: string,
   system: string,
   user: string,
+  model: string,
 ): Promise<GeminiAttemptResult> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
   // Le mode « réflexion » du modèle retarde le premier mot de 20 à 30 secondes
   // sans émettre le moindre octet. On le désactive pour que le texte commence
@@ -153,6 +154,33 @@ async function fetchGeminiWithRetry(
 }
 
 /**
+ * Modèles essayés dans l'ordre. `gemini-3.5-flash` est le modèle nominal ;
+ * `gemini-2.5-flash` est un modèle de secours à quota de free tier
+ * indépendant, utilisé uniquement quand le premier est explicitement
+ * surchargé (503) — un 429 de quota journalier ne change généralement pas
+ * en changeant de modèle, donc on n'y bascule pas dans ce cas.
+ */
+const GEMINI_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"] as const;
+
+async function fetchGeminiWithFallback(
+  apiKey: string,
+  system: string,
+  user: string,
+): Promise<GeminiAttemptResult> {
+  for (let i = 0; i < GEMINI_MODELS.length; i++) {
+    const attempt = await fetchGeminiWithRetry(apiKey, system, user, GEMINI_MODELS[i]);
+    const isLastModel = i === GEMINI_MODELS.length - 1;
+    if (attempt.ok === false && attempt.errorResponse.status === 503 && !isLastModel) {
+      console.warn(`gemini: ${GEMINI_MODELS[i]} surchargé (503), bascule vers ${GEMINI_MODELS[i + 1]}`);
+      continue;
+    }
+    return attempt;
+  }
+  // Inatteignable : GEMINI_MODELS contient toujours au moins un élément.
+  throw new Error("fetchGeminiWithFallback: aucun modèle disponible");
+}
+
+/**
  * Consomme le corps SSE d'une réponse Gemini et retourne les fragments de
  * texte au fur et à mesure (générateur async), afin d'être ré-utilisable
  * aussi bien pour la génération initiale que pour une continuation.
@@ -206,7 +234,7 @@ export async function streamGeminiText(
   const apiKey = process.env["GEMINI_API_KEY"];
   if (!apiKey) return new Response("Clé IA manquante.", { status: 500 });
 
-  const first = await fetchGeminiWithRetry(apiKey, system, user);
+  const first = await fetchGeminiWithFallback(apiKey, system, user);
   if (first.ok === false) return first.errorResponse;
 
   const encoder = new TextEncoder();
@@ -242,7 +270,7 @@ export async function streamGeminiText(
             `---\nContinue directement la rédaction à partir de là où le texte ci-dessus s'arrête, ` +
             `sans rien répéter de ce qui précède, sans réintroduire de titre déjà traité, et sans commentaire ` +
             `sur la coupure. Termine toutes les sections restantes demandées initialement.`;
-          const next = await fetchGeminiWithRetry(apiKey, system, continuationUser);
+          const next = await fetchGeminiWithFallback(apiKey, system, continuationUser);
           if (next.ok === false) break; // on garde ce qui a déjà été généré plutôt que d'échouer
           upstream = next.upstream;
         }
