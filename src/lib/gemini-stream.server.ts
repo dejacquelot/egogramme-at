@@ -18,9 +18,10 @@ function isDailyQuota(body: string): boolean {
 }
 
 /** Résultat d'une tentative d'appel Gemini avec retry. */
+type GeminiFailureReason = "overloaded" | "daily_quota" | "rate_limit" | "other";
 type GeminiAttemptResult =
   | { ok: true; upstream: Response }
-  | { ok: false; errorResponse: Response };
+  | { ok: false; errorResponse: Response; reason: GeminiFailureReason };
 
 /**
  * Envoie une requête à Gemini (system + user) avec la logique de retry
@@ -119,6 +120,7 @@ async function fetchGeminiWithRetry(
     if (lastStatus === 503) {
       return {
         ok: false,
+        reason: "overloaded",
         errorResponse: new Response(
           "Le service d'IA est momentanément surchargé. Merci de réessayer dans quelques instants.",
           { status: 503 },
@@ -129,6 +131,7 @@ async function fetchGeminiWithRetry(
       if (isDailyQuota(lastBody)) {
         return {
           ok: false,
+          reason: "daily_quota",
           errorResponse: new Response(
             "Quota journalier de l'IA atteint. Les analyses redeviendront disponibles demain, " +
               "ou immédiatement en activant la facturation sur la clé Gemini.",
@@ -140,6 +143,7 @@ async function fetchGeminiWithRetry(
       const seconds = suggested ? Math.ceil(suggested / 1000) : 30;
       return {
         ok: false,
+        reason: "rate_limit",
         errorResponse: new Response(
           `Limite de vitesse de l'IA atteinte (trop d'analyses coup sur coup). ` +
             `Patientez environ ${seconds} secondes puis relancez.`,
@@ -147,7 +151,11 @@ async function fetchGeminiWithRetry(
         ),
       };
     }
-    return { ok: false, errorResponse: new Response("Analyse indisponible pour le moment.", { status: 502 }) };
+    return {
+      ok: false,
+      reason: "other",
+      errorResponse: new Response("Analyse indisponible pour le moment.", { status: 502 }),
+    };
   }
 
   return { ok: true, upstream };
@@ -156,11 +164,13 @@ async function fetchGeminiWithRetry(
 /**
  * Modèles essayés dans l'ordre. `gemini-3.5-flash` est le modèle nominal ;
  * `gemini-2.5-flash` est un modèle de secours à quota de free tier
- * indépendant, utilisé uniquement quand le premier est explicitement
- * surchargé (503) — un 429 de quota journalier ne change généralement pas
- * en changeant de modèle, donc on n'y bascule pas dans ce cas.
+ * indépendant (RPM/RPD comptés séparément par modèle), utilisé quand le
+ * premier est surchargé (503) OU a atteint son quota journalier — une
+ * simple limite de vitesse (429 rate_limit) n'en bénéficie pas, puisque
+ * c'est une question de rythme, pas de capacité du modèle.
  */
 const GEMINI_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"] as const;
+const FALLBACK_REASONS = new Set<GeminiFailureReason>(["overloaded", "daily_quota"]);
 
 async function fetchGeminiWithFallback(
   apiKey: string,
@@ -170,8 +180,8 @@ async function fetchGeminiWithFallback(
   for (let i = 0; i < GEMINI_MODELS.length; i++) {
     const attempt = await fetchGeminiWithRetry(apiKey, system, user, GEMINI_MODELS[i]);
     const isLastModel = i === GEMINI_MODELS.length - 1;
-    if (attempt.ok === false && attempt.errorResponse.status === 503 && !isLastModel) {
-      console.warn(`gemini: ${GEMINI_MODELS[i]} surchargé (503), bascule vers ${GEMINI_MODELS[i + 1]}`);
+    if (attempt.ok === false && FALLBACK_REASONS.has(attempt.reason) && !isLastModel) {
+      console.warn(`gemini: ${GEMINI_MODELS[i]} indisponible (${attempt.reason}), bascule vers ${GEMINI_MODELS[i + 1]}`);
       continue;
     }
     return attempt;
