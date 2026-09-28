@@ -163,13 +163,18 @@ async function fetchGeminiWithRetry(
 
 /**
  * Modèles essayés dans l'ordre. `gemini-3.5-flash` est le modèle nominal ;
- * `gemini-2.5-flash` est un modèle de secours à quota de free tier
- * indépendant (RPM/RPD comptés séparément par modèle), utilisé quand le
- * premier est surchargé (503) OU a atteint son quota journalier — une
- * simple limite de vitesse (429 rate_limit) n'en bénéficie pas, puisque
- * c'est une question de rythme, pas de capacité du modèle.
+ * `gemini-3.5-flash-lite` est un modèle de secours à quota de free tier
+ * indépendant et bien plus généreux (variante « lite » de la même
+ * génération, prévue pour l'usage à volume), utilisé quand le premier est
+ * surchargé (503) OU a atteint son quota journalier — une simple limite de
+ * vitesse (429 rate_limit) n'en bénéficie pas, puisque c'est une question
+ * de rythme, pas de capacité du modèle.
+ * (`gemini-2.5-flash`, utilisé précédemment ici, n'est plus un modèle
+ * valide sur ce compte/cette génération et renvoyait un 404 — d'où le
+ * message générique « Analyse indisponible pour le moment. » au lieu du
+ * vrai message de quota.)
  */
-const GEMINI_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"] as const;
+const GEMINI_MODELS = ["gemini-3.5-flash", "gemini-3.5-flash-lite"] as const;
 const FALLBACK_REASONS = new Set<GeminiFailureReason>(["overloaded", "daily_quota"]);
 
 async function fetchGeminiWithFallback(
