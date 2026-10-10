@@ -66,6 +66,8 @@ const MAPPING: Record<CategoryKey, number[]> = {
 };
 
 const ANSWERS_STORAGE_KEY = "egogramme_answers";
+const RELAY_KEY = "egogramme_relay";
+const RELAY_TTL_MS = 3 * 60 * 60 * 1000;
 
 function Index() {
   // Read search params from router
@@ -275,7 +277,35 @@ function Index() {
 
   // Capture referral and invitation params from URL
   const [referredBy] = useState<string | null>(routerRef ?? null);
-  const [invToken] = useState<string | null>(routerInv ?? null);
+  const [invToken, setInvToken] = useState<string | null>(routerInv ?? null);
+
+  // Relais sur un appareil partagé : la personne 1 passe le téléphone, la
+  // personne 2 repasse le test via une invitation créée à l'instant. Le jeton
+  // est mémorisé quelques heures pour survivre à un rechargement de page.
+  const [relayMode, setRelayMode] = useState(false);
+  useEffect(() => {
+    try {
+      if (routerInv) {
+        window.localStorage.removeItem(RELAY_KEY);
+        return;
+      }
+      const raw = window.localStorage.getItem(RELAY_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { token?: unknown; ts?: unknown };
+      if (
+        typeof parsed.token === "string" &&
+        typeof parsed.ts === "number" &&
+        Date.now() - parsed.ts < RELAY_TTL_MS
+      ) {
+        setInvToken(parsed.token);
+        setRelayMode(true);
+      } else {
+        window.localStorage.removeItem(RELAY_KEY);
+      }
+    } catch {
+      /* stockage local indisponible : le relais ne sera pas restauré */
+    }
+  }, []);
   useEffect(() => {
     if (typeof window !== "undefined" && (routerRef || routerInv || routerContexte)) {
       const url = new URL(window.location.href);
@@ -288,6 +318,22 @@ function Index() {
 
   // Save result only when analysis is generated (not on 60-question completion)
   const [resultId, setResultId] = useState<string | null>(null);
+
+  // Passe le relais : le résultat de la personne 1 est déjà enregistré côté
+  // serveur, on repart sur un test vierge rattaché à la nouvelle invitation.
+  const handleRelay = (token: string) => {
+    try {
+      window.localStorage.setItem(RELAY_KEY, JSON.stringify({ token, ts: Date.now() }));
+    } catch {
+      /* non bloquant */
+    }
+    setInviteContext(null);
+    setInvToken(token);
+    setRelayMode(true);
+    setAnswers(Array(60).fill(undefined));
+    setResultId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // J4 : personnalise le haut de page pour la personne invitée — qui l'a
   // invitée et pour qui, avec repli en cascade si l'un des prénoms manque.
@@ -303,6 +349,18 @@ function Index() {
         const res = await fetch(`/api/public/invite?token=${encodeURIComponent(invToken)}`);
         const json = await res.json().catch(() => null);
         if (cancelled || !json?.ok) return;
+        // Relais déjà terminé (rechargement après coup) : on ne rejoue pas le
+        // parcours invité, le rapport à deux se retrouve via le bandeau de retour.
+        if (relayMode && json.invitation.status === "completed") {
+          try {
+            window.localStorage.removeItem(RELAY_KEY);
+          } catch {
+            /* non bloquant */
+          }
+          setInvToken(null);
+          setRelayMode(false);
+          return;
+        }
         setInviteContext({
           inviterFirstName: json.invitation.inviterFirstName ?? null,
           inviteeFirstName: json.invitation.inviteeFirstName ?? null,
@@ -374,7 +432,9 @@ function Index() {
       {invToken && (
         <div className="border-b border-violet-200 bg-violet-50">
           <div className="mx-auto max-w-5xl px-4 py-2.5 text-center text-sm font-medium text-violet-900 sm:py-3">
-            {inviteContext?.inviterFirstName && inviteContext?.inviteeFirstName
+            {relayMode
+              ? `👋 ${inviteContext?.inviteeFirstName ?? "À vous"}, c'est votre tour${inviteContext?.inviterFirstName ? ` — ${inviteContext.inviterFirstName} a terminé le sien` : ""}. Répondez à votre rythme : vous aurez votre rapport, puis le rapport à deux.`
+              : inviteContext?.inviterFirstName && inviteContext?.inviteeFirstName
               ? `${inviteContext.inviterFirstName} a pensé à vous, ${inviteContext.inviteeFirstName} 👋 — faites le test, vous recevrez chacun votre rapport, plus un 3ᵉ rapport à deux.`
               : inviteContext?.inviterFirstName
                 ? `${inviteContext.inviterFirstName} vous invite à découvrir votre profil relationnel — vous recevrez chacun votre rapport, plus un 3ᵉ rapport à deux.`
@@ -694,7 +754,7 @@ function Index() {
 
       {answeredCount === 60 && (
         <section className="mx-auto max-w-5xl px-4 pb-12">
-          <ResultSection scores={scores} answers={answers} resultId={resultId} setResultId={setResultId} referredBy={referredBy} invToken={invToken} user={user} userFirstName={user?.firstName} userLastName={user?.lastName} questionVariant={questionVariant} />
+          <ResultSection scores={scores} answers={answers} resultId={resultId} setResultId={setResultId} onRelay={handleRelay} referredBy={referredBy} invToken={invToken} user={user} userFirstName={user?.firstName} userLastName={user?.lastName} questionVariant={questionVariant} />
         </section>
       )}
 
@@ -731,6 +791,7 @@ function ResultSection({
   answers,
   resultId,
   setResultId,
+  onRelay,
   referredBy,
   invToken,
   user,
@@ -742,6 +803,7 @@ function ResultSection({
   answers: (boolean | undefined)[];
   resultId: string | null;
   setResultId: (id: string) => void;
+  onRelay: (token: string) => void;
   referredBy: string | null;
   invToken: string | null;
   user: UserInfo;
@@ -1151,7 +1213,7 @@ function ResultSection({
             </p>
           )}
 
-          <DuoNextStep scores={scores} resultId={resultId} user={user} invToken={invToken} />
+          <DuoNextStep scores={scores} resultId={resultId} user={user} invToken={invToken} onRelay={onRelay} />
           </>
           )}
         </div>

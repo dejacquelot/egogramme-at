@@ -260,6 +260,86 @@ function InviteGateway({
   );
 }
 
+/** A — « on se passe le téléphone » : le résultat est déjà enregistré, on crée
+ *  l'invitation et on bascule sur un test vierge pour la personne suivante. */
+function RelayGateway({
+  resultId,
+  onRelay,
+}: {
+  resultId: string | null;
+  onRelay: (token: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleRelay = async () => {
+    if (!resultId || !name.trim()) return;
+    setCreating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/public/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviterResultId: resultId, inviteeFirstName: name.trim() }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!json?.ok) {
+        throw new Error(
+          [json?.error, json?.detail].filter(Boolean).join(" — ") ||
+            `Création impossible (HTTP ${res.status}).`,
+        );
+      }
+      try {
+        const raw = localStorage.getItem("egogramme_invitations");
+        const list = raw ? JSON.parse(raw) : [];
+        list.push({ token: json.token, name: name.trim(), resultId });
+        localStorage.setItem("egogramme_invitations", JSON.stringify(list));
+      } catch {
+        /* stockage local indisponible : non bloquant */
+      }
+      onRelay(json.token as string);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Création impossible.");
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border-2 border-violet-300 bg-violet-50 p-4 sm:p-5">
+      <p className="text-sm font-semibold text-violet-900">
+        📱 Vous êtes ensemble ? Passez le téléphone
+      </p>
+      <p className="mt-1 text-xs text-violet-800">
+        Votre résultat est enregistré. L'autre personne passe son test sur cet
+        appareil, puis vous lisez le rapport à deux. Aucun compte nécessaire.
+      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <Label htmlFor="relay-first-name" className="text-xs">
+            Prénom de la personne qui passe le test
+          </Label>
+          <Input
+            id="relay-first-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Camille"
+            maxLength={120}
+          />
+        </div>
+        <Button
+          onClick={handleRelay}
+          disabled={creating || !name.trim() || !resultId}
+          className="w-full sm:w-auto"
+        >
+          {creating ? "Un instant…" : "Passer le téléphone"}
+        </Button>
+      </div>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 /** A — le compte, demandé après la valeur et pour la bonne raison. */
 function AccountGateway({
   resultId,
@@ -584,11 +664,13 @@ export function DuoNextStep({
   resultId,
   user,
   invToken,
+  onRelay,
 }: {
   scores: Record<string, number>;
   resultId: string | null;
   user: UserInfo;
   invToken?: string | null;
+  onRelay?: (token: string) => void;
 }) {
   const [invited, setInvited] = useState(false);
 
@@ -640,6 +722,7 @@ export function DuoNextStep({
         </div>
       ) : (
         <>
+          {onRelay && <RelayGateway resultId={resultId} onRelay={onRelay} />}
           <InviteGateway resultId={resultId} onInvited={() => setInvited(true)} />
           <AccountGateway resultId={resultId} invited={invited} />
         </>
