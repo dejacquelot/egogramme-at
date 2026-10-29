@@ -290,8 +290,13 @@ export function DuoLiveTest({
     return { same, diff };
   }, [s.step, s.a, s.b, s.cur, blockStart]);
 
+  const duoLink = () => {
+    const from = [s.nameA, s.nameB].map((n) => n.trim()).filter(Boolean).join(" et ");
+    return `${window.location.origin}/duo${from ? `?de=${encodeURIComponent(from)}` : ""}`;
+  };
+
   const share = async () => {
-    const url = `${window.location.origin}/`;
+    const url = duoLink();
     const text = `On vient de faire le test égogramme à deux, sur le même écran — 20 minutes pour se découvrir autrement. Essayez, vous aussi !\n\n${url}`;
     const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> };
     try {
@@ -307,7 +312,7 @@ export function DuoLiveTest({
   };
 
   const shareVia = (channel: "mail" | "facebook" | "sms") => {
-    const url = `${window.location.origin}/`;
+    const url = duoLink();
     const text = "On vient de faire le test égogramme à deux, sur le même écran — 20 minutes pour se découvrir autrement. Essayez, vous aussi !";
     if (channel === "facebook") {
       window.open(

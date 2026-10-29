@@ -37,6 +37,7 @@ export const Route = createFileRoute("/")({
     contexte: (typeof search.contexte === "string" ? search.contexte : undefined) as
       | string
       | undefined,
+    duo: (search.duo === "1" || search.duo === 1 ? "1" : undefined) as string | undefined,
   }),
   head: () => ({
     meta: [
@@ -72,7 +73,7 @@ const RELAY_TTL_MS = 3 * 60 * 60 * 1000;
 
 function Index() {
   // Read search params from router
-  const { ref: routerRef, inv: routerInv, contexte: routerContexte } = Route.useSearch();
+  const { ref: routerRef, inv: routerInv, contexte: routerContexte, duo: routerDuo } = Route.useSearch();
 
   // Auth state
   type UserInfo = { id: string; email: string; firstName: string; lastName: string } | null;
@@ -405,6 +406,10 @@ function Index() {
   // en cours (réponses déjà saisies) conservée dans le navigateur.
   const [duoLive, setDuoLive] = useState(false);
   useEffect(() => {
+    if (routerDuo === "1" && !routerInv) {
+      setDuoLive(true);
+      return;
+    }
     try {
       const raw = window.localStorage.getItem("egogramme_duo_live");
       const saved = raw ? (JSON.parse(raw) as { step?: string }) : null;
