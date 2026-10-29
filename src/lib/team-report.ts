@@ -55,6 +55,9 @@ function font(ctx: CanvasRenderingContext2D, size: number, weight = "400") {
 }
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  if (text.includes("\n")) {
+    return text.split("\n").flatMap((part) => wrap(ctx, part, maxW));
+  }
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let cur = "";
@@ -72,6 +75,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
 function stripMd(s: string) {
   // Même garde-fou que sur l'écran : pas d'abréviation d'état du moi dans le texte.
   return expandEgoStateAbbreviations(s)
+    .replace(/<br\s*\/?>/gi, "\n")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/\*\*/g, "")
     .replace(/\*([^*\n]+)\*/g, "$1")
