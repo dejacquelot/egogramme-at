@@ -306,6 +306,22 @@ export function DuoLiveTest({
     }
   };
 
+  const shareVia = (channel: "mail" | "facebook" | "sms") => {
+    const url = `${window.location.origin}/`;
+    const text = "On vient de faire le test égogramme à deux, sur le même écran — 20 minutes pour se découvrir autrement. Essayez, vous aussi !";
+    if (channel === "facebook") {
+      window.open(
+        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } else if (channel === "mail") {
+      window.location.href = `mailto:?subject=${encodeURIComponent("Un test égogramme à faire à deux")}&body=${encodeURIComponent(`${text}\n\n${url}`)}`;
+    } else {
+      window.location.href = `sms:?&body=${encodeURIComponent(`${text} ${url}`)}`;
+    }
+  };
+
   const downloadPdf = async (who: "a" | "b" | "duo") => {
     const analysis = s.reports[who];
     if (!analysis) return;
@@ -586,9 +602,14 @@ export function DuoLiveTest({
       {done && (
         <Card className="mt-5 space-y-3 border-2 border-violet-300 bg-violet-50 p-5">
           <p className="text-sm font-semibold text-violet-900">
-            💌 Ça vous a plu ? Proposez à un autre couple ou à des amis de le faire, eux aussi.
+            💌 Ça vous a plu ? Proposez             à un autre binôme ou à des amis de le faire, eux aussi.
           </p>
-          <Button onClick={() => void share()}>{copied ? "Lien copié ✓" : "Partager l'expérience"}</Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button onClick={() => void share()}>{copied ? "Lien copié ✓" : "Partager l'expérience"}</Button>
+                        <Button variant="outline" onClick={() => shareVia("mail")}>✉️ Mail</Button>
+                        <Button variant="outline" onClick={() => shareVia("facebook")}>📘 Facebook</Button>
+                        <Button variant="outline" onClick={() => shareVia("sms")}>💬 SMS</Button>
+                      </div>
         </Card>
       )}
     </div>
