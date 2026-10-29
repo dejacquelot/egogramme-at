@@ -22,6 +22,7 @@ import { progressApi } from "@/lib/progress-api";
 import { EgogramCard } from "@/components/egogram-card";
 import { type CategoryKey } from "@/lib/egogram-categories";
 import { DuoNextStep, InviteReturnBanner } from "@/components/duo-next-step";
+import { DuoLiveTest } from "@/components/duo-live-test";
 import {
   QUESTION_VARIANTS,
   QUESTION_VARIANT_LABELS,
@@ -400,6 +401,19 @@ function Index() {
   // la première question sous la ligne de flottaison. Toujours ouvert sur grand écran.
   const [heroOpen, setHeroOpen] = useState(false);
 
+  // Mode « à deux sur le même écran » : reprend automatiquement une session
+  // en cours (réponses déjà saisies) conservée dans le navigateur.
+  const [duoLive, setDuoLive] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("egogramme_duo_live");
+      const saved = raw ? (JSON.parse(raw) as { step?: string }) : null;
+      if (!routerInv && (saved?.step === "test" || saved?.step === "pause")) setDuoLive(true);
+    } catch {
+      /* stockage indisponible */
+    }
+  }, []);
+
   // Panneau égogramme accessible pendant le test sur mobile
   const [chartOpen, setChartOpen] = useState(false);
 
@@ -425,6 +439,20 @@ function Index() {
       document.getElementById("questions")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
+
+  if (duoLive) {
+    return (
+      <div className="min-h-screen bg-background">
+        <NavBar />
+        <DuoLiveTest
+          questions={QUESTIONS}
+          mapping={MAPPING}
+          questionVariant={questionVariant}
+          onExit={() => setDuoLive(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -493,7 +521,10 @@ function Index() {
               </button>
               <button
                 type="button"
-                onClick={() => scrollToQuestions({ duo: true })}
+                onClick={() => {
+                  setDuoLive(true);
+                  window.scrollTo({ top: 0 });
+                }}
                 className="rounded-2xl border border-white/40 bg-white/15 p-4 text-white transition hover:bg-white/20 sm:p-5"
               >
                 <span className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-white/20 px-3 text-lg">
@@ -502,8 +533,8 @@ function Index() {
                 </span>
                 <p className="mt-3 text-sm font-bold sm:text-base">Notre dynamique à deux</p>
                 <p className="mt-1 text-xs leading-relaxed text-white/80">
-                  Faites le test, puis invitez quelqu'un : vous recevrez chacun votre rapport, plus
-                  un 3ᵉ rapport de binôme.
+                  Deux personnes, un seul écran : répondez ensemble, découvrez vos différences
+                  toutes les 10 questions, puis recevez 2 rapports + 1 rapport à deux.
                 </p>
                 <span className="mt-3 flex min-h-[38px] w-full items-center justify-center rounded-lg bg-white px-4 text-xs font-bold text-violet-700">
                   Commencer à deux →
