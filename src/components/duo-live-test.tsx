@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { MarkdownText } from "@/components/markdown-text";
 import { streamAnalysis } from "@/lib/stream-client";
 import { completeInvitation } from "@/lib/invitation.functions";
-import { downloadIndividualReportPdf, type CatKey } from "@/lib/team-report";
+import { downloadIndividualReportPdf, downloadTeamReportPdf, type CatKey } from "@/lib/team-report";
 
 const STORAGE_KEY = "egogramme_duo_live";
 const BLOCK_SIZE = 10;
@@ -87,7 +87,7 @@ export function DuoLiveTest({
   const [error, setError] = useState<string | null>(null);
   const [partial, setPartial] = useState("");
   const [tab, setTab] = useState<"a" | "b" | "duo">("duo");
-  const [pdfBusy, setPdfBusy] = useState<"a" | "b" | null>(null);
+  const [pdfBusy, setPdfBusy] = useState<"a" | "b" | "duo" | null>(null);
   const [copied, setCopied] = useState(false);
   const started = useRef(false);
 
@@ -306,17 +306,36 @@ export function DuoLiveTest({
     }
   };
 
-  const downloadPdf = async (who: "a" | "b") => {
+  const downloadPdf = async (who: "a" | "b" | "duo") => {
     const analysis = s.reports[who];
     if (!analysis) return;
     setPdfBusy(who);
     try {
-      await downloadIndividualReportPdf({
-        name: who === "a" ? s.nameA : s.nameB,
-        date: new Date().toLocaleDateString("fr-FR", { dateStyle: "long" }),
-        scores: scoresOf(who === "a" ? s.a : s.b),
-        analysis,
-      });
+      const date = new Date().toLocaleDateString("fr-FR", { dateStyle: "long" });
+      if (who === "duo") {
+        const sa = scoresOf(s.a);
+        const sb = scoresOf(s.b);
+        const average = { ...sa } as Record<CatKey, number>;
+        (Object.keys(sa) as CatKey[]).forEach((k) => {
+          average[k] = Math.round((sa[k] + sb[k]) / 2);
+        });
+        await downloadTeamReportPdf({
+          teamName: `${s.nameA} & ${s.nameB}`,
+          average,
+          members: [
+            { name: s.nameA, date, scores: sa },
+            { name: s.nameB, date, scores: sb },
+          ],
+          analysis,
+        });
+      } else {
+        await downloadIndividualReportPdf({
+          name: who === "a" ? s.nameA : s.nameB,
+          date,
+          scores: scoresOf(who === "a" ? s.a : s.b),
+          analysis,
+        });
+      }
     } catch {
       setError("Téléchargement impossible. Réessayez.");
     } finally {
@@ -545,15 +564,18 @@ export function DuoLiveTest({
           {activeText && (
             <Card className="p-5 text-sm leading-relaxed">
               <MarkdownText text={activeText} />
-              {tab !== "duo" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-4"
-                  disabled={pdfBusy !== null}
-                  onClick={() => void downloadPdf(tab)}
-                >
-                  {pdfBusy === tab ? "Préparation…" : "📄 Télécharger le PDF"}
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-4"
+                disabled={pdfBusy !== null}
+                onClick={() => void downloadPdf(tab)}
+              >
+                {pdfBusy === tab ? "Préparation…" : "📄 Télécharger le PDF"}
+              </Button>
+              {done && s.reports.duo && tab !== "duo" && (
+                <Button size="sm" className="mt-4 ml-2" onClick={() => setTab("duo")}>
+                  🤝 Voir notre rapport de duo
                 </Button>
               )}
             </Card>
