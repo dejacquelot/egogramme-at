@@ -989,6 +989,28 @@ export async function downloadTeamReportPdf(input: TeamReportInput) {
   pdf.save(`${fileBase(input.teamName)}.pdf`);
 }
 
+export async function downloadAgreementsPdf(input: {
+  date: string;
+  members: string[];
+  agreements: { title: string; text: string }[];
+}) {
+  if (!input.agreements.length) throw new Error("Choisissez au moins un accord.");
+  const logo = await loadLogo();
+  const blocks: Block[] = [
+    { type: "h1", text: "Nos accords de fonctionnement APEL" },
+    { type: "small", text: `Validés le ${input.date}` },
+    { type: "p", text: `Participants : ${input.members.join(", ")}` },
+    { type: "rule" },
+    ...input.agreements.flatMap((agreement): Block[] => [
+      { type: "h2", text: agreement.title },
+      { type: "p", text: agreement.text },
+      { type: "space", h: 12 },
+    ]),
+    { type: "small", text: "Accords choisis ensemble par les participants présents, à revoir lors d'une prochaine réunion." },
+  ];
+  await canvasesToPdf(paginate(blocks, logo, "Bureau APEL"), `accords-apel-${new Date().toISOString().slice(0, 10)}`);
+}
+
 export async function downloadTeamReportImage(input: TeamReportInput) {
   const pages = await renderTeamReportPages(input);
   const out = document.createElement("canvas");

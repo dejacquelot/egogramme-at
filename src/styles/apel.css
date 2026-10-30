@@ -1,0 +1,448 @@
+.apel {
+  --apel-ink: #193f44;
+  --apel-muted: #526c70;
+  --apel-teal: #087d80;
+  --apel-line: #d5e4e3;
+  --apel-pale: #edf7f6;
+  min-height: 100vh;
+  background: #f7faf9;
+  color: var(--apel-ink);
+  font:
+    16px/1.55 "Segoe UI",
+    Arial,
+    sans-serif;
+}
+.apel * {
+  box-sizing: border-box;
+}
+.apel button,
+.apel input,
+.apel textarea {
+  font: inherit;
+}
+.apel button {
+  cursor: pointer;
+}
+.apel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.apel :focus-visible {
+  outline: 3px solid #a91b65;
+  outline-offset: 4px;
+}
+.apel h1 {
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+  max-width: 700px;
+  font-weight: 700;
+}
+.apel h2 {
+  font-size: 23px;
+  line-height: 1.3;
+  font-weight: 650;
+}
+.apel p {
+  max-width: 72ch;
+}
+.apel-header {
+  max-width: 1120px;
+  margin: auto;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--apel-line);
+}
+.apel-header a {
+  font-size: 20px;
+  font-weight: 700;
+}
+.apel-header p {
+  color: var(--apel-muted);
+  font-size: 14px;
+}
+.apel-header img {
+  object-fit: contain;
+  width: 95px;
+  height: 68px;
+}
+.apel-stages {
+  max-width: 1120px;
+  margin: auto;
+  padding: 16px 28px;
+}
+.apel-stages ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  list-style: none;
+  padding: 0;
+  color: var(--apel-muted);
+  font-size: 14px;
+}
+.apel-stages li {
+  padding-bottom: 5px;
+  border-bottom: 2px solid transparent;
+}
+.apel-stages [aria-current="step"] {
+  color: var(--apel-teal);
+  font-weight: 700;
+  border-color: var(--apel-teal);
+}
+.apel-main {
+  max-width: 1120px;
+  margin: auto;
+  padding: 8px 28px 60px;
+}
+.apel-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+  font-size: 14px;
+}
+.apel-intro {
+  margin-bottom: 30px;
+}
+.apel-intro p {
+  margin-top: 14px;
+  color: var(--apel-muted);
+}
+.apel-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr);
+  gap: 32px;
+}
+.apel-sheet {
+  background: white;
+  border: 1px solid var(--apel-line);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 0;
+}
+.apel-sheet > h2 + p {
+  color: var(--apel-muted);
+  margin-top: 8px;
+}
+.apel-roster {
+  margin-top: 20px;
+}
+.apel-person {
+  display: grid;
+  grid-template-columns: 24px minmax(120px, 1fr) minmax(90px, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 15px 0;
+  border-top: 1px solid var(--apel-line);
+}
+.apel-person label {
+  font-weight: 600;
+  cursor: pointer;
+}
+.apel input[type="checkbox"] {
+  width: 19px;
+  height: 19px;
+  accent-color: var(--apel-teal);
+  flex-shrink: 0;
+}
+.apel input:not([type="checkbox"]),
+.apel textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #9fb6b5;
+  border-radius: 6px;
+  background: white;
+  color: var(--apel-ink);
+}
+.apel input:disabled {
+  background: #f2f5f4;
+  color: #536969;
+}
+.apel input::placeholder {
+  color: #607779;
+}
+.apel-summary {
+  background: var(--apel-pale);
+  padding: 25px;
+  border-radius: 12px;
+  align-self: start;
+}
+.apel-summary ul {
+  list-style: none;
+  margin: 18px 0;
+  padding: 0;
+}
+.apel-summary li {
+  padding: 10px 0;
+  border-bottom: 1px solid #c8dedd;
+  overflow-wrap: anywhere;
+}
+.apel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--apel-teal);
+  border-radius: 7px;
+  background: var(--apel-teal);
+  color: white;
+  font-weight: 600;
+  padding: 12px 18px;
+  margin-top: 16px;
+}
+.apel-btn:hover:not(:disabled) {
+  background: #056366;
+}
+.apel-btn.secondary {
+  background: white;
+  color: var(--apel-teal);
+}
+.apel-btn.secondary:hover:not(:disabled) {
+  background: var(--apel-pale);
+}
+.apel-summary .apel-btn {
+  width: 100%;
+}
+.apel-text {
+  background: none;
+  border: 0;
+  color: var(--apel-teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 10px 0;
+}
+.apel-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.apel-consent input {
+  margin-top: 4px;
+}
+.apel-note {
+  font-size: 13px;
+  color: var(--apel-muted);
+  margin-top: 14px;
+}
+.apel-alert {
+  color: #921335;
+  background: #fff1f4;
+  border: 1px solid #e8bec8;
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+.apel-narrow {
+  max-width: 850px;
+  margin: auto;
+}
+.apel progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #dce9e7;
+  accent-color: var(--apel-teal);
+  margin: 12px 0 28px;
+}
+.apel progress::-webkit-progress-bar {
+  background: #dce9e7;
+}
+.apel progress::-webkit-progress-value {
+  background: var(--apel-teal);
+}
+.apel-answers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 18px;
+  margin: 28px 0;
+}
+.apel-answer {
+  background: white;
+  border: 1px solid var(--apel-line);
+  border-radius: 10px;
+  padding: 20px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.apel-answer h2 {
+  font-size: 20px;
+}
+.apel-answer > p {
+  font-size: 14px;
+  color: var(--apel-muted);
+}
+.apel-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e6f4f2;
+  color: #08696c;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+.apel-options {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.apel-options button {
+  flex: 1;
+  background: white;
+  color: var(--apel-ink);
+  border: 1px solid #91afad;
+  border-radius: 6px;
+  padding: 11px;
+}
+.apel-options button:hover {
+  background: var(--apel-pale);
+}
+.apel-sealed {
+  margin-top: 18px;
+  padding: 16px 8px;
+  text-align: center;
+  background: var(--apel-pale);
+  border-radius: 6px;
+}
+.apel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.apel-comparison {
+  padding: 19px 0;
+  border-bottom: 1px solid var(--apel-line);
+}
+.apel-comparison h2 {
+  font-size: 18px;
+  margin-bottom: 9px;
+}
+.apel-tag {
+  display: inline-block;
+  font-size: 13px;
+  color: #0b6864;
+  background: #e7f4ef;
+  border-radius: 4px;
+  padding: 3px 9px;
+  margin-bottom: 9px;
+}
+.apel-tag.difference {
+  background: #fcf0df;
+  color: #82531a;
+}
+.apel-discussion {
+  padding: 25px;
+  background: var(--apel-pale);
+  border-radius: 10px;
+  margin-top: 25px;
+}
+.apel-discussion p {
+  margin-top: 12px;
+}
+.apel-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 25px 0 18px;
+}
+.apel-tabs button {
+  border: 1px solid var(--apel-line);
+  padding: 10px 15px;
+  background: white;
+  color: var(--apel-ink);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.apel-tabs [aria-pressed="true"] {
+  background: var(--apel-ink);
+  color: white;
+  border-color: var(--apel-ink);
+}
+.apel-stream {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--apel-line);
+  padding: 18px;
+  margin-top: 20px;
+  background: white;
+}
+.apel-agreement {
+  margin-top: 26px;
+}
+.apel-agreement > label:first-child {
+  font-weight: 650;
+  display: block;
+  margin-bottom: 8px;
+}
+.apel textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+.apel-footer {
+  max-width: 1064px;
+  margin: 0 auto;
+  border-top: 1px solid var(--apel-line);
+  padding: 20px 0;
+  font-size: 12px;
+  color: var(--apel-muted);
+}
+.apel-footer a {
+  text-decoration: underline;
+}
+.apel-loading {
+  padding: 40px;
+}
+@media (max-width: 720px) {
+  .apel-header {
+    padding: 14px 18px;
+  }
+  .apel-header img {
+    width: 75px;
+    height: 55px;
+  }
+  .apel-stages {
+    padding: 12px 18px;
+  }
+  .apel-stages ol {
+    font-size: 12px;
+    gap: 10px 14px;
+  }
+  .apel-main {
+    padding: 8px 18px 40px;
+  }
+  .apel-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .apel-sheet,
+  .apel-summary {
+    padding: 19px;
+  }
+  .apel-person {
+    grid-template-columns: 22px 1fr;
+    gap: 10px;
+  }
+  .apel-person input:last-child {
+    grid-column: 2;
+  }
+  .apel-footer {
+    margin: 0 18px;
+  }
+}

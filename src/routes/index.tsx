@@ -58,14 +58,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const MAPPING: Record<CategoryKey, number[]> = {
-  PNr: [4, 8, 14, 22, 28, 33, 36, 50, 57, 60],
-  PNf: [6, 12, 16, 24, 26, 32, 37, 48, 52, 56],
-  A: [1, 11, 17, 19, 27, 29, 38, 42, 44, 54],
-  EL: [5, 7, 15, 23, 25, 41, 43, 47, 53, 59],
-  EAS: [3, 9, 13, 21, 31, 34, 40, 46, 51, 58],
-  EAR: [2, 10, 18, 20, 30, 35, 39, 45, 49, 55],
-};
+import { QUESTION_MAPPING as MAPPING } from "@/lib/question-mapping";
 
 const ANSWERS_STORAGE_KEY = "egogramme_answers";
 const RELAY_KEY = "egogramme_relay";
@@ -548,6 +541,12 @@ function Index() {
             </div>
             <p className="mt-4 text-xs text-white/85">
               🔒 Vous répondez d'abord, vous décidez ensuite si vous voulez garder une trace — les deux parcours utilisent le même test.
+            </p>
+            <p className="mt-4 text-sm text-white">
+              Vous êtes un bureau APEL ?{" "}
+              <a href="/apel" className="font-semibold underline underline-offset-4">
+                Faire le test avec les membres présents →
+              </a>
             </p>
 
             <button
