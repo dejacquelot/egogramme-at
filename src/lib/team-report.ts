@@ -1,6 +1,7 @@
 import logoUrl from "@/assets/team-performance-logo.png";
 import { parsePaeBlock, type PaeInstance } from "@/lib/pae";
 import { expandEgoStateAbbreviations } from "@/lib/ego-states";
+import { cleanLatex, isDiagramLine, parseExchanges, readDiagram } from "@/lib/report-cleanup";
 
 export type CatKey = "PNr" | "PNf" | "A" | "EL" | "EAS" | "EAR";
 export type ReportScores = Record<CatKey, number>;
@@ -74,7 +75,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
 
 function stripMd(s: string) {
   // Même garde-fou que sur l'écran : pas d'abréviation d'état du moi dans le texte.
-  return expandEgoStateAbbreviations(s)
+  return expandEgoStateAbbreviations(cleanLatex(s))
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/\*\*/g, "")
@@ -123,6 +124,32 @@ function analysisToBlocks(analysis: string): Block[] {
       i++; // skip :::
       const groups = parsePaeBlock(pLines.join("\n"));
       if (groups) out.push({ type: "pae", groups });
+      continue;
+    }
+
+    // :::echanges block (qui parle à qui) → une ligne « A → B : exemple » par échange
+    if (line === ":::echanges") {
+      const eLines: string[] = [];
+      i++;
+      while (i < lines.length && lines[i].trim() !== ":::") {
+        eLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip :::
+      for (const x of parseExchanges(eLines.join("\n"))) {
+        out.push({
+          type: "li",
+          text: stripMd(`${x.from} → ${x.to}${x.example ? ` : ${x.example}` : ""}`),
+        });
+      }
+      continue;
+    }
+
+    // Schéma en caractères de boîte : on ne garde que les échanges lisibles
+    if (isDiagramLine(lines[i])) {
+      const { items, next } = readDiagram(lines, i);
+      for (const t of items) out.push({ type: "li", text: stripMd(t) });
+      i = next;
       continue;
     }
 

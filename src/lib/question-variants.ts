@@ -36,7 +36,7 @@ export const QUESTION_VARIANT_CONTEXT_PROMPTS: Record<
   },
   ape: {
     audience:
-      "Le public ayant répondu est composé de membres actifs d'une APEL (Association de Parents d'Élèves de l'Enseignement Libre) : bureau de l'association, organisation d'événements scolaires. Adapte TOUS tes exemples concrets à cet univers (réunions de bureau, kermesse, sorties scolaires, buvette, relations avec l'école) plutôt qu'à un contexte professionnel classique.",
+      "Le public ayant répondu est composé de membres actifs d'une APEL (Association de Parents d'Élèves de l'Enseignement Libre) : bureau de l'association, organisation d'événements scolaires. Adapte TOUS tes exemples concrets à cet univers (réunions de bureau, kermesse, sorties scolaires, buvette, relations avec l'école)       plutôt qu'à un contexte professionnel classique. Les lecteurs sont des parents bénévoles, sans formation en analyse transactionnelle : écris dans un langage simple et chaleureux, avec des phrases courtes. Quand tu emploies un terme technique (état du moi, transaction croisée, jeu psychologique, symbiose, méconnaissance), explique-le en mots du quotidien dès sa première apparition. Préfère « Claire pose le cadre, Ksénia s'y range, Delphine rassure » à « transaction Parent Normatif → Enfant Adapté Soumis ».",
     examples: "en réunion de bureau, en famille, lors d'un événement scolaire, sous stress",
     meetingContext: "en réunion de bureau ou lors de l'organisation d'un événement",
   },

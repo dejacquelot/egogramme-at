@@ -1,6 +1,7 @@
 /** Full Markdown renderer: headings, bold, italic, lists, pipe tables, :::karpman / :::pae blocks. */
 import { parsePaeBlock } from "@/lib/pae";
 import { expandEgoStateAbbreviations } from "@/lib/ego-states";
+import { cleanLatex, isDiagramLine, parseExchanges, readDiagram } from "@/lib/report-cleanup";
 
 export function MarkdownText({ text }: { text: string }) {
   const html = markdownToHtml(text);
@@ -23,6 +24,7 @@ export function MarkdownText({ text }: { text: string }) {
         [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1.5 [&_td]:text-muted-foreground [&_td]:align-top
         [&_tr:nth-child(even)_td]:bg-muted/30
         [&_.karpman]:my-4 [&_.karpman]:rounded-xl [&_.karpman]:border [&_.karpman]:border-amber-200 [&_.karpman]:bg-amber-50 [&_.karpman]:p-4
+        [&_.echanges]:my-4 [&_.echanges]:rounded-xl [&_.echanges]:border [&_.echanges]:border-teal-200 [&_.echanges]:bg-teal-50 [&_.echanges]:p-4
         [&_.pae]:my-4 [&_.pae]:rounded-xl [&_.pae]:border [&_.pae]:border-border [&_.pae]:bg-muted/30 [&_.pae]:p-4"
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -37,7 +39,7 @@ function inlineMarkdown(s: string): string {
   // Garde-fou : les analyses enregistrées avant l'interdiction des abréviations
   // contiennent encore « PNo 8 » ou « PNf 8 ». On rétablit le libellé complet à
   // l'affichage. Le bloc :::pae et le triangle de Karpman ne passent pas par ici.
-  return escapeHtml(expandEgoStateAbbreviations(s))
+  return escapeHtml(expandEgoStateAbbreviations(cleanLatex(s)))
     .replace(/&lt;br\s*\/?&gt;/gi, "<br />")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
@@ -74,6 +76,27 @@ function renderKarpman(block: string): string {
       </div>
       <div style="font-size:0.65rem;color:#78350f;margin-top:2px;">↗ ← → ↖ (les rôles circulent)</div>
     </div>
+  </div>`;
+}
+
+function renderExchanges(block: string): string {
+  const items = parseExchanges(block);
+  if (!items.length) return "";
+  const pill = (s: string) =>
+    `<span style="display:inline-block;background:#fff;border:1px solid #99d5cf;border-radius:999px;padding:4px 12px;font-weight:600;color:#134e4a;">${inlineMarkdown(s)}</span>`;
+  const rows = items
+    .map(
+      (x) => `<div style="background:#fff;border:1px solid #ccebe7;border-radius:12px;padding:10px 12px;">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:0.8rem;">
+          ${pill(x.from)}<span aria-label="parle à" style="color:#0f766e;font-weight:700;">→</span>${pill(x.to)}
+        </div>
+        ${x.example ? `<div style="margin-top:6px;font-size:0.78rem;color:#475569;">${inlineMarkdown(x.example)}</div>` : ""}
+      </div>`,
+    )
+    .join("");
+  return `<div class="echanges">
+    <p style="font-weight:600;margin-bottom:8px;color:#134e4a;">💬 Qui parle à qui</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">${rows}</div>
   </div>`;
 }
 
@@ -175,6 +198,28 @@ function markdownToHtml(md: string): string {
       }
       out.push(renderKarpman(blockLines.join("\n")));
       i++;
+      continue;
+    }
+
+    // :::echanges block (qui parle à qui)
+    if (line.trim() === ":::echanges") {
+      const blockLines: string[] = [];
+      i++;
+      while (i < lines.length && lines[i].trim() !== ":::") {
+        blockLines.push(lines[i]);
+        i++;
+      }
+      out.push(renderExchanges(blockLines.join("\n")));
+      i++;
+      continue;
+    }
+
+    // Schéma dessiné en caractères de boîte (───>, │, └┘) : illisible une fois
+    // affiché. On n'en garde que les échanges « A → B » lisibles.
+    if (isDiagramLine(line)) {
+      const { items, next } = readDiagram(lines, i);
+      if (items.length) out.push(`<ul>${items.map((t) => `<li>${inlineMarkdown(t)}</li>`).join("")}</ul>`);
+      i = next;
       continue;
     }
 
