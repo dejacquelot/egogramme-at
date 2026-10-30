@@ -25,6 +25,7 @@ import {
 import { streamAnalysis } from "@/lib/stream-client";
 import { libraryApi, type LibraryRow } from "@/lib/library-api";
 import { NavBar } from "@/components/nav-bar";
+import { ApelSessionsSection } from "@/components/apel-sessions-admin";
 import { MarkdownText } from "@/components/markdown-text";
 
 
@@ -1122,6 +1123,8 @@ function AdminDashboard() {
             )}
           </div>
         </Card>
+
+        <ApelSessionsSection />
 
         {teamAnalyses.length > 0 && (
           <Card className="p-5">

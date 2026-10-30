@@ -43,6 +43,17 @@ const stageOf = (s: ApelSession) =>
   })[s.step];
 const displayName = (m: ApelMember) => `${m.name.trim()} (${m.role})`;
 
+/** Enregistrement anonymisé côté serveur ; un échec ne doit jamais gêner la séance. */
+function saveSession(session: ApelSession): void {
+  if (!session.completedAt) return;
+  void fetch("/api/public/apel-save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(session),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 export function ApelWorkshop() {
   const [s, setS] = useState<ApelSession>(newApelSession);
   const current = useRef(s);
@@ -206,6 +217,7 @@ export function ApelWorkshop() {
         update({ ...current.current, collective: text });
         trackPage("apel", "report");
       }
+      saveSession(current.current);
     } catch (e) {
       console.error("APEL report generation failed", e);
       setError(
@@ -227,6 +239,7 @@ export function ApelWorkshop() {
     setPdfError("");
     try {
       if (kind === "agreements") {
+        saveSession(current.current);
         const accepted = s.agreements.filter((a) => a.accepted && a.text.trim());
         await downloadAgreementsPdf({
           date: new Date().toLocaleDateString("fr-FR", { dateStyle: "long" }),
