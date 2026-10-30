@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { NavBar } from "@/components/nav-bar";
+import { trackPage } from "@/lib/track-page";
 
 const TITLE = "Test égogramme à deux — mieux vous connaître en binôme";
 const DESCRIPTION =
@@ -33,6 +35,9 @@ const STEPS = [
 
 function DuoLanding() {
   const { de } = Route.useSearch();
+  useEffect(() => {
+    trackPage("duo", "visit");
+  }, []);
   const plural = !!de && /\s(et|&)\s/i.test(de);
 
   return (

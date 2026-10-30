@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MarkdownText } from "@/components/markdown-text";
 import { QUESTION_VARIANTS } from "@/lib/question-variants";
 import { streamAnalysis } from "@/lib/stream-client";
+import { trackPage } from "@/lib/track-page";
 import {
   APEL_BLOCK,
   APEL_MAX_MEMBERS,
@@ -65,6 +66,10 @@ export function ApelWorkshop() {
   }
 
   useEffect(() => {
+    trackPage("apel", "visit");
+  }, []);
+
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(APEL_STORAGE_KEY);
       if (raw) {
@@ -121,6 +126,7 @@ export function ApelWorkshop() {
       return;
     }
     setError("");
+    trackPage("apel", "start");
     update({
       ...s,
       step: "test",
@@ -198,6 +204,7 @@ export function ApelWorkshop() {
         );
         if (!text.trim()) throw new Error("Le rapport collectif est vide. Réessayez.");
         update({ ...current.current, collective: text });
+        trackPage("apel", "report");
       }
     } catch (e) {
       console.error("APEL report generation failed", e);

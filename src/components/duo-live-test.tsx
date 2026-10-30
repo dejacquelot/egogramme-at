@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { MarkdownText } from "@/components/markdown-text";
 import { streamAnalysis } from "@/lib/stream-client";
+import { trackPage } from "@/lib/track-page";
 import { completeInvitation } from "@/lib/invitation.functions";
 import { downloadIndividualReportPdf, downloadTeamReportPdf, type CatKey } from "@/lib/team-report";
 
@@ -148,6 +149,7 @@ export function DuoLiveTest({
 
   const startTest = () => {
     if (!s.nameA.trim() || !s.nameB.trim()) return;
+    trackPage("duo", "start");
     patch({ step: "test", nameA: s.nameA.trim(), nameB: s.nameB.trim() });
   };
 
@@ -259,6 +261,7 @@ export function DuoLiveTest({
           body: JSON.stringify({ resultIdA: cur.ids.a, resultIdB: cur.ids.b, analysis: text }),
         }).catch(() => {});
         commit({ reports: { ...cur.reports, duo: text } });
+        trackPage("duo", "report");
       }
       setCurrentTask(null);
       setPartial("");

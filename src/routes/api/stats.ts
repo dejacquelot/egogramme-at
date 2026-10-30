@@ -27,7 +27,7 @@ export const Route = createFileRoute("/api/stats")({
           });
           if (authError) throw authError;
 
-          const [invRes, resRes, taRes, shareRes, binomeInfoRes, duoReportsRes] = await Promise.all([
+          const [invRes, resRes, taRes, shareRes, binomeInfoRes, duoReportsRes, pageEventsRes] = await Promise.all([
             supabaseAdmin
               .from("invitations")
               .select("id, created_at, status, inviter_user_id, inviter_result_id, result_id")
@@ -61,6 +61,15 @@ export const Route = createFileRoute("/api/stats")({
               .order("created_at", { ascending: true })
               .limit(10000)
               .then((r) => r, () => ({ data: [] as { id: string; created_at: string }[], error: null })),
+            supabaseAdmin
+              .from("page_events")
+              .select("created_at, page, kind")
+              .order("created_at", { ascending: true })
+              .limit(10000)
+              .then(
+                (r) => r,
+                () => ({ data: [] as { created_at: string; page: string; kind: string }[], error: null }),
+              ),
           ]);
 
           if (invRes.error) throw invRes.error;
@@ -77,6 +86,8 @@ export const Route = createFileRoute("/api/stats")({
             shareEvents: shareRes.data ?? [],
             binomeInfoClicks: binomeInfoRes.data ?? [],
             duoReportsGenerated: duoReportsRes.data ?? [],
+            pageEvents: pageEventsRes.data ?? [],
+            pageEventsReady: !pageEventsRes.error,
           });
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);

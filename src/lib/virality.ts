@@ -29,6 +29,8 @@ export type StatsPayload = {
   shareEvents: { id: string; created_at: string }[];
   binomeInfoClicks: { id: string; created_at: string }[];
   duoReportsGenerated: { id: string; created_at: string }[];
+  pageEvents: { created_at: string; page: string; kind: string }[];
+  pageEventsReady: boolean;
 };
 
 export const EMPTY_STATS: StatsPayload = {
@@ -39,6 +41,8 @@ export const EMPTY_STATS: StatsPayload = {
   shareEvents: [],
   binomeInfoClicks: [],
   duoReportsGenerated: [],
+  pageEvents: [],
+  pageEventsReady: true,
 };
 
 export async function loadStats(): Promise<StatsPayload> {
@@ -60,6 +64,8 @@ export async function loadStats(): Promise<StatsPayload> {
     shareEvents: body.shareEvents ?? [],
     binomeInfoClicks: body.binomeInfoClicks ?? [],
     duoReportsGenerated: body.duoReportsGenerated ?? [],
+    pageEvents: body.pageEvents ?? [],
+    pageEventsReady: body.pageEventsReady !== false,
   };
 }
 

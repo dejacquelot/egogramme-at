@@ -348,6 +348,37 @@ function StatsContent() {
     period,
   ]);
 
+  const pageData = useMemo(() => {
+    const cfg = PERIODS.find((p) => p.key === period)!;
+    const keys = buildBuckets(period, cfg.buckets);
+    const maps = new Map<string, Map<string, number>>();
+    for (const page of ["duo", "apel"]) {
+      for (const kind of ["visit", "start", "report"]) {
+        maps.set(`${page}:${kind}`, new Map(keys.map((k) => [k, 0])));
+      }
+    }
+    const totals = new Map<string, number>();
+    stats.pageEvents.forEach((e) => {
+      const d = new Date(e.created_at);
+      if (d < since) return;
+      const id = `${e.page}:${e.kind}`;
+      totals.set(id, (totals.get(id) ?? 0) + 1);
+      const map = maps.get(id);
+      const key = bucketKey(d, period);
+      if (map?.has(key)) map.set(key, (map.get(key) ?? 0) + 1);
+    });
+    const series = keys.map((k) => ({
+      label: bucketLabel(k, period),
+      duoVisit: maps.get("duo:visit")!.get(k) ?? 0,
+      duoStart: maps.get("duo:start")!.get(k) ?? 0,
+      duoReport: maps.get("duo:report")!.get(k) ?? 0,
+      apelVisit: maps.get("apel:visit")!.get(k) ?? 0,
+      apelStart: maps.get("apel:start")!.get(k) ?? 0,
+      apelReport: maps.get("apel:report")!.get(k) ?? 0,
+    }));
+    return { series, totals };
+  }, [stats.pageEvents, since, period]);
+
   const totalVisitors = chartData.reduce((a, b) => a + b.visitors, 0);
   const totalCompleted = chartData.reduce((a, b) => a + b.completed, 0);
   const periodAccounts = chartData.reduce((a, b) => a + b.accounts, 0);
@@ -594,6 +625,72 @@ function StatsContent() {
             )}
           </div>
         </Card>
+
+        {(
+          [
+            { page: "duo", title: "Page /duo (test à deux)", prefix: "duo", color: "oklch(0.55 0.2 300)" },
+            { page: "apel", title: "Page /apel (bureau APEL)", prefix: "apel", color: "oklch(0.5 0.1 195)" },
+          ] as const
+        ).map((p) => (
+          <Card key={p.page} className="p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">{p.title}</h2>
+              <span className="text-xs text-muted-foreground">
+                Visiteurs uniques par jour · {PERIOD_LABELS[period]}
+              </span>
+            </div>
+            {!stats.pageEventsReady && (
+              <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                La table de suivi des pages n'existe pas encore : appliquez la migration
+                20260920090000_page_events.sql dans Supabase.
+              </div>
+            )}
+            <div className="mt-4 grid grid-cols-3 gap-4">
+              {(
+                [
+                  ["visit", "Visites"],
+                  ["start", "Tests démarrés"],
+                  ["report", "Rapports générés"],
+                ] as const
+              ).map(([kind, label]) => {
+                const n = pageData.totals.get(`${p.page}:${kind}`) ?? 0;
+                const visits = pageData.totals.get(`${p.page}:visit`) ?? 0;
+                return (
+                  <div key={kind}>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                    <div className="text-2xl font-semibold tabular-nums">{n}</div>
+                    {kind !== "visit" && visits > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        {Math.round((n / visits) * 100)} % des visites
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={pageData.series} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={30} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Line type="monotone" dataKey={`${p.prefix}Visit`} name="Visites" stroke={p.color} strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey={`${p.prefix}Start`} name="Tests démarrés" stroke="oklch(0.6 0.17 60)" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey={`${p.prefix}Report`} name="Rapports générés" stroke="oklch(0.55 0.18 145)" strokeWidth={2.5} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        ))}
 
         <Card className="p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
