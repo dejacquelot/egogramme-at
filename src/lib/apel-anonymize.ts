@@ -30,10 +30,6 @@ export function anonymizeApelSession(s: ApelSession) {
       report: clean(m.report),
     })),
     collective: clean(s.collective),
-    agreements: s.agreements.map((a) => ({
-      title: a.title,
-      text: anonymizeText(a.text, people),
-      accepted: a.accepted,
-    })),
+    agreements: [],
   };
 }

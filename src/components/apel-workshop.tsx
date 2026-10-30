@@ -19,7 +19,6 @@ import {
   type ApelSession,
 } from "@/lib/apel-session";
 import {
-  downloadAgreementsPdf,
   downloadIndividualReportPdf,
   downloadTeamReportPdf,
 } from "@/lib/team-report";
@@ -32,14 +31,15 @@ const DISCUSSIONS = [
   "De quoi chacun a-t-il besoin pour exprimer un désaccord sereinement ?",
   "Quel point commun ou quelle différence souhaitez-vous garder en tête pour la suite ?",
 ];
-const STAGES = ["Participants", "Questionnaire", "Pause ensemble", "Rapports", "Nos accords"];
+const STAGES = ["Participants", "Questionnaire", "Pause ensemble", "Rapports"];
 const stageOf = (s: ApelSession) =>
   ({
     participants: 0,
     test: 1,
     pause: 2,
     reports: 3,
-    agreements: 4,
+    // Ancienne étape « accords », supprimée : les séances sauvegardées reviennent aux rapports.
+    agreements: 3,
   })[s.step];
 const displayName = (m: ApelMember) => `${m.name.trim()} (${m.role})`;
 
@@ -149,7 +149,7 @@ export function ApelWorkshop() {
     if (
       busy.current ||
       !window.confirm(
-        "Effacer cette séance de cet appareil, y compris les réponses, rapports et accords ?",
+        "Effacer cette séance de cet appareil, y compris les réponses et les rapports ?",
       )
     )
       return;
@@ -233,20 +233,12 @@ export function ApelWorkshop() {
     }
   }
 
-  async function download(kind: "report" | "agreements") {
+  async function download() {
     if (pdfBusy) return;
     setPdfBusy(true);
     setPdfError("");
     try {
-      if (kind === "agreements") {
-        saveSession(current.current);
-        const accepted = s.agreements.filter((a) => a.accepted && a.text.trim());
-        await downloadAgreementsPdf({
-          date: new Date().toLocaleDateString("fr-FR", { dateStyle: "long" }),
-          members: present.map(displayName),
-          agreements: accepted,
-        });
-      } else if (tab === "collective" && s.collective) {
+      if (tab === "collective" && s.collective) {
         await downloadTeamReportPdf({
           teamName: "Membres présents du bureau APEL",
           average: apelAverage(present),
@@ -613,7 +605,7 @@ export function ApelWorkshop() {
               </section>
             )}
 
-            {s.step === "reports" && (
+            {(s.step === "reports" || s.step === "agreements") && (
               <section className="apel-narrow">
                 <div className="apel-intro">
                   <h1 ref={titleRef} tabIndex={-1}>
@@ -699,7 +691,7 @@ export function ApelWorkshop() {
                           type="button"
                           className="apel-btn secondary"
                           disabled={pdfBusy}
-                          onClick={() => void download("report")}
+                          onClick={() => void download()}
                         >
                           {pdfBusy ? "Préparation…" : "Télécharger ce rapport en PDF"}
                         </button>
@@ -709,85 +701,6 @@ export function ApelWorkshop() {
                     )}
                   </>
                 )}
-                <div className="apel-actions">
-                  <button
-                    type="button"
-                    className="apel-btn"
-                    disabled={running}
-                    onClick={() => update({ ...s, step: "agreements" })}
-                  >
-                    Choisir nos accords de fonctionnement →
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {s.step === "agreements" && (
-              <section className="apel-narrow">
-                <div className="apel-intro">
-                  <h1 ref={titleRef} tabIndex={-1}>
-                    Trois accords pour la suite
-                  </h1>
-                  <p>
-                    Voici des suggestions de départ, pas des conclusions de l'IA. Reformulez-les
-                    ensemble, puis cochez uniquement les accords que vous retenez.
-                  </p>
-                </div>
-                <section className="apel-sheet">
-                  <h2>Nos accords de fonctionnement</h2>
-                  <p className="apel-note">{present.map(displayName).join(", ")}</p>
-                  {s.agreements.map((a, i) => (
-                    <div className="apel-agreement" key={a.title}>
-                      <label htmlFor={`agreement-${i}`}>{a.title}</label>
-                      <textarea
-                        id={`agreement-${i}`}
-                        maxLength={2000}
-                        value={a.text}
-                        onChange={(e) =>
-                          update({
-                            ...s,
-                            agreements: s.agreements.map((g, index) =>
-                              index === i ? { ...g, text: e.target.value, accepted: false } : g,
-                            ),
-                          })
-                        }
-                      />
-                      <label className="apel-consent">
-                        <input
-                          type="checkbox"
-                          checked={a.accepted}
-                          disabled={!a.text.trim()}
-                          onChange={(e) =>
-                            update({
-                              ...s,
-                              agreements: s.agreements.map((g, index) =>
-                                index === i ? { ...g, accepted: e.target.checked } : g,
-                              ),
-                            })
-                          }
-                        />
-                        <span>Nous retenons cet accord ensemble</span>
-                      </label>
-                    </div>
-                  ))}
-                </section>
-                <div className="apel-actions">
-                  <button
-                    type="button"
-                    className="apel-btn secondary"
-                    onClick={() => update({ ...s, step: "reports" })}
-                  >
-                    ← Revenir aux rapports
-                  </button>
-                  <button
-                    type="button"
-                    className="apel-btn"
-                    disabled={pdfBusy || !s.agreements.some((a) => a.accepted && a.text.trim())}
-                    onClick={() => void download("agreements")}
-                  >
-                    {pdfBusy ? "Préparation…" : "Télécharger les accords validés en PDF"}
-                  </button>
-                </div>
                 <div className="apel-discussion">
                   <h2>Un moment à proposer à un autre bureau ?</h2>
                   <p>Partagez le parcours, sans vos réponses ni vos rapports.</p>
