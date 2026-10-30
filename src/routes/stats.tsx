@@ -177,7 +177,7 @@ function StatsContent() {
       }
     });
   }, []);
-  const [period, setPeriod] = useState<Period>("day");
+  const [period, setPeriod] = useState<Period>("hour");
   const [rows, setRows] = useState<{ visit_date: string; created_at: string }[]>([]);
   const [resultRows, setResultRows] = useState<{ created_at: string; ip_hash: string }[]>([]);
   const [accountRows, setAccountRows] = useState<{ created_at: string }[]>([]);
