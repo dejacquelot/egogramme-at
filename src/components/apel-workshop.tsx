@@ -297,7 +297,10 @@ export function ApelWorkshop() {
         <ol>
           {STAGES.map((stage, i) => (
             <li key={stage} aria-current={stageOf(s) === i ? "step" : undefined}>
-              {i + 1}. {stage}
+              <span className="apel-stage-num" aria-hidden="true">
+                {i + 1}
+              </span>
+              {stage}
             </li>
           ))}
         </ol>
@@ -318,10 +321,43 @@ export function ApelWorkshop() {
           <>
             {s.step === "participants" && (
               <>
+                <div className="apel-hero">
+                  <div className="apel-hero-text">
+                    <h1 ref={titleRef} tabIndex={-1}>
+                      Écouter, partager, décider : mieux fonctionner ensemble
+                    </h1>
+                    <p>
+                      Vous donnez de votre temps pour l'école. Ce questionnaire, fait ensemble sur
+                      un seul écran, éclaire la façon dont chacun contribue au bureau.
+                    </p>
+                    <ul className="apel-facts">
+                      <li>2 à 20 membres</li>
+                      <li>60 questions, avec des pauses</li>
+                      <li>Aucun prénom conservé</li>
+                    </ul>
+                  </div>
+                  <figure className="apel-photo">
+                    <img
+                      src="/apel-bureau.jpg"
+                      srcSet="/apel-bureau-760.jpg 760w, /apel-bureau.jpg 1400w"
+                      sizes="(max-width: 720px) 92vw, 540px"
+                      width={1400}
+                      height={933}
+                      alt="Des parents d'un bureau APEL échangent en souriant autour d'une table, dans une salle de classe"
+                    />
+                    <span className="apel-bubble heart" aria-hidden="true">
+                      <i>♥</i>Écoute
+                    </span>
+                    <span className="apel-bubble idea" aria-hidden="true">
+                      <i>✦</i>Idées
+                    </span>
+                    <span className="apel-bubble talk" aria-hidden="true">
+                      <i>…</i>Dialogue
+                    </span>
+                  </figure>
+                </div>
                 <div className="apel-intro">
-                  <h1 ref={titleRef} tabIndex={-1}>
-                    Qui est autour de la table ?
-                  </h1>
+                  <h2>Qui est autour de la table ?</h2>
                   <p>
                     Sélectionnez les membres présents. Vous répondrez aux mêmes affirmations, chacun
                     pour vous, puis vous prendrez le temps d'en parler.

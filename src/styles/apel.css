@@ -1,14 +1,20 @@
 .apel {
-  --apel-ink: #193f44;
-  --apel-muted: #526c70;
-  --apel-teal: #087d80;
-  --apel-line: #d5e4e3;
-  --apel-pale: #edf7f6;
+  --apel-ink: #2a2622;
+  --apel-muted: #62594f;
+  --apel-teal: #1f6f6a;
+  --apel-line: #ece2d4;
+  --apel-pale: #f6efe4;
+  --apel-heart: #d95c70;
+  --apel-idea: #e9a91f;
+  --apel-team: #4f9a4a;
+  --apel-plan: #2f7fd1;
+  --apel-talk: #2a9d93;
   min-height: 100vh;
-  background: #f7faf9;
+  background: #fffaf2;
   color: var(--apel-ink);
   font:
-    16px/1.55 "Segoe UI",
+    17px/1.6 "Nunito Sans",
+    "Segoe UI",
     Arial,
     sans-serif;
 }
@@ -32,16 +38,18 @@
   outline-offset: 4px;
 }
 .apel h1 {
-  font-size: clamp(28px, 4vw, 40px);
-  line-height: 1.18;
-  letter-spacing: -0.025em;
+  font-family: "Young Serif", Georgia, serif;
+  font-size: clamp(30px, 4.4vw, 52px);
+  line-height: 1.1;
   max-width: 700px;
-  font-weight: 700;
+  font-weight: 400;
+  text-wrap: balance;
 }
 .apel h2 {
-  font-size: 23px;
-  line-height: 1.3;
-  font-weight: 650;
+  font-family: "Young Serif", Georgia, serif;
+  font-size: 25px;
+  line-height: 1.25;
+  font-weight: 400;
 }
 .apel p {
   max-width: 72ch;
@@ -84,14 +92,109 @@
   font-size: 14px;
 }
 .apel-stages li {
-  padding-bottom: 5px;
-  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
 }
+.apel-stage-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--apel-muted);
+  background: var(--apel-pale);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.apel-stages li:nth-child(1) { --c: var(--apel-team); }
+.apel-stages li:nth-child(2) { --c: var(--apel-heart); }
+.apel-stages li:nth-child(3) { --c: var(--apel-talk); }
+.apel-stages li:nth-child(4) { --c: var(--apel-idea); }
 .apel-stages [aria-current="step"] {
-  color: var(--apel-teal);
-  font-weight: 700;
-  border-color: var(--apel-teal);
+  color: var(--apel-ink);
+  font-weight: 800;
 }
+.apel-stages [aria-current="step"] .apel-stage-num {
+  background: var(--c);
+  color: #fff;
+}
+.apel-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 52px;
+  align-items: center;
+  padding: 18px 0 64px;
+}
+.apel-hero-text > p {
+  margin-top: 20px;
+  font-size: 19px;
+  color: var(--apel-muted);
+}
+.apel-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  list-style: none;
+  padding: 0;
+  margin-top: 24px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--apel-muted);
+}
+.apel-facts li::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: 2px;
+  background: var(--apel-teal);
+}
+.apel-photo {
+  position: relative;
+  margin: 0;
+}
+.apel-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3.3;
+  object-fit: cover;
+  object-position: 45% 40%;
+  border-radius: 36px;
+}
+.apel-bubble {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px 6px 6px;
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  box-shadow: 0 10px 24px rgba(42, 38, 34, 0.14);
+}
+.apel-bubble i {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-style: normal;
+  font-size: 18px;
+}
+.apel-bubble.heart { top: -16px; left: -20px; }
+.apel-bubble.heart i { background: var(--apel-heart); }
+.apel-bubble.idea { top: 36%; right: -22px; }
+.apel-bubble.idea i { background: var(--apel-idea); }
+.apel-bubble.talk { bottom: -18px; left: 16%; }
+.apel-bubble.talk i { background: var(--apel-talk); }
 .apel-main {
   max-width: 1120px;
   margin: auto;
@@ -120,7 +223,7 @@
 .apel-sheet {
   background: white;
   border: 1px solid var(--apel-line);
-  border-radius: 12px;
+  border-radius: 22px;
   padding: 24px;
   min-width: 0;
 }
@@ -154,17 +257,17 @@
   width: 100%;
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid #9fb6b5;
+  border: 1px solid #b9a88f;
   border-radius: 6px;
   background: white;
   color: var(--apel-ink);
 }
 .apel input:disabled {
-  background: #f2f5f4;
-  color: #536969;
+  background: #f6efe4;
+  color: #62594f;
 }
 .apel input::placeholder {
-  color: #607779;
+  color: #6b6158;
 }
 .apel-summary {
   background: var(--apel-pale);
@@ -179,7 +282,7 @@
 }
 .apel-summary li {
   padding: 10px 0;
-  border-bottom: 1px solid #c8dedd;
+  border-bottom: 1px solid #e6dac8;
   overflow-wrap: anywhere;
 }
 .apel-btn {
@@ -196,7 +299,7 @@
   margin-top: 16px;
 }
 .apel-btn:hover:not(:disabled) {
-  background: #056366;
+  background: #175a56;
 }
 .apel-btn.secondary {
   background: white;
@@ -252,12 +355,12 @@
   border: 0;
   border-radius: 4px;
   overflow: hidden;
-  background: #dce9e7;
+  background: #efe5d6;
   accent-color: var(--apel-teal);
   margin: 12px 0 28px;
 }
 .apel progress::-webkit-progress-bar {
-  background: #dce9e7;
+  background: #efe5d6;
 }
 .apel progress::-webkit-progress-value {
   background: var(--apel-teal);
@@ -290,8 +393,8 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #e6f4f2;
-  color: #08696c;
+  background: #e3f0ec;
+  color: #1f6f6a;
   margin-bottom: 12px;
   font-weight: 700;
 }
@@ -304,7 +407,7 @@
   flex: 1;
   background: white;
   color: var(--apel-ink);
-  border: 1px solid #91afad;
+  border: 1px solid #c4b29a;
   border-radius: 6px;
   padding: 11px;
 }
@@ -336,7 +439,7 @@
 .apel-tag {
   display: inline-block;
   font-size: 13px;
-  color: #0b6864;
+  color: #1f6f6a;
   background: #e7f4ef;
   border-radius: 4px;
   padding: 3px 9px;
@@ -387,7 +490,7 @@
   margin-top: 26px;
 }
 .apel-agreement > label:first-child {
-  font-weight: 650;
+  font-weight: 700;
   display: block;
   margin-bottom: 8px;
 }
@@ -426,6 +529,37 @@
   }
   .apel-main {
     padding: 8px 18px 40px;
+  }
+  .apel-hero {
+    grid-template-columns: 1fr;
+    gap: 34px;
+    padding: 4px 0 44px;
+  }
+  .apel-photo {
+    order: -1;
+    margin: 12px 8px 0;
+  }
+  .apel-photo img {
+    border-radius: 26px;
+  }
+  .apel-bubble {
+    font-size: 13px;
+    padding-right: 12px;
+  }
+  .apel-bubble i {
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+  }
+  .apel-bubble.heart { left: -8px; }
+  .apel-bubble.idea { right: -8px; }
+  .apel-hero-text > p {
+    font-size: 17px;
+  }
+  .apel-stage-num {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
   }
   .apel-layout {
     grid-template-columns: 1fr;
