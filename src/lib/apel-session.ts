@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { QUESTION_MAPPING } from "./question-mapping";
+import { egogramScores } from "./egogram-scoring";
 import type { ReportScores } from "./team-report";
 
 export const APEL_STORAGE_KEY = "egogramme_apel_v1";
@@ -111,16 +111,7 @@ export const newApelSession = (): ApelSession => ({
 });
 
 export function apelScores(answers: ApelAnswers): ReportScores {
-  const score = (indexes: number[]) =>
-    indexes.reduce((sum, index) => sum + (answers[index - 1] === true ? 1 : 0), 0);
-  return {
-    PNr: score(QUESTION_MAPPING.PNr),
-    PNf: score(QUESTION_MAPPING.PNf),
-    A: score(QUESTION_MAPPING.A),
-    EL: score(QUESTION_MAPPING.EL),
-    EAS: score(QUESTION_MAPPING.EAS),
-    EAR: score(QUESTION_MAPPING.EAR),
-  };
+  return egogramScores(answers);
 }
 
 export function apelAverage(members: ApelMember[]): ReportScores {

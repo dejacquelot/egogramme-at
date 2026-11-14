@@ -43,3 +43,31 @@ localement ; la reprise ne relance que les rapports manquants.
 
 Le logo est un asset fourni pour ce parcours indépendant, sans affiliation
 officielle. L'atelier ne doit pas servir à évaluer une aptitude à une fonction.
+
+## Orientation au lycée
+
+`/orientation` (également accessible avec un slash final) propose le parcours
+validé « Me connaître → Explorer des métiers → En parler → Essayer ». Les quatre
+photographies sont des recadrages séparés du montage fourni par l'utilisateur.
+Les 60 questions standard sont conservées avec des exemples de vie au lycée ;
+le scoring est partagé avec l'atelier APEL dans `egogram-scoring.ts`.
+
+Les pistes sont des hypothèses de réflexion, pas des talents mesurés ou des
+scores de compatibilité professionnelle. Les scores identiques ne produisent
+pas de dominante arbitraire. Chaque dimension propose des questions distinctes
+pour le lycéen et le parent, une situation quotidienne et une expérience.
+
+L'analyse IA est facultative. `POST /api/analysis/orientation-stream` exige un
+accord explicite et 60 réponses booléennes, recalcule les scores côté serveur,
+puis utilise les trois champs facultatifs d'intérêts et d'expériences. Les notes
+de dialogue et le plan d'action ne sont pas transmis à Gemini. Le rapport doit
+atteindre son marqueur final avant d'être ajouté au carnet ou au PDF ; un texte
+interrompu est signalé comme incomplet.
+
+Sans option de sauvegarde, le carnet reste en mémoire jusqu'au rechargement.
+La sauvegarde sur l'appareil est volontaire, isolée sous
+`egogramme_orientation_v1`, avec effacement explicite. Aucune écriture du carnet
+en base Supabase ni ajout à Mon Espace. L'accord IA n'est pas sauvegardé.
+Le PDF contient le bilan terminé, les questions, les notes et le plan d'action.
+
+Tests ciblés : `node --test tests/orientation.test.cjs tests/apel-session.test.cjs`.

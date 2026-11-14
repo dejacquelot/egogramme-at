@@ -5,7 +5,7 @@ const { test } = require("node:test");
 const ts = require("typescript");
 
 // Only these pure domain modules are transpiled; no browser or server code runs.
-const allowed = new Set(["apel-session.ts", "question-mapping.ts"]);
+const allowed = new Set(["apel-session.ts", "egogram-scoring.ts", "question-mapping.ts"]);
 require.extensions[".ts"] = (module, filename) => {
   assert.ok(allowed.has(path.basename(filename)), `Unexpected module: ${filename}`);
   const { outputText } = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
