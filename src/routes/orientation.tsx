@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { OrientationWorkshop } from "@/components/orientation-workshop";
 import orientationCss from "@/styles/orientation.css?url";
 
-const TITLE = "Orientation au lycée : mes forces, mes pistes, mes essais";
+const TITLE = "Orientation : mes forces, mes pistes, mes essais";
 const DESCRIPTION =
   "Un égogramme pour mieux te connaître, explorer des métiers sans te mettre dans une case et en parler avec tes parents, à ton rythme.";
 
