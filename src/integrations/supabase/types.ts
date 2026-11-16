@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      orientation_events: {
+        Row: {
+          id: string
+          journey_id: string
+          kind: string
+          block: number | null
+          attempt_id: string | null
+          duration_ms: number | null
+          created_at: string
+        }
+        Insert: {
+          id: string
+          journey_id: string
+          kind: string
+          block?: number | null
+          attempt_id?: string | null
+          duration_ms?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          journey_id?: string
+          kind?: string
+          block?: number | null
+          attempt_id?: string | null
+          duration_ms?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       results: {
         Row: {
           contact_requested: boolean

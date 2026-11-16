@@ -7,6 +7,8 @@ import { EgogramCard } from "@/components/egogram-card";
 import { MarkdownText } from "@/components/markdown-text";
 import { streamAnalysis } from "@/lib/stream-client";
 import { downloadIndividualReportPdf } from "@/lib/team-report";
+import { trackOrientation } from "@/lib/track-orientation";
+import { orientationPlanReady } from "@/lib/orientation-stats";
 import {
   ORIENTATION_QUESTIONS,
   ORIENTATION_STRENGTHS,
@@ -69,13 +71,21 @@ export function OrientationWorkshop() {
   const [confirmReset, setConfirmReset] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const inFlight = useRef(false);
+  const observed = useRef({
+    visitId: "",
+    started: false,
+    blocks: new Set<number>(),
+    complete: false,
+    planReady: false,
+  });
 
   useEffect(() => {
+    let restored = newOrientationSession();
     try {
       const raw = window.localStorage.getItem(ORIENTATION_STORAGE_KEY);
       if (raw) {
         const saved = orientationSessionSchema.parse(JSON.parse(raw));
-        setSession(saved);
+        restored = saved;
         setSelected(orientationFocus(saved.answers)[0] ?? "A");
         setRemember(true);
       }
@@ -86,8 +96,46 @@ export function OrientationWorkshop() {
         "Le carnet enregistré n'a pas pu être ouvert. Tu peux continuer sans sauvegarde ou effacer ce carnet.",
       );
     }
+    // Restored work is not backfilled into usage statistics.
+    observed.current = {
+      visitId: "",
+      started: restored.stage !== "welcome" || restored.answers.some((answer) => answer !== null),
+      blocks: new Set(
+        Array.from({ length: 6 }, (_, block) => block + 1).filter((block) =>
+          restored.answers.slice((block - 1) * 10, block * 10).every((answer) => answer !== null),
+        ),
+      ),
+      complete: restored.answers.every((answer) => answer !== null),
+      planReady: orientationPlanReady(restored.plan),
+    };
+    setSession({ ...restored, analyticsId: restored.analyticsId ?? crypto.randomUUID() });
     setLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (!loaded || !session.analyticsId) return;
+    const current = observed.current;
+    if (current.visitId !== session.analyticsId) {
+      current.visitId = session.analyticsId;
+      trackOrientation(session.analyticsId, "visit");
+    }
+    for (let block = 1; block <= 6; block++) {
+      if (
+        !current.blocks.has(block) &&
+        session.answers.slice((block - 1) * 10, block * 10).every((answer) => answer !== null)
+      ) {
+        current.blocks.add(block);
+        trackOrientation(session.analyticsId, "block_completed", { block });
+      }
+    }
+    if (!current.complete && session.answers.every((answer) => answer !== null)) {
+      current.complete = true;
+      trackOrientation(session.analyticsId, "test_completed");
+    }
+    const ready = orientationPlanReady(session.plan);
+    if (ready && !current.planReady) trackOrientation(session.analyticsId, "plan_ready");
+    current.planReady = ready;
+  }, [loaded, session.analyticsId, session.answers, session.plan]);
 
   useEffect(() => {
     if (!loaded || !storageReady) return;
@@ -125,6 +173,10 @@ export function OrientationWorkshop() {
 
   const go = (stage: OrientationSession["stage"]) => {
     if (busy || (stage !== "welcome" && stage !== "test" && !complete)) return;
+    if (stage === "test" && !observed.current.started) {
+      observed.current.started = true;
+      trackOrientation(session.analyticsId, "started");
+    }
     setError("");
     setSession((previous) => ({ ...previous, stage }));
   };
@@ -177,6 +229,10 @@ export function OrientationWorkshop() {
     setBusy(true);
     setError("");
     setDraft("");
+    const attemptId = crypto.randomUUID();
+    const requestedAt = performance.now();
+    const duration = () => Math.round(performance.now() - requestedAt);
+    trackOrientation(session.analyticsId, "ai_requested", { attempt_id: attemptId });
     try {
       const report = await streamAnalysis(
         "/api/analysis/orientation-stream",
@@ -190,7 +246,15 @@ export function OrientationWorkshop() {
       }
       setSession((previous) => ({ ...previous, report }));
       setDraft("");
+      trackOrientation(session.analyticsId, "ai_completed", {
+        attempt_id: attemptId,
+        duration_ms: duration(),
+      });
     } catch (failure) {
+      trackOrientation(session.analyticsId, "ai_failed", {
+        attempt_id: attemptId,
+        duration_ms: duration(),
+      });
       setError(
         failure instanceof Error
           ? failure.message
@@ -212,6 +276,7 @@ export function OrientationWorkshop() {
         scores,
         analysis: buildOrientationNotebook(session),
       });
+      trackOrientation(session.analyticsId, "pdf_downloaded");
     } catch {
       setError(
         "Le PDF n'a pas pu être créé. Ton carnet reste affiché ; réessaie le téléchargement.",
@@ -231,7 +296,14 @@ export function OrientationWorkshop() {
       );
       return;
     }
-    setSession(newOrientationSession());
+    observed.current = {
+      visitId: "",
+      started: false,
+      blocks: new Set(),
+      complete: false,
+      planReady: false,
+    };
+    setSession({ ...newOrientationSession(), analyticsId: crypto.randomUUID() });
     setRemember(false);
     setStorageReady(true);
     setConsent(false);
@@ -615,7 +687,11 @@ export function OrientationWorkshop() {
                                 <input
                                   type="checkbox"
                                   checked={showParent}
-                                  onChange={(event) => setShowParent(event.target.checked)}
+                                  onChange={(event) => {
+                                    setShowParent(event.target.checked);
+                                    if (event.target.checked)
+                                      trackOrientation(session.analyticsId, "parent_opened");
+                                  }}
                                 />
                                 <span>Je souhaite ajouter une observation de mon parent.</span>
                               </label>

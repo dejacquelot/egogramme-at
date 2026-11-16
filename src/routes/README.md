@@ -71,3 +71,43 @@ en base Supabase ni ajout à Mon Espace. L'accord IA n'est pas sauvegardé.
 Le PDF contient le bilan terminé, les questions, les notes et le plan d'action.
 
 Tests ciblés : `node --test tests/orientation.test.cjs tests/apel-session.test.cjs`.
+
+### Statistiques Orientation (S2)
+
+Appliquer `supabase/migrations/20261115090000_orientation_events.sql` dans le
+SQL Editor du projet Supabase avant de publier cette version. La table privée
+`orientation_events` n'est lisible ni inscriptible avec les rôles publics.
+`POST /api/public/track-orientation` accepte exclusivement les identifiants
+aléatoires, types d'événements et métadonnées contrôlées ; les dates sont définies
+par la base. Il refuse tout champ supplémentaire, dont réponses, notes et scores.
+Les renvois HTTP conservent le même identifiant d'événement (insertion idempotente).
+
+Le compteur `pdf_downloaded` est envoyé après création réussie du PDF et
+déclenchement du téléchargement navigateur. Deux téléchargements ont deux
+identifiants distincts, même le même jour sur le même réseau. Cela ne prouve
+pas l'enregistrement sur disque. Les échecs de création ne sont pas comptés.
+Les erreurs de suivi sont journalisées sans masquer la disponibilité du carnet.
+
+`GET /api/admin/orientation-stats?since=ISO` vérifie le jeton Supabase et l'adresse
+administrateur côté serveur. Il pagine les événements de la période jusqu'à un
+instant figé, sans tronquer silencieusement les résultats, et retourne aussi le
+total PDF depuis le début. L'absence de table affiche une erreur, pas des zéros.
+La section `/stats` réutilise les périodes existantes, dont aujourd'hui par heure
+par défaut, et dispose d'une actualisation indépendante.
+
+Les visites comptent les ouvertures de page ; les autres étapes sont comptées
+par parcours, pas par élève ou adresse IP. Un identifiant reste en mémoire, ou
+dans le carnet si sa sauvegarde volontaire est activée. Les carnets version 1
+sans identifiant restent compatibles, sans reconstitution d'événements anciens.
+Les ouvertures du volet parent ne prouvent pas une discussion.
+
+Les taux de complétion et de premier essai portent sur les mêmes parcours
+démarrés dans la période. Un essai préparé exige une action et une échéance
+non vides, pas sa réalisation. La progression par blocs est cumulative pour
+cette cohorte : atteindre 60 questions implique avoir atteint les blocs précédents.
+Les demandes IA ont un identifiant distinct ; seules les demandes de la période
+ayant reçu un résultat participent au taux d'échec. La médiane concerne leurs
+réussites, et les demandes sans résultat reçu restent séparées. L'IA est facultative.
+Le signal navigateur Do Not Track est respecté.
+
+Tests : `node --test tests/orientation-stats.test.cjs tests/orientation.test.cjs tests/apel-session.test.cjs`.

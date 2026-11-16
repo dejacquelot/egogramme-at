@@ -130,4 +130,9 @@ test("local notebook rejects incomplete results and restores real notes and acti
   assert.ok(notebook.includes(s.plan.career));
   assert.ok(!notebook.includes(ORIENTATION_END));
   assert.match(notebook, /Mon exemple : À compléter/);
+  recovered.analyticsId = crypto.randomUUID();
+  const resumed = orientationSessionSchema.parse(JSON.parse(JSON.stringify(recovered)));
+  assert.equal(resumed.analyticsId, recovered.analyticsId);
+  assert.ok(!buildOrientationNotebook(resumed).includes(resumed.analyticsId));
+  assert.equal(orientationAnalysisSchema.safeParse({ ...request(), analyticsId: resumed.analyticsId }).success, false);
 });

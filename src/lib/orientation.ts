@@ -95,6 +95,7 @@ export type OrientationAnalysis = z.infer<typeof orientationAnalysisSchema>;
 export const orientationSessionSchema = z
   .object({
     version: z.literal(1),
+    analyticsId: z.string().uuid().optional(),
     stage: z.enum(["welcome", "test", "explore", "talk", "try"]),
     block: z.number().int().min(0).max(5),
     answers: z.array(z.boolean().nullable()).length(60),

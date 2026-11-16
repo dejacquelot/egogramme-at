@@ -73,6 +73,17 @@ function Confidentialite() {
               transmis à l'IA. Ne saisissez pas de coordonnées, de nom complet, d'établissement ou
               d'information sensible.
             </p>
+            <p className="mt-2">
+              <strong>Statistiques Orientation</strong> : nous enregistrons les ouvertures de page,
+              démarrages, blocs de 10 questions terminés, ouvertures du volet parent, présence
+              d'une action avec une échéance, téléchargements PDF déclenchés et résultats des
+              demandes IA (réussite ou échec, durée). Seuls des identifiants aléatoires de parcours,
+              d'événement et de demande, des dates, des numéros de blocs et des durées sont conservés
+              dans Supabase. Aucun nom, adresse IP, empreinte de navigateur, score, réponse,
+              métier proposé ou texte du carnet n'est enregistré avec ces statistiques.
+              Les détails sont accessibles uniquement à l'administrateur connecté.
+              Le signal « Ne pas me suivre » du navigateur désactive ce suivi.
+            </p>
           </section>
 
           <section>
@@ -136,6 +147,11 @@ function Confidentialite() {
               local du navigateur jusqu'à son effacement. Toute personne utilisant ce navigateur
               peut alors le retrouver. Le bouton « Effacer mon carnet » supprime cette sauvegarde.
               Les PDF téléchargés restent sur votre appareil et doivent être supprimés séparément.
+              L'identifiant statistique du parcours est conservé avec le carnet uniquement si
+              vous choisissez cette sauvegarde. Effacer le carnet crée un nouveau parcours et
+              ne supprime pas les événements statistiques déjà reçus. Pour une demande d'effacement
+              de ces événements, vous pouvez nous transmettre cet identifiant du carnet sauvegardé
+              par le contact indiqué ci-dessus, sans transmettre vos réponses ou vos notes.
             </p>
           </section>
 
@@ -188,7 +204,9 @@ function Confidentialite() {
             <h2 className="text-lg font-semibold text-slate-800">9. Cookies</h2>
             <p>
               L'application utilise uniquement des cookies techniques nécessaires au fonctionnement
-              (session d'authentification). Aucun cookie publicitaire ou de traçage n'est utilisé.
+              (session d'authentification). Aucun cookie publicitaire n'est utilisé.
+              Le suivi statistique Orientation n'utilise pas de cookie ni d'identifiant partagé
+              avec les autres parcours ou sites.
             </p>
           </section>
 

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { isAdminEmail } from "@/lib/admin-config";
 import { NavBar } from "@/components/nav-bar";
+import { OrientationStatistics } from "@/components/orientation-statistics";
 import {
   EMPTY_STATS,
   buildParentMap,
@@ -195,6 +196,10 @@ function StatsContent() {
   const [statsError, setStatsError] = useState<string | null>(null);
 
   const since = useMemo(() => periodSince(period), [period]);
+  const orientationBuckets = useMemo(() => {
+    const config = PERIODS.find((item) => item.key === period)!;
+    return buildBuckets(period, config.buckets).map((key) => ({ key, label: bucketLabel(key, period) }));
+  }, [period]);
 
   useEffect(() => {
     let cancelled = false;
@@ -691,6 +696,13 @@ function StatsContent() {
             </div>
           </Card>
         ))}
+
+        <OrientationStatistics
+          since={since}
+          periodLabel={PERIOD_LABELS[period]}
+          buckets={orientationBuckets}
+          bucket={(date) => bucketKey(date, period)}
+        />
 
         <Card className="p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
