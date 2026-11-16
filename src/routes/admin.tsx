@@ -178,53 +178,6 @@ function GoogleIcon() {
   );
 }
 
-function LoginGate({ onSuccess }: { onSuccess: () => void }) {
-  const [login, setLogin] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (login === "pinpin" && password === "lapin") {
-      localStorage.setItem("egogramme-admin", "true");
-      onSuccess();
-    } else {
-      setLoginError("Identifiants invalides.");
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <Card className="w-full max-w-sm p-6">
-        <h1 className="text-xl font-semibold">Administration</h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Acc&egrave;s r&eacute;serv&eacute; aux comptes autoris&eacute;s.
-        </p>
-        {loginError && (
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-            {loginError}
-          </p>
-        )}
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-          <div>
-            <Label htmlFor="admin-login">Login</Label>
-            <Input id="admin-login" type="text" value={login} onChange={(e) => setLogin(e.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="admin-pwd">Mot de passe</Label>
-            <Input id="admin-pwd" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <Button type="submit" className="w-full">Se connecter</Button>
-        </form>
-        <div className="mt-4 text-center">
-          <Link to="/">
-            <Button type="button" variant="ghost" size="sm">Retour au test</Button>
-          </Link>
-        </div>
-      </Card>
-    </div>
-  );
-}
 function formatDate(iso: string): string {
   try {
     return new Date(iso).toLocaleString("fr-FR", {

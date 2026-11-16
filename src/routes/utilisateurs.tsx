@@ -85,7 +85,6 @@ function Utilisateurs() {
       await deleteAdminUser({
         data: {
           userId: u.id,
-          requestedByEmail: adminEmail,
           confirmEmail: confirmEmailInput.trim(),
         },
       });

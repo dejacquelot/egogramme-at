@@ -1,9 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { ADMIN_EMAILS, isAdminEmail } from "@/lib/admin-config";
+import { ADMIN_EMAILS } from "@/lib/admin-config";
 
 export const listAdminResults = createServerFn({ method: "GET" })
   .handler(async () => {
+    const { assertAdminRequest } = await import("@/lib/admin-auth.server");
+    await assertAdminRequest();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let { data, error } = await supabaseAdmin
       .from("results")
@@ -248,7 +250,7 @@ export const provisionAdminAccount = createServerFn({ method: "POST" })
     const email = data.email.trim().toLowerCase();
     if (!ADMIN_EMAILS.includes(email)) throw new Error("Forbidden");
 
-    const expected = (process.env["ADMIN_PASSWORD"] ?? "").trim() || "lapin";
+    const expected = (process.env["ADMIN_PASSWORD"] ?? "").trim();
     if (!expected) throw new Error("Mot de passe administrateur non configuré.");
     const provided = data.password.trim();
     if (provided !== expected) {
@@ -287,6 +289,8 @@ export const provisionAdminAccount = createServerFn({ method: "POST" })
 /** List all registered users with their invitations */
 export const listAdminUsers = createServerFn({ method: "GET" })
   .handler(async () => {
+    const { assertAdminRequest } = await import("@/lib/admin-auth.server");
+    await assertAdminRequest();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Fetch all auth users
@@ -345,6 +349,8 @@ export const listAdminUsers = createServerFn({ method: "GET" })
 /** Admin stats data that needs service-role access (auth users + invitations) */
 export const listAdminStatsData = createServerFn({ method: "GET" })
   .handler(async () => {
+    const { assertAdminRequest } = await import("@/lib/admin-auth.server");
+    await assertAdminRequest();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
@@ -391,7 +397,8 @@ export const listAdminStatsData = createServerFn({ method: "GET" })
  * invitations, ses analyses d'équipe et son compte Supabase Auth.
  *
  * Double garde-fou avant toute purge :
- *  - `requestedByEmail` doit être un email admin whitelisté ;
+ *  - la session Supabase de l'appelant doit appartenir à un admin whitelisté
+ *    (vérifiée côté serveur, jamais déduite d'un champ envoyé par le client) ;
  *  - `confirmEmail` doit correspondre exactement à l'email du compte visé
  *    (retapé côté client), pour éviter une suppression accidentelle en un
  *    seul clic sur une action irréversible.
@@ -400,18 +407,17 @@ export const listAdminStatsData = createServerFn({ method: "GET" })
  * anonyme est journalisé dans `admin_deletion_log` (preuve de conformité).
  */
 export const deleteAdminUser = createServerFn({ method: "POST" })
-  .inputValidator((input: { userId: string; requestedByEmail: string; confirmEmail: string }) =>
+  .inputValidator((input: { userId: string; confirmEmail: string }) =>
     z
       .object({
         userId: z.string().uuid(),
-        requestedByEmail: z.string().email(),
         confirmEmail: z.string().email(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const requestedBy = data.requestedByEmail.trim().toLowerCase();
-    if (!isAdminEmail(requestedBy)) throw new Error("Forbidden");
+    const { assertAdminRequest } = await import("@/lib/admin-auth.server");
+    const requestedBy = await assertAdminRequest();
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
