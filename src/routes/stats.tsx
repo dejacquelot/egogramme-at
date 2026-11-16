@@ -198,8 +198,16 @@ function StatsContent() {
   const since = useMemo(() => periodSince(period), [period]);
   const orientationBuckets = useMemo(() => {
     const config = PERIODS.find((item) => item.key === period)!;
-    return buildBuckets(period, config.buckets).map((key) => ({ key, label: bucketLabel(key, period) }));
-  }, [period]);
+    const keys = new Set(buildBuckets(period, config.buckets));
+    if (period !== "hour") {
+      // Include the partial first bucket and months skipped by calendar-day overflow.
+      const now = new Date();
+      for (const date = new Date(since); date <= now; date.setUTCDate(date.getUTCDate() + 1)) {
+        keys.add(bucketKey(date, period));
+      }
+    }
+    return [...keys].sort().map((key) => ({ key, label: bucketLabel(key, period) }));
+  }, [period, since]);
 
   useEffect(() => {
     let cancelled = false;
