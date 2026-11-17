@@ -10,7 +10,7 @@ type NavBarProps = {
 
 const PUBLIC_LINKS = [
   { to: "/orientation", label: "🧭 Orientation" },
-  { to: "/duo", label: "👨👩 Test de binôme" },
+  { to: "/duo", label: "👩‍❤️‍👨 Couple" },
   { to: "/apel", label: "🏛️ Bureau d'association" },
 ] as const;
 
