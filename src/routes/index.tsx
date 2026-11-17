@@ -41,17 +41,17 @@ export const Route = createFileRoute("/")({
   }),
   head: () => ({
     meta: [
-      { title: "- Test égogramme d'équipe gratuit — mieux vous connaître pour mieux interagir -" },
+      { title: "Test de personnalité gratuit — découvrez votre profil en 5 minutes" },
       {
         name: "description",
         content:
-          "Révélez vos modes de fonctionnement relationnel en moins de 5 minutes. Test d'égogramme d'équipe basé sur l'analyse transactionnelle.",
+          "60 affirmations, vrai ou faux : découvrez votre égogramme, vos forces et vos points de vigilance. Test gratuit et anonyme, basé sur l'Analyse Transactionnelle.",
       },
-      { property: "og:title", content: "- Test égogramme d'équipe gratuit — mieux vous connaître pour mieux interagir -" },
+      { property: "og:title", content: "Test de personnalité gratuit — découvrez votre profil en 5 minutes" },
       {
         property: "og:description",
         content:
-          "Révélez vos modes de fonctionnement relationnel en moins de 5 minutes. Test d'égogramme d'équipe basé sur l'analyse transactionnelle.",
+          "60 affirmations, vrai ou faux : découvrez votre égogramme, vos forces et vos points de vigilance. Test gratuit et anonyme, basé sur l'Analyse Transactionnelle.",
       },
     ],
   }),
@@ -391,10 +391,6 @@ function Index() {
     };
   }, [referredBy, invToken]);
 
-  // Bandeau d'accueil : replié par défaut sur mobile pour ne pas repousser
-  // la première question sous la ligne de flottaison. Toujours ouvert sur grand écran.
-  const [heroOpen, setHeroOpen] = useState(false);
-
   // Mode « à deux sur le même écran » : reprend automatiquement une session
   // en cours (réponses déjà saisies) conservée dans le navigateur.
   const [duoLive, setDuoLive] = useState(false);
@@ -415,24 +411,13 @@ function Index() {
   // Panneau égogramme accessible pendant le test sur mobile
   const [chartOpen, setChartOpen] = useState(false);
 
-  // Détail "comment ça marche avec un binôme" : accordéon inline sous le
-  // schéma des 3 rapports, avec comptage du clic pour /statistiques.
-  const [binomeInfoOpen, setBinomeInfoOpen] = useState(false);
-  const handleBinomeInfoClick = () => {
-    setBinomeInfoOpen((v) => !v);
-    void fetch("/api/public/track-binome-info", { method: "POST" }).catch(() => {});
-  };
-
   // M2 : accordéon de réassurance sur l'Analyse Transactionnelle — beaucoup
   // de visiteurs ne savent pas ce que c'est et hésitent par méconnaissance.
   const [atInfoOpen, setAtInfoOpen] = useState(false);
 
   // CTA d'engagement conscient : fait défiler jusqu'à la première question
   // plutôt que de laisser le test démarrer "en silence" au fil du scroll.
-  // G2 : deux parcours d'entrée pointent vers le même test ; le parcours
-  // duo ouvre en plus l'accordéon d'explication binôme sur mobile.
-  const scrollToQuestions = (opts?: { duo?: boolean }) => {
-    if (opts?.duo) setHeroOpen(true);
+  const scrollToQuestions = () => {
     requestAnimationFrame(() => {
       document.getElementById("questions")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -483,103 +468,25 @@ function Index() {
         <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-600">
           <div className="mx-auto max-w-5xl px-4 py-7 text-center sm:py-12">
             <p className="text-[10px] uppercase tracking-[0.18em] text-white/70 sm:text-xs">
-              Test égogramme gratuit — mieux vous connaître pour mieux interagir
+              Test de personnalité gratuit · Analyse Transactionnelle
             </p>
-            <h1 className="mx-auto mt-3 max-w-3xl text-xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
-              Comprenez ce qui se joue dans vos relations et vos équipes
+            <h1 className="mx-auto mt-3 max-w-3xl text-2xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
+              Découvrez votre personnalité en 5 minutes
             </h1>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-white/85 sm:mt-4 sm:text-base">
-              En 5 minutes, découvrez votre profil relationnel issu de l'Analyse Transactionnelle.
-              <span className={heroOpen ? "" : "hidden sm:inline"}>
-                {" "}Puis analysez les dynamiques d'un couple, d'une famille, d'une équipe ou d'un collectif.
-              </span>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/85 sm:mt-4 sm:text-base">
+              60 affirmations, vrai ou faux. Vous obtenez votre égogramme et une analyse
+              personnelle de vos forces et de vos points de vigilance.
             </p>
-            <p className="mx-auto mt-2 max-w-2xl text-xs text-white/75">
-              🎓 Une méthode utilisée depuis plus de 50 ans en entreprise et en coaching — pas un diagnostic clinique, juste une grille de lecture pour mieux communiquer.
-            </p>
-
-            {/* G2 : deux parcours d'entrée — le test est identique, seuls le
-                cadrage et la suite diffèrent (rapport solo, ou solo + duo). */}
-            <div className="mx-auto mt-6 grid max-w-lg gap-3 text-left sm:mt-7 sm:max-w-2xl sm:grid-cols-2 sm:gap-4">
-              <button
-                type="button"
-                onClick={() => scrollToQuestions()}
-                className="rounded-2xl border border-white/25 bg-white/10 p-4 text-white transition hover:bg-white/15 sm:p-5"
-              >
-                <span className="inline-flex h-9 items-center justify-center rounded-lg bg-white/20 px-3 text-lg">
-                  🙂
-                </span>
-                <p className="mt-3 text-sm font-bold sm:text-base">Mon profil relationnel</p>
-                <p className="mt-1 text-xs leading-relaxed text-white/80">
-                  Faites le test seul(e) et recevez votre analyse personnelle en 5 minutes.
-                </p>
-                <span className="mt-3 flex min-h-[38px] w-full items-center justify-center rounded-lg bg-white px-4 text-xs font-bold text-violet-700">
-                  Commencer seul(e) →
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDuoLive(true);
-                  window.scrollTo({ top: 0 });
-                }}
-                className="rounded-2xl border border-white/40 bg-white/15 p-4 text-white transition hover:bg-white/20 sm:p-5"
-              >
-                <span className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-white/20 px-3 text-lg">
-                  <span>🙂</span>
-                  <span>🙂</span>
-                </span>
-                <p className="mt-3 text-sm font-bold sm:text-base">Notre dynamique à deux</p>
-                <p className="mt-1 text-xs leading-relaxed text-white/80">
-                  Deux personnes, un seul écran : répondez ensemble, découvrez vos différences
-                  toutes les 10 questions, puis recevez 2 rapports + 1 rapport à deux.
-                </p>
-                <span className="mt-3 flex min-h-[38px] w-full items-center justify-center rounded-lg bg-white px-4 text-xs font-bold text-violet-700">
-                  Commencer à deux →
-                </span>
-              </button>
-            </div>
-            <p className="mt-4 text-xs text-white/85">
-              🔒 Vous répondez d'abord, vous décidez ensuite si vous voulez garder une trace — les deux parcours utilisent le même test.
-            </p>
-            <p className="mt-4 text-sm text-white">
-              Vous êtes un bureau APEL ?{" "}
-              <a href="/apel" className="font-semibold underline underline-offset-4">
-                Faire le test avec les membres présents →
-              </a>
-            </p>
-
             <button
               type="button"
-              onClick={() => setHeroOpen((v) => !v)}
-              className="mt-3 rounded-full border border-white/45 px-4 py-1 text-xs font-medium text-white/90 sm:hidden"
+              onClick={scrollToQuestions}
+              className="mx-auto mt-6 flex min-h-[48px] w-full max-w-xs items-center justify-center rounded-xl bg-white px-6 text-sm font-bold text-violet-700 shadow-lg transition hover:bg-violet-50 sm:mt-7 sm:text-base"
             >
-              {heroOpen ? "Masquer ▴" : "En savoir plus ▾"}
+              Commencer le test →
             </button>
-
-            <div className={heroOpen ? "" : "hidden sm:block"}>
-              <ul className="mt-5 flex flex-wrap justify-center gap-2 sm:mt-7">
-              {[
-                "Forces du groupe",
-                "Risques de tensions",
-                "Jeux psychologiques potentiels",
-                "Leviers de coopération",
-              ].map((feature) => (
-                <li
-                  key={feature}
-                  className="rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-xs font-semibold text-white sm:text-sm"
-                >
-                  ✅ {feature}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-5 text-xs text-white/85 sm:text-sm">
-              👨👩 Couple&nbsp;&nbsp;·&nbsp;&nbsp;👨‍👩‍👧 Famille&nbsp;&nbsp;·&nbsp;&nbsp;🧑‍🤝‍🧑 Ami&nbsp;&nbsp;·&nbsp;&nbsp;💼 Collègue&nbsp;&nbsp;·&nbsp;&nbsp;👥 Équipe
+            <p className="mx-auto mt-4 max-w-xl text-xs text-white/80">
+              🔒 Gratuit, anonyme, sans inscription · 🎓 Une grille de lecture utilisée en coaching, pas un diagnostic clinique.
             </p>
-            <p className="mt-5 text-sm font-bold text-white sm:mt-6 sm:text-base">
-              L'IA au service de vos relations. Et gratuitement !
-            </p>
-            </div>
           </div>
         </div>
 
@@ -618,43 +525,10 @@ function Index() {
           </div>
         </div>
 
-        {/* Scénario A corrigé (E1+E2+E5) : schéma allégé "2 rapports individuels
-            + 1 rapport de binôme", un seul lien secondaire (pas de 2e CTA).
-            F1 : replié par défaut sur mobile, dans le même accordéon que le
-            hero, pour raccourcir le trajet jusqu'à la première question. */}
-        <div className={`border-t border-border bg-background ${heroOpen ? "" : "hidden sm:block"}`}>
-          <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
-            <div>
-              <h2 className="max-w-md text-xl font-bold leading-snug tracking-tight text-foreground sm:text-2xl">
-                Un test pour vous. Une analyse en plus pour votre relation.
-              </h2>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-                Chacun reçoit son rapport individuel. En comparant vos profils, Égogramme
-                génère un troisième rapport consacré à votre fonctionnement en binôme.
-              </p>
-              <button
-                type="button"
-                onClick={handleBinomeInfoClick}
-                className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 hover:underline"
-                aria-expanded={binomeInfoOpen}
-              >
-                Comment ça marche avec un binôme {binomeInfoOpen ? "▲" : "→"}
-              </button>
-              {binomeInfoOpen && (
-                <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-                  Invitez une deuxième personne depuis « Mon Espace » après votre test. Une fois
-                  son test terminé, le rapport du binôme se génère automatiquement à partir de
-                  vos deux profils — sans étape supplémentaire de votre côté.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
         <div className="bg-card">
-          <div className="mx-auto max-w-5xl px-4 py-4 sm:py-6">
+          <div className="mx-auto max-w-5xl px-4">
           <InviteReturnBanner user={user} />
-          <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-5 sm:gap-4">
+          <div className="my-4 flex flex-wrap items-center gap-3 empty:hidden sm:my-5 sm:gap-4">
             {user ? (
               <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <Link to="/mon-espace" className="flex-1 sm:flex-none">
@@ -716,7 +590,10 @@ function Index() {
       <main className="mx-auto max-w-5xl px-4 py-5 sm:py-8">
         {/* Sélecteur de contexte : adapte les libellés des 60 questions à
             l'univers du répondant (scoutisme, association de parents…) sans
-            changer le scoring ni les catégories. */}
+            changer le scoring ni les catégories. Affiché seulement quand un
+            contexte spécifique est actif (?contexte=…), pour permettre le
+            retour au mode standard sans encombrer l'accueil. */}
+        {questionVariant !== "default" && (
         <div className="mb-4 flex flex-wrap items-center gap-2 sm:mb-5">
           <span className="text-xs font-medium text-muted-foreground">Contexte du test :</span>
           <div className="flex flex-wrap gap-1.5">
@@ -734,6 +611,7 @@ function Index() {
             ))}
           </div>
         </div>
+        )}
         {/* F2 : réassurance RGPD juste avant la première question — le moment
             où l'utilisateur décide réellement de répondre. */}
         <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground sm:mb-5">
