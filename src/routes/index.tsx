@@ -45,20 +45,26 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "60 affirmations, vrai ou faux : découvrez votre égogramme, vos forces et vos points de vigilance. Test gratuit et anonyme, basé sur l'Analyse Transactionnelle.",
+          "Et si vous preniez cinq minutes pour vous ? Explorez votre façon de réagir et d'entrer en relation avec 60 affirmations. Gratuit, sans inscription.",
       },
       { property: "og:title", content: "Test de personnalité gratuit — découvrez votre profil en 5 minutes" },
       {
         property: "og:description",
         content:
-          "60 affirmations, vrai ou faux : découvrez votre égogramme, vos forces et vos points de vigilance. Test gratuit et anonyme, basé sur l'Analyse Transactionnelle.",
+          "Et si vous preniez cinq minutes pour vous ? Explorez votre façon de réagir et d'entrer en relation avec 60 affirmations. Gratuit, sans inscription.",
       },
+      { property: "og:image", content: "https://egogramme-at.vercel.app/test-individuel-reflection.jpg" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://egogramme-at.vercel.app/test-individuel-reflection.jpg" },
     ],
   }),
   component: Index,
 });
 
 import { QUESTION_MAPPING as MAPPING } from "@/lib/question-mapping";
+
+const INDIVIDUAL_TEST_CONTRACT =
+  "<!-- THESIS: Cinq minutes de recul ouvrent une réflexion, pas un verdict. OWN-WORLD: Lin clair, vert pin, ocre et photographie au naturel; surfaces sobres sans ombres lourdes. STORY: Se reconnaître, répondre librement, puis découvrir son égogramme. FIRST VIEWPORT: Sur mobile, accroche et action avant une photographie compacte; sur ordinateur, la photo à gauche regarde vers le texte et l'action à droite. FORM: Accueil persuasif suivi des 60 affirmations existantes; calcul et parcours inchangés. -->";
 
 const ANSWERS_STORAGE_KEY = "egogramme_answers";
 const RELAY_KEY = "egogramme_relay";
@@ -438,7 +444,8 @@ function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#fbfaf6] text-[#28362e]">
+      <div dangerouslySetInnerHTML={{ __html: INDIVIDUAL_TEST_CONTRACT }} />
       <NavBar />
       {invToken && (
         <div className="border-b border-violet-200 bg-violet-50">
@@ -464,47 +471,59 @@ function Index() {
           </div>
         </div>
       )}
-      <header className="border-b border-border">
-        <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-600">
-          <div className="mx-auto max-w-5xl px-4 py-7 text-center sm:py-12">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-white/70 sm:text-xs">
-              Test de personnalité gratuit · Analyse Transactionnelle
-            </p>
-            <h1 className="mx-auto mt-3 max-w-3xl text-2xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
-              Découvrez votre personnalité en 5 minutes
-            </h1>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/85 sm:mt-4 sm:text-base">
-              60 affirmations, vrai ou faux. Vous obtenez votre égogramme et une analyse
-              personnelle de vos forces et de vos points de vigilance.
-            </p>
-            <button
-              type="button"
-              onClick={scrollToQuestions}
-              className="mx-auto mt-6 flex min-h-[48px] w-full max-w-xs items-center justify-center rounded-xl bg-white px-6 text-sm font-bold text-violet-700 shadow-lg transition hover:bg-violet-50 sm:mt-7 sm:text-base"
-            >
-              Commencer le test →
-            </button>
-            <p className="mx-auto mt-4 max-w-xl text-xs text-white/80">
-              🔒 Gratuit, anonyme, sans inscription · 🎓 Une grille de lecture utilisée en coaching, pas un diagnostic clinique.
-            </p>
+      <header>
+        <div className="bg-[#f1eee4]">
+          <div className="mx-auto grid max-w-6xl items-center gap-7 px-5 py-7 sm:px-8 sm:py-10 md:grid-cols-[1.05fr_0.95fr] md:gap-12 md:py-14">
+            <figure className="relative order-2 m-0 overflow-hidden rounded-2xl md:order-1 md:rounded-[1.75rem]">
+              <img
+                src="/test-individuel-reflection.jpg"
+                alt="Une femme prend un moment pour elle avec son carnet, face au paysage au coucher du soleil."
+                className="aspect-[3/2] w-full object-cover"
+                fetchPriority="high"
+              />
+              <figcaption className="absolute bottom-3 right-3 rounded-md bg-[#e6bd67] px-3 py-2 text-sm font-semibold text-[#263a2e] sm:bottom-4 sm:right-4 sm:px-4">
+                Un moment pour vous
+              </figcaption>
+            </figure>
+
+            <div className="order-1 md:order-2">
+              <h1 className="max-w-[15ch] text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-[#263a2e] [text-wrap:balance] sm:text-5xl lg:text-[3.5rem]">
+                Et si vous preniez cinq minutes pour vous ?
+              </h1>
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-[#4c5d51] sm:mt-5 sm:text-lg">
+                Explorez votre façon de réagir, de communiquer et d’entrer en relation.
+                60 affirmations pour ouvrir de nouvelles pistes sur vous-même.
+              </p>
+              <button
+                type="button"
+                onClick={scrollToQuestions}
+                className="mt-6 flex min-h-12 w-full items-center justify-center rounded-lg bg-[#315d4a] px-7 text-base font-semibold text-white transition-colors hover:bg-[#244b3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315d4a] focus-visible:ring-offset-2 sm:mt-7 sm:w-auto"
+              >
+                Commencer mon test <span aria-hidden="true" className="ml-2">→</span>
+              </button>
+              <p className="mt-3 text-sm text-[#526458]">
+                Gratuit <span aria-hidden="true">·</span> Sans inscription{" "}
+                <span aria-hidden="true">·</span> Environ 5 minutes
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* M2 : réassurance dépliable sur l'Analyse Transactionnelle — les
-            visiteurs qui ne connaissent pas la méthode hésitent souvent par
-            méconnaissance plutôt que par désintérêt. */}
-        <div className="border-t border-border bg-muted/20">
-          <div className="mx-auto max-w-5xl px-4 py-5 sm:py-6">
+        <div className="border-y border-[#e2ded3] bg-[#f8f6ef]">
+          <div className="mx-auto max-w-6xl px-5 py-4 sm:px-8 sm:py-5">
             <button
               type="button"
               onClick={() => setAtInfoOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 hover:underline"
+              className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-[#315d4a] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315d4a] focus-visible:ring-offset-2"
               aria-expanded={atInfoOpen}
             >
-              🎓 Qu'est-ce que l'Analyse Transactionnelle ? {atInfoOpen ? "▲" : "→"}
+              Comprendre la méthode <span aria-hidden="true">{atInfoOpen ? "−" : "+"}</span>
             </button>
             {atInfoOpen && (
-              <div className="mt-3 max-w-2xl space-y-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+              <div className="mt-3 max-w-2xl space-y-2 text-sm leading-relaxed text-[#4c5d51]">
+                <p className="font-semibold text-[#263a2e]">
+                  Un éclairage sur vos habitudes relationnelles, pas une étiquette ni un diagnostic.
+                </p>
                 <p>
                   C'est un modèle de psychologie créé dans les années 1960, aujourd'hui largement
                   utilisé en entreprise, en coaching et en formation, pour mieux comprendre comment
@@ -525,8 +544,8 @@ function Index() {
           </div>
         </div>
 
-        <div className="bg-card">
-          <div className="mx-auto max-w-5xl px-4">
+        <div className="bg-[#fbfaf6]">
+          <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <InviteReturnBanner user={user} />
           <div className="my-4 flex flex-wrap items-center gap-3 empty:hidden sm:my-5 sm:gap-4">
             {user ? (
@@ -577,17 +596,20 @@ function Index() {
       </header>
 
       {/* Barre de progression collante : repère permanent pendant le défilement */}
-      <div className="sticky top-12 z-40 border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-5xl px-4 py-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="sticky top-12 z-40 border-b border-[#e2ded3] bg-[#fbfaf6]/95 backdrop-blur-sm">
+        <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
+          <div className="flex items-center justify-between text-xs text-[#526458]">
             <span>Progression</span>
             <span className="tabular-nums">{answeredCount} / 60</span>
           </div>
-          <Progress value={(answeredCount / 60) * 100} className="mt-1.5 h-2" />
+          <Progress
+            value={(answeredCount / 60) * 100}
+            className="mt-1.5 h-1.5 bg-[#e3dfd4] [&>div]:bg-[#315d4a]"
+          />
         </div>
       </div>
 
-      <main className="mx-auto max-w-5xl px-4 py-5 sm:py-8">
+      <main className="mx-auto max-w-6xl px-5 py-5 sm:px-8 sm:py-8">
         {/* Sélecteur de contexte : adapte les libellés des 60 questions à
             l'univers du répondant (scoutisme, association de parents…) sans
             changer le scoring ni les catégories. Affiché seulement quand un
@@ -614,31 +636,36 @@ function Index() {
         )}
         {/* F2 : réassurance RGPD juste avant la première question — le moment
             où l'utilisateur décide réellement de répondre. */}
-        <p className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground sm:mb-5">
+        <p className="mb-4 flex items-center gap-1.5 text-xs text-[#526458] sm:mb-5">
           🔒 Anonyme, sans inscription obligatoire — vos réponses ne sont liées à un compte
           que si vous en créez un.
         </p>
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="grid gap-8 lg:grid-cols-[1fr_320px] xl:gap-10">
           <section id="questions" aria-label="Questions" className="scroll-mt-28 space-y-2">
             {QUESTIONS.map((q, i) => {
               const val = answers[i];
               return (
                 <Card
                   key={i}
-                  className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4"
+                  className="flex flex-col gap-2 rounded-xl border-[#e2ded3] bg-white p-3 shadow-none sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4"
                 >
                   <div className="flex gap-2 sm:gap-3">
-                    <span className="w-5 shrink-0 text-sm font-semibold text-muted-foreground sm:w-6">
+                    <span className="w-5 shrink-0 text-sm font-semibold text-[#718074] sm:w-6">
                       {i + 1}.
                     </span>
-                    <p className="text-sm leading-snug text-foreground">{q}</p>
+                    <p className="text-sm leading-snug text-[#263a2e]">{q}</p>
                   </div>
                   <div className="flex gap-2 sm:shrink-0">
                     <Button
                       size="sm"
                       variant={val === true ? "default" : "outline"}
                       onClick={() => setAnswer(i, true)}
-                      className="flex-1 sm:flex-none"
+                      className={[
+                        "h-11 flex-1 shadow-none sm:flex-none",
+                        val === true
+                          ? "border-[#315d4a] bg-[#315d4a] text-white hover:bg-[#244b3a] hover:text-white"
+                          : "border-[#d7d4ca] bg-white text-[#34483c] hover:bg-[#f4f1e8] hover:text-[#263a2e]",
+                      ].join(" ")}
                     >
                       <span className="sm:hidden">Vrai</span>
                       <span className="hidden sm:inline">Plutôt vrai</span>
@@ -647,7 +674,12 @@ function Index() {
                       size="sm"
                       variant={val === false ? "default" : "outline"}
                       onClick={() => setAnswer(i, false)}
-                      className="flex-1 sm:flex-none"
+                      className={[
+                        "h-11 flex-1 shadow-none sm:flex-none",
+                        val === false
+                          ? "border-[#315d4a] bg-[#315d4a] text-white hover:bg-[#244b3a] hover:text-white"
+                          : "border-[#d7d4ca] bg-white text-[#34483c] hover:bg-[#f4f1e8] hover:text-[#263a2e]",
+                      ].join(" ")}
                     >
                       <span className="sm:hidden">Faux</span>
                       <span className="hidden sm:inline">Plutôt faux</span>
@@ -660,7 +692,13 @@ function Index() {
 
           {/* Colonne latérale : grand écran uniquement */}
           <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
-            <EgogramCard scores={scores} total={total} maxScore={maxScore} />
+            <EgogramCard
+              scores={scores}
+              total={total}
+              maxScore={maxScore}
+              compact
+              className="border-[#e2ded3] bg-white p-4 shadow-none"
+            />
           </aside>
         </div>
       </main>
@@ -674,15 +712,20 @@ function Index() {
       {/* Panneau égogramme mobile : le graphique reste accessible pendant le test */}
       <div className="sticky bottom-0 z-40 lg:hidden">
         {chartOpen && (
-          <div className="max-h-[65vh] overflow-y-auto border-t border-border bg-background px-4 pb-3 pt-4 shadow-lg">
-            <EgogramCard scores={scores} total={total} maxScore={maxScore} className="p-4" />
+          <div className="max-h-[65vh] overflow-y-auto border-t border-[#e2ded3] bg-[#fbfaf6] px-4 pb-3 pt-4">
+            <EgogramCard
+              scores={scores}
+              total={total}
+              maxScore={maxScore}
+              className="border-[#e2ded3] bg-white p-4 shadow-none"
+            />
           </div>
         )}
         <button
           type="button"
           onClick={() => setChartOpen((v) => !v)}
           aria-expanded={chartOpen}
-          className="flex w-full items-center justify-between border-t border-border bg-foreground px-4 py-3 text-sm font-semibold text-background"
+          className="flex w-full items-center justify-between border-t border-[#426452] bg-[#294a3a] px-4 py-2.5 text-sm font-semibold text-white"
         >
           <span>📊 {chartOpen ? "Masquer mon égogramme" : "Voir mon égogramme"}</span>
           <span className="flex items-center gap-2">
