@@ -574,7 +574,7 @@ function Index() {
               ))}
             </ul>
             <p className="mt-5 text-xs text-white/85 sm:text-sm">
-              👩‍❤️‍👨 Couple&nbsp;&nbsp;·&nbsp;&nbsp;👨‍👩‍👧 Famille&nbsp;&nbsp;·&nbsp;&nbsp;🧑‍🤝‍🧑 Ami&nbsp;&nbsp;·&nbsp;&nbsp;💼 Collègue&nbsp;&nbsp;·&nbsp;&nbsp;👥 Équipe
+              👨👩 Couple&nbsp;&nbsp;·&nbsp;&nbsp;👨‍👩‍👧 Famille&nbsp;&nbsp;·&nbsp;&nbsp;🧑‍🤝‍🧑 Ami&nbsp;&nbsp;·&nbsp;&nbsp;💼 Collègue&nbsp;&nbsp;·&nbsp;&nbsp;👥 Équipe
             </p>
             <p className="mt-5 text-sm font-bold text-white sm:mt-6 sm:text-base">
               L'IA au service de vos relations. Et gratuitement !

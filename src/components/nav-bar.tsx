@@ -8,12 +8,16 @@ type NavBarProps = {
   isAdmin?: boolean; // override optionnel (pages admin)
 };
 
-const ORIENTATION_LINK = { to: "/orientation", label: "🧭 Orientation" } as const;
+const PUBLIC_LINKS = [
+  { to: "/orientation", label: "🧭 Orientation" },
+  { to: "/duo", label: "👨👩 Test de binôme" },
+  { to: "/apel", label: "🏛️ Bureau d'association" },
+] as const;
 
 const BASE_LINKS = [
   { to: "/", label: "🧠 Test" },
   { to: "/mon-espace", label: "👥 Mon Espace" },
-  ORIENTATION_LINK,
+  ...PUBLIC_LINKS,
 ] as const;
 
 const ADMIN_EXTRA = [
@@ -60,7 +64,7 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
   }, []);
 
   const admin = isAdminOverride ?? (user ? isAdminEmail(user.email) : false);
-  const links = admin ? [...BASE_LINKS, ...ADMIN_EXTRA] : user ? BASE_LINKS : [ORIENTATION_LINK];
+  const links = admin ? [...BASE_LINKS, ...ADMIN_EXTRA] : user ? BASE_LINKS : PUBLIC_LINKS;
 
   const handleOAuth = async (provider: "google" | "linkedin_oidc") => {
     await supabase.auth.signInWithOAuth({
@@ -89,11 +93,11 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
         >
           <img src={teamLogo} alt="Team Performance" className="h-7 w-7 rounded" />
           <span className="hidden text-sm font-bold text-gray-700 tracking-tight sm:inline">
-            Égogramme d'équipe
+            Test de personnalité
           </span>
         </Link>
 
-        <div className="flex flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {links.map((link) => {
             const active = current === link.to;
             return (
