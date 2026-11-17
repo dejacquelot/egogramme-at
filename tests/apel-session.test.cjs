@@ -15,6 +15,7 @@ require.extensions[".ts"] = (module, filename) => {
 };
 const {
   newApelSession,
+  newApelMember,
   apelSessionSchema,
   apelAnalysisSchema,
   apelScores,
@@ -162,4 +163,33 @@ test("interrupted reports and agreements survive JSON serialization", () => {
   assert.equal(recovered.members[0].report, "Rapport déjà terminé");
   assert.equal(recovered.members[1].report, undefined);
   assert.equal(recovered.agreements[0].accepted, true);
+});
+
+test("older groups remain recoverable and can generate reports without losing members", () => {
+  const s = started();
+  s.members = Array.from({ length: 20 }, (_, i) => ({
+    ...newApelMember("Membre", `legacy-${i}`),
+    name: `Participant ${i + 1}`,
+    present: true,
+    answers: Array(60).fill(i % 2 === 0),
+  }));
+  s.cur = 59;
+  s.step = "reports";
+  s.completedAt = "2026-11-01T12:00:00.000Z";
+  s.members[0].report = "Rapport conservé";
+
+  const recovered = apelSessionSchema.parse(JSON.parse(JSON.stringify(s)));
+  assert.deepEqual(recovered, s);
+  const analysis = { mode: "collective", consent: true, members: recovered.members };
+  assert.ok(apelAnalysisSchema.safeParse(analysis).success);
+
+  const extra = { ...s.members[0], id: "legacy-extra" };
+  assert.equal(
+    apelSessionSchema.safeParse({ ...s, members: [...s.members, extra] }).success,
+    false,
+  );
+  assert.equal(
+    apelAnalysisSchema.safeParse({ ...analysis, members: [...analysis.members, extra] }).success,
+    false,
+  );
 });

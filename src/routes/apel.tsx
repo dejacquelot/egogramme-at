@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ApelWorkshop } from "@/components/apel-workshop";
 import apelCss from "@/styles/apel.css?url";
 
-const TITLE = "Test égogramme du bureau APEL : mieux fonctionner ensemble";
+const TITLE = "Notre bureau APEL : mieux fonctionner ensemble";
 const DESCRIPTION =
   "Sélectionnez les membres présents, répondez ensemble aux 60 questions et découvrez vos rapports personnels et collectif.";
 

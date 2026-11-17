@@ -64,7 +64,8 @@
   gap: 20px;
   border-bottom: 1px solid var(--apel-line);
 }
-.apel-header a {
+.apel-brand {
+  display: block;
   font-size: 20px;
   font-weight: 700;
 }
@@ -203,7 +204,7 @@
 .apel-tools {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   margin-bottom: 22px;
   font-size: 14px;

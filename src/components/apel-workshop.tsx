@@ -288,7 +288,7 @@ export function ApelWorkshop() {
     <div className="apel">
       <header className="apel-header">
         <div>
-          <a href="/">Égogramme</a>
+          <span className="apel-brand">Notre bureau APEL</span>
           <p>Un moment pour votre bureau APEL</p>
         </div>
         <img src="/apel-logo.png" alt="APEL" width={95} height={68} />
@@ -307,7 +307,6 @@ export function ApelWorkshop() {
       </nav>
       <main className="apel-main">
         <div className="apel-tools">
-          <a href="/">← Accueil</a>
           <button type="button" className="apel-text" disabled={running} onClick={reset}>
             Effacer cette séance
           </button>
@@ -331,7 +330,7 @@ export function ApelWorkshop() {
                       un seul écran, éclaire la façon dont chacun contribue au bureau.
                     </p>
                     <ul className="apel-facts">
-                      <li>2 à 20 membres</li>
+                      <li>2 à {APEL_MAX_MEMBERS} membres</li>
                       <li>60 questions, avec des pauses</li>
                       <li>Aucun prénom conservé</li>
                     </ul>
@@ -403,6 +402,10 @@ export function ApelWorkshop() {
                       className="apel-text"
                       disabled={s.members.length >= APEL_MAX_MEMBERS}
                       onClick={() => {
+                        if (current.current.members.length >= APEL_MAX_MEMBERS) {
+                          setError(`Aucun ajout possible au-delà de ${APEL_MAX_MEMBERS} membres.`);
+                          return;
+                        }
                         if (
                           s.members.some((m) => m.answers.some((v) => v !== null)) &&
                           !window.confirm(
@@ -425,8 +428,10 @@ export function ApelWorkshop() {
                       + Ajouter un membre
                     </button>
                     <p className="apel-note">
-                      De 2 à {APEL_MAX_MEMBERS} participants. Les absents ne sont pas analysés. La
-                      fonction ne présume pas de la personnalité.
+                      {s.members.length > APEL_MAX_MEMBERS
+                        ? `Les ${s.members.length} membres de cette séance enregistrée sont conservés. Aucun ajout supplémentaire n'est possible.`
+                        : `De 2 à ${APEL_MAX_MEMBERS} participants.`}{" "}
+                      Les absents ne sont pas analysés. La fonction ne présume pas de la personnalité.
                     </p>
                   </section>
                   <aside className="apel-summary">

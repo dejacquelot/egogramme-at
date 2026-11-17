@@ -5,7 +5,9 @@ import type { ReportScores } from "./team-report";
 export const APEL_STORAGE_KEY = "egogramme_apel_v1";
 export const APEL_TOTAL = 60;
 export const APEL_BLOCK = 10;
-export const APEL_MAX_MEMBERS = 20;
+export const APEL_MAX_MEMBERS = 6;
+// Keep older, larger sessions recoverable and their reports available.
+const APEL_COMPAT_MAX_MEMBERS = 20;
 
 const memberSchema = z.object({
   id: z.string().min(1).max(80),
@@ -20,7 +22,7 @@ export const apelSessionSchema = z
   .object({
     version: z.literal(1),
     step: z.enum(["participants", "test", "pause", "reports", "agreements"]),
-    members: z.array(memberSchema).min(1).max(APEL_MAX_MEMBERS),
+    members: z.array(memberSchema).min(1).max(APEL_COMPAT_MAX_MEMBERS),
     consent: z.boolean(),
     cur: z
       .number()
@@ -157,7 +159,7 @@ export const apelAnalysisSchema = z
         }),
       )
       .min(1)
-      .max(APEL_MAX_MEMBERS),
+      .max(APEL_COMPAT_MAX_MEMBERS),
   })
   .superRefine((v, ctx) => {
     if (
