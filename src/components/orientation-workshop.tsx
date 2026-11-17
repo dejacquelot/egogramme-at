@@ -53,7 +53,6 @@ const STEPS = [
 const CONTRACT =
   "<!-- THESIS: Un carnet de choix ouverts, pas un verdict de métiers. OWN-WORLD: Typographie Nunito Sans et teal du parcours existant, photographies intactes, champs explicites. STORY: Se connaître, explorer, dialoguer si souhaité, essayer. FIRST VIEWPORT: Texte et action à gauche, photographie de réflexion à droite; trois scènes suivantes sous le premier écran. FORM: Parcours en quatre scènes, structure 4, seed e482d899; choix validé, une étape active sur mobile. -->";
 
-const HOME_SEARCH = { ref: undefined, inv: undefined, contexte: undefined, duo: undefined };
 
 export function OrientationWorkshop() {
   const [session, setSession] = useState<OrientationSession>(newOrientationSession);
@@ -328,12 +327,9 @@ export function OrientationWorkshop() {
     <div className="orientation" lang="fr">
       <div dangerouslySetInnerHTML={{ __html: CONTRACT }} />
       <header className="ori-header">
-        <Link to="/" search={HOME_SEARCH} className="ori-brand">
-          <Compass aria-hidden="true" /> Égogramme
-        </Link>
-        <Link to="/" search={HOME_SEARCH} className="ori-return">
-          Retour au test classique <ArrowRight size={16} aria-hidden="true" />
-        </Link>
+        <span className="ori-brand">
+          <Compass aria-hidden="true" /> Mon orientation
+        </span>
       </header>
       <main className="ori-main">
         {storageError && (

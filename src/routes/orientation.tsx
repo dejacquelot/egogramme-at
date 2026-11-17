@@ -4,7 +4,7 @@ import orientationCss from "@/styles/orientation.css?url";
 
 const TITLE = "Orientation : mes forces, mes pistes, mes essais";
 const DESCRIPTION =
-  "Un égogramme pour mieux te connaître, explorer des métiers sans te mettre dans une case et en parler avec tes parents, à ton rythme.";
+  "Un parcours pour mieux te connaître, explorer des métiers sans te mettre dans une case et en parler avec tes parents, à ton rythme.";
 
 export const Route = createFileRoute("/orientation")({
   head: () => ({
