@@ -149,6 +149,7 @@ export function continueApelPause(s: ApelSession): ApelSession {
 export const apelAnalysisSchema = z
   .object({
     mode: z.enum(["individual", "collective"]),
+    workshop: z.enum(["apel", "scout"]).default("apel"),
     consent: z.literal(true),
     members: z
       .array(
@@ -162,6 +163,10 @@ export const apelAnalysisSchema = z
       .max(APEL_COMPAT_MAX_MEMBERS),
   })
   .superRefine((v, ctx) => {
+    if (v.workshop === "scout" && v.members.some((m) =>
+      m.role !== "Chef" && (v.mode === "collective" || m.role !== "Parent"))) {
+      ctx.addIssue({ code: "custom", message: "Le collectif scout est réservé aux chefs." });
+    }
     if (
       (v.mode === "individual" && v.members.length !== 1) ||
       (v.mode === "collective" && v.members.length < 2)

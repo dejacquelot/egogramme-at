@@ -5,7 +5,7 @@ const { test } = require("node:test");
 const ts = require("typescript");
 
 // Only these pure domain modules are transpiled; no browser or server code runs.
-const allowed = new Set(["apel-session.ts", "egogram-scoring.ts", "question-mapping.ts"]);
+const allowed = new Set(["apel-session.ts", "scout-session.ts", "egogram-scoring.ts", "question-mapping.ts"]);
 require.extensions[".ts"] = (module, filename) => {
   assert.ok(allowed.has(path.basename(filename)), `Unexpected module: ${filename}`);
   const { outputText } = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
@@ -24,6 +24,25 @@ const {
   continueApelPause,
 } = require("../src/lib/apel-session.ts");
 const { QUESTION_MAPPING } = require("../src/lib/question-mapping.ts");
+const {newScoutSession, scoutChiefs, scoutSessionSchema} = require("../src/lib/scout-session.ts");
+
+test("scout workshop: only attending chiefs contribute to the collective", () => {
+  const s = newScoutSession();
+  assert.equal(s.members.filter(m => m.role === "Parent" && !m.present).length, 4);
+  assert.equal(s.members.filter(m => m.present).length, 4);
+  assert.equal(scoutChiefs(s.members).length, 4);
+  s.members[4].present = true;
+  s.members[0].present = false;
+  assert.equal(scoutChiefs(s.members).length, 3);
+  s.step = "test"; s.consent = true;
+  s.members.forEach(m => { m.name = m.id; });
+  assert.ok(scoutSessionSchema.safeParse(s).success);
+  s.members[1].role = s.members[2].role = "Parent";
+  assert.equal(scoutSessionSchema.safeParse(s).success, false);
+  const members = ["Chef","Parent"].map(role => ({name:role, role, answers:Array(60).fill(true)}));
+  assert.equal(apelAnalysisSchema.safeParse({mode:"collective", workshop:"scout",consent:true,members}).success,false);
+  assert.ok(apelAnalysisSchema.safeParse({mode:"individual", workshop:"scout",consent:true,members:members.slice(1)}).success);
+});
 
 function started() {
   const s = newApelSession();
