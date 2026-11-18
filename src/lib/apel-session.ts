@@ -30,6 +30,7 @@ export const apelSessionSchema = z
       .min(0)
       .max(APEL_TOTAL - 1),
     completedAt: z.string().datetime().optional(),
+    scoutAdminId: z.string().uuid().optional(),
     collective: z.string().optional(),
     agreements: z
       .array(

@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      scout_results: {
+        Row: { id: string; completed_at: string; members: Json }
+        Insert: { id: string; completed_at: string; members: Json }
+        Update: never
+        Relationships: []
+      }
       orientation_events: {
         Row: {
           id: string

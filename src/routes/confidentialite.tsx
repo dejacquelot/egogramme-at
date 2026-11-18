@@ -40,6 +40,7 @@ function Confidentialite() {
 
           <section>
             <h2 className="text-lg font-semibold text-slate-800">2. Données collectées</h2>
+            <p>Pour une séance scoute, le groupe peut autoriser séparément l’enregistrement de la date, des prénoms, des rôles et des six scores individuels. L’administrateur peut alors consulter ces résultats et la moyenne des chefs présents, hors parents. Cet enregistrement facultatif ne comprend ni les réponses détaillées ni les rapports IA. Effacer la séance du navigateur ne supprime pas les résultats déjà transmis.</p>
             <p>Nous collectons les données suivantes uniquement lorsque vous créez un compte :</p>
             <ul className="list-disc pl-6 space-y-1">
               <li>

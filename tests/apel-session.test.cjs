@@ -5,7 +5,7 @@ const { test } = require("node:test");
 const ts = require("typescript");
 
 // Only these pure domain modules are transpiled; no browser or server code runs.
-const allowed = new Set(["apel-session.ts", "scout-session.ts", "egogram-scoring.ts", "question-mapping.ts"]);
+const allowed = new Set(["apel-session.ts", "scout-session.ts", "scout-results.ts", "egogram-scoring.ts", "question-mapping.ts"]);
 require.extensions[".ts"] = (module, filename) => {
   assert.ok(allowed.has(path.basename(filename)), `Unexpected module: ${filename}`);
   const { outputText } = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
@@ -25,6 +25,24 @@ const {
 } = require("../src/lib/apel-session.ts");
 const { QUESTION_MAPPING } = require("../src/lib/question-mapping.ts");
 const {newScoutSession, scoutChiefs, scoutSessionSchema} = require("../src/lib/scout-session.ts");
+const {scoutResults, chiefMean} = require("../src/lib/scout-results.ts");
+
+test("admin scout scores require opt-in and completion and exclude absentees and report text", () => {
+  const s = newScoutSession();
+  s.members.forEach((m, i) => {
+    m.present = [0,1,4].includes(i);
+    m.answers.fill(i !== 0); m.name = `Prénom ${i}`; m.report = "Privé";
+  });
+  s.consent = true; s.completedAt = new Date().toISOString(); s.step = "reports";
+  assert.throws(() => scoutResults(s));
+  s.scoutAdminId = "12ded389-bd17-4aa3-926f-12edbdca8915";
+  const r = scoutResults(s);
+  assert.deepEqual(r.members.map(m => m.name), ["Prénom 0","Prénom 1","Prénom 4"]);
+  assert.deepEqual(Object.keys(r.members[0]).sort(), ["name","role","scores"]);
+  assert.equal(chiefMean(r.members,"A"),5);
+  s.members[0].answers[0] = null;
+  assert.throws(() => scoutResults(s));
+});
 
 test("scout workshop: only attending chiefs contribute to the collective", () => {
   const s = newScoutSession();

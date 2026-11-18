@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MarkdownText } from "@/components/markdown-text";
+import { ScoutResultSave } from "@/components/scout-result-save";
 import { QUESTION_VARIANTS } from "@/lib/question-variants";
 import { streamAnalysis } from "@/lib/stream-client";
 import { trackPage } from "@/lib/track-page";
@@ -493,6 +494,13 @@ export function ApelWorkshop({ scout = false }: { scout?: boolean } = {}) {
                         générer nos rapports avec l'IA.
                       </span>
                     </label>
+                    {scout && <label className="apel-consent">
+                      <input type="checkbox" checked={!!s.scoutAdminId} onChange={e =>
+                        update({...s, scoutAdminId: e.target.checked ? crypto.randomUUID() : undefined})} />
+                      <span>Facultatif : nous acceptons tous qu’à la fin du test, l’administrateur
+                        puisse consulter nos prénoms, nos rôles et nos six scores, ainsi que la moyenne
+                        des chefs. Les réponses détaillées et les rapports IA ne lui sont pas transmis.</span>
+                    </label>}
                     <button type="button" className="apel-btn" onClick={start}>
                       Commencer avec ce groupe →
                     </button>
@@ -682,6 +690,7 @@ export function ApelWorkshop({ scout = false }: { scout?: boolean } = {}) {
                     {present.map((m) => m.name).join(", ")}.
                   </p>
                 </div>
+                {scout && s.scoutAdminId && <ScoutResultSave key={s.scoutAdminId} session={s} />}
                 {!allReports && (
                   <div className="apel-sheet">
                     <h2>Vos rapports personnalisés</h2>

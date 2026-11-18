@@ -26,6 +26,7 @@ import { streamAnalysis } from "@/lib/stream-client";
 import { libraryApi, type LibraryRow } from "@/lib/library-api";
 import { NavBar } from "@/components/nav-bar";
 import { ApelSessionsSection } from "@/components/apel-sessions-admin";
+import { ScoutResultsSection } from "@/components/scout-results-admin";
 import { MarkdownText } from "@/components/markdown-text";
 
 
@@ -1078,6 +1079,7 @@ function AdminDashboard() {
         </Card>
 
         <ApelSessionsSection />
+        <ScoutResultsSection />
 
         {teamAnalyses.length > 0 && (
           <Card className="p-5">
