@@ -1,4 +1,5 @@
-export type TrackedPage = "duo" | "apel";
+export const TRACKED_PAGES = ["duo", "apel", "scout"] as const;
+export type TrackedPage = (typeof TRACKED_PAGES)[number];
 export type TrackedKind = "visit" | "start" | "report";
 
 /** Envoi anonyme et silencieux : un échec de suivi ne doit jamais gêner le parcours. */

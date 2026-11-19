@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "crypto";
+import { TRACKED_PAGES } from "@/lib/track-page";
 
 const SALT = "egogramme-josien-v1-static-salt";
-const PAGES = ["duo", "apel"];
 const KINDS = ["visit", "start", "report"];
 
 function getClientIp(request: Request): string {
@@ -16,7 +16,7 @@ function getClientIp(request: Request): string {
 }
 
 /**
- * Comptage anonyme des visites, démarrages et rapports des pages /duo et /apel,
+ * Comptage des visites, démarrages et rapports des parcours suivis,
  * pour les courbes de /statistiques. Un événement par type, visiteur et jour.
  */
 export const Route = createFileRoute("/api/public/track-page")({
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/public/track-page")({
             page?: string;
             kind?: string;
           } | null;
-          if (!body || !PAGES.includes(body.page ?? "") || !KINDS.includes(body.kind ?? "")) {
+          if (!body || !TRACKED_PAGES.some(page => page === body.page) || !KINDS.includes(body.kind ?? "")) {
             return Response.json({ ok: false }, { status: 400 });
           }
           const visitorHash = createHash("sha256")

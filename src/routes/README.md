@@ -22,6 +22,12 @@ is `src/routes/__root.tsx`.
 
 ## Atelier APEL
 
+Comme `/duo` et `/apel`, `/scout` alimente les courbes de fréquentation de `/stats`
+via `page_events` (migration `20261119150000_scout_page_events.sql`). Une visite,
+un démarrage validé et un rapport de maîtrise généré sont comptés séparément,
+au plus une fois par visiteur et par jour UTC. Les rapports individuels ne sont
+pas comptés. Ces indicateurs ne dépendent pas du partage des scores nominatifs.
+
 `/apel` propose un atelier sur un écran partagé pour 2 à 20 membres présents :
 60 questions de la variante APEL, pauses toutes les 10 questions (y compris la
 dernière), puis rapports personnels et collectif en PDF et lien de partage.

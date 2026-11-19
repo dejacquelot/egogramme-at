@@ -92,7 +92,7 @@ export function ApelWorkshop({ scout = false }: { scout?: boolean } = {}) {
   }
 
   useEffect(() => {
-    if (!scout) trackPage("apel", "visit");
+    trackPage(scout ? "scout" : "apel", "visit");
   }, [scout]);
 
   useEffect(() => {
@@ -157,7 +157,7 @@ export function ApelWorkshop({ scout = false }: { scout?: boolean } = {}) {
       return;
     }
     setError("");
-    if (!scout) trackPage("apel", "start");
+    trackPage(scout ? "scout" : "apel", "start");
     update({
       ...s,
       step: "test",
@@ -236,7 +236,7 @@ export function ApelWorkshop({ scout = false }: { scout?: boolean } = {}) {
         );
         if (!text.trim()) throw new Error("Le rapport collectif est vide. Réessayez.");
         update({ ...current.current, collective: text });
-        if (!scout) trackPage("apel", "report");
+        trackPage(scout ? "scout" : "apel", "report");
       }
       if (!scout) saveSession(current.current);
     } catch (e) {

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { isAdminEmail } from "@/lib/admin-config";
 import { NavBar } from "@/components/nav-bar";
+import { TRACKED_PAGES } from "@/lib/track-page";
 import { OrientationStatistics } from "@/components/orientation-statistics";
 import {
   EMPTY_STATS,
@@ -365,7 +366,7 @@ function StatsContent() {
     const cfg = PERIODS.find((p) => p.key === period)!;
     const keys = buildBuckets(period, cfg.buckets);
     const maps = new Map<string, Map<string, number>>();
-    for (const page of ["duo", "apel"]) {
+    for (const page of TRACKED_PAGES) {
       for (const kind of ["visit", "start", "report"]) {
         maps.set(`${page}:${kind}`, new Map(keys.map((k) => [k, 0])));
       }
@@ -388,6 +389,9 @@ function StatsContent() {
       apelVisit: maps.get("apel:visit")!.get(k) ?? 0,
       apelStart: maps.get("apel:start")!.get(k) ?? 0,
       apelReport: maps.get("apel:report")!.get(k) ?? 0,
+      scoutVisit: maps.get("scout:visit")!.get(k) ?? 0,
+      scoutStart: maps.get("scout:start")!.get(k) ?? 0,
+      scoutReport: maps.get("scout:report")!.get(k) ?? 0,
     }));
     return { series, totals };
   }, [stats.pageEvents, since, period]);
@@ -643,6 +647,7 @@ function StatsContent() {
           [
             { page: "duo", title: "Page /duo (test à deux)", prefix: "duo", color: "oklch(0.55 0.2 300)" },
             { page: "apel", title: "Page /apel (bureau APEL)", prefix: "apel", color: "oklch(0.5 0.1 195)" },
+            { page: "scout", title: "Scouts : fréquentation du parcours", prefix: "scout", color: "oklch(0.45 0.12 245)" },
           ] as const
         ).map((p) => (
           <Card key={p.page} className="p-5">
@@ -663,7 +668,7 @@ function StatsContent() {
                 [
                   ["visit", "Visites"],
                   ["start", "Tests démarrés"],
-                  ["report", "Rapports générés"],
+                  ["report", p.page === "scout" ? "Rapports de maîtrise générés" : "Rapports générés"],
                 ] as const
               ).map(([kind, label]) => {
                 const n = pageData.totals.get(`${p.page}:${kind}`) ?? 0;
@@ -698,7 +703,7 @@ function StatsContent() {
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Line type="monotone" dataKey={`${p.prefix}Visit`} name="Visites" stroke={p.color} strokeWidth={2.5} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey={`${p.prefix}Start`} name="Tests démarrés" stroke="oklch(0.6 0.17 60)" strokeWidth={2.5} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey={`${p.prefix}Report`} name="Rapports générés" stroke="oklch(0.55 0.18 145)" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey={`${p.prefix}Report`} name={p.page === "scout" ? "Rapports de maîtrise générés" : "Rapports générés"} stroke="oklch(0.55 0.18 145)" strokeWidth={2.5} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
