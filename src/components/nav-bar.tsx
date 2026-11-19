@@ -4,15 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/admin-config";
 import teamLogo from "@/assets/team-performance-logo.png";
 
-type NavBarProps = {
-  isAdmin?: boolean; // override optionnel (pages admin)
-};
-
 const PUBLIC_LINKS = [
   { to: "/orientation", label: "🧭 Orientation" },
   { to: "/duo", label: "👩‍❤️‍👨 Couple" },
   { to: "/apel", label: "🏛️ Bureau d'association" },
-  { to: "/scout", label: "🏕️ Scouts" },
+  { to: "/scout", label: "Scouts" },
 ] as const;
 
 const BASE_LINKS = [
@@ -22,13 +18,14 @@ const BASE_LINKS = [
 ] as const;
 
 const ADMIN_EXTRA = [
+  { to: "/admin", label: "⚙️ Admin" },
   { to: "/stats", label: "📊 Statistiques" },
   { to: "/utilisateurs", label: "👥 Utilisateurs" },
 ] as const;
 
 type UserInfo = { email: string; name: string } | null;
 
-export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
+export function NavBar() {
   const { location } = useRouterState();
   const current = location.pathname;
 
@@ -63,8 +60,8 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const admin = isAdminOverride ?? (user ? isAdminEmail(user.email) : false);
-  const links = admin ? [...BASE_LINKS, ...ADMIN_EXTRA] : user ? BASE_LINKS : PUBLIC_LINKS;
+  const admin = isAdminEmail(user?.email);
+  const links = user ? BASE_LINKS : PUBLIC_LINKS;
 
   const handleOAuth = async (provider: "google" | "linkedin_oidc") => {
     await supabase.auth.signInWithOAuth({
@@ -111,6 +108,15 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
                 ].join(" ")}
               >
+                {link.to === "/scout" && (
+                  <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 32 32" className="mr-1 inline-block align-middle">
+                    <path fill="#315744" d="M3 32q1-9 13-9t13 9" />
+                    <path fill="#cc9167" d="M10 14h12v4q0 7-6 7t-6-7z" />
+                    <path fill="#d99c36" d="m9 24 7 3 7-3-7 8z" />
+                    <path fill="#806042" d="m6 13 3-8 4 1 3-4 4 4 3-1 3 8z" />
+                    <path fill="#453e30" d="M2 13q14-3 28 0v2q-14 3-28 0z" />
+                  </svg>
+                )}
                 {link.label}
               </Link>
             );
@@ -121,16 +127,6 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {user ? (
             <>
-              {isAdminEmail(user.email) && (
-                <Link
-                  to="/admin"
-                  aria-label="Administration"
-                  className="shrink-0 rounded-md px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                  activeProps={{ className: "bg-indigo-100 text-indigo-700" }}
-                >
-                  <span aria-hidden="true">⚙️</span> Admin
-                </Link>
-              )}
               <span className="hidden text-xs text-gray-500 sm:inline">{user.name}</span>
               <button
                 onClick={handleSignOut}
@@ -178,6 +174,19 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
           )}
         </div>
       </div>
+      {admin && (
+        <div role="group" aria-label="Administration" className="border-t border-gray-200">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-1 px-2 py-1 sm:px-4">
+            {ADMIN_EXTRA.map(({ to, label }) => (
+              <Link key={to} to={to}
+                className="rounded-md px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                activeProps={{ className: "bg-indigo-100 text-indigo-700" }}>
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

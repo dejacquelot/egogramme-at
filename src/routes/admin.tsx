@@ -749,7 +749,7 @@ function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <NavBar isAdmin={true} />
+      <NavBar />
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6">
           <div>
