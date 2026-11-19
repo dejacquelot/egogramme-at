@@ -22,6 +22,13 @@ is `src/routes/__root.tsx`.
 
 ## Atelier APEL
 
+Le tableau « Téléchargements de rapports » de `/stats` utilise la migration
+`20261119160000_report_downloads.sql`. Chaque export PDF ou PNG déclenché par
+l'utilisateur compte une fois, y compris les clics sur les fichiers déjà stockés.
+Le téléchargement est attribué à la page d'origine (y compris Mon espace ou
+Administration), sans transmettre de nom ni de contenu. Orientation conserve
+son compteur PDF historique. Le navigateur ne confirme pas l'écriture sur disque.
+
 Comme `/duo` et `/apel`, `/scout` alimente les courbes de fréquentation de `/stats`
 via `page_events` (migration `20261119150000_scout_page_events.sql`). Une visite,
 un démarrage validé et un rapport de maîtrise généré sont comptés séparément,

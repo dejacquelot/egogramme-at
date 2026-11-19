@@ -27,6 +27,7 @@ import { libraryApi, type LibraryRow } from "@/lib/library-api";
 import { NavBar } from "@/components/nav-bar";
 import { ApelSessionsSection } from "@/components/apel-sessions-admin";
 import { ScoutResultsSection } from "@/components/scout-results-admin";
+import { trackDownload } from "@/lib/report-downloads";
 import { MarkdownText } from "@/components/markdown-text";
 
 
@@ -363,6 +364,7 @@ function ResultDetail({
       };
       if (kind === "pdf") await downloadIndividualReportPdf(input);
       else await downloadIndividualReportImage(input);
+      void trackDownload("admin", kind === "pdf" ? "pdf" : "png");
     } catch {
       setAiError("Téléchargement impossible. Réessayez.");
     } finally {
@@ -736,6 +738,7 @@ function AdminDashboard() {
     try {
       if (kind === "pdf") await downloadTeamReportPdf(reportInput());
       else await downloadTeamReportImage(reportInput());
+      void trackDownload("admin", kind === "pdf" ? "pdf" : "png");
     } catch {
       setExportError(
         kind === "pdf"
@@ -1163,6 +1166,7 @@ function AdminDashboard() {
                                   : ({ PNr: 0, PNf: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores),
                               }));
                               await downloadTeamReportPdf({ teamName: ta.team_name, average: avg, members, analysis: ta.analysis });
+                              void trackDownload("admin", "pdf");
                             } catch { toast.error("Export PDF impossible."); }
                             finally { setTaExporting(null); }
                           }}
@@ -1188,6 +1192,7 @@ function AdminDashboard() {
                                   : ({ PNr: 0, PNf: 0, A: 0, EL: 0, EAS: 0, EAR: 0 } as Scores),
                               }));
                               await downloadTeamReportImage({ teamName: ta.team_name, average: avg, members, analysis: ta.analysis });
+                              void trackDownload("admin", "png");
                             } catch { toast.error("Export image impossible."); }
                             finally { setTaExporting(null); }
                           }}

@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      report_downloads: {
+        Row: { id: string; created_at: string; source: string; format: string }
+        Insert: { id: string; source: string; format: string }
+        Update: never
+        Relationships: []
+      }
       scout_results: {
         Row: { id: string; completed_at: string; members: Json }
         Insert: { id: string; completed_at: string; members: Json }
@@ -151,7 +157,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      report_download_counts: {
+        Args: { since_at: string }
+        Returns: { source: string; format: string; total: number }[]
+      }
     }
     Enums: {
       [_ in never]: never

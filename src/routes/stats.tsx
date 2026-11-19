@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { isAdminEmail } from "@/lib/admin-config";
 import { NavBar } from "@/components/nav-bar";
 import { TRACKED_PAGES } from "@/lib/track-page";
+import { downloadLabels, type DownloadCount } from "@/lib/report-downloads";
 import { OrientationStatistics } from "@/components/orientation-statistics";
 import {
   EMPTY_STATS,
@@ -197,6 +198,28 @@ function StatsContent() {
   const [statsError, setStatsError] = useState<string | null>(null);
 
   const since = useMemo(() => periodSince(period), [period]);
+  const [downloads, setDownloads] = useState<DownloadCount[] | "error" | null>(null);
+  useEffect(() => {
+    let active = true;
+    setDownloads(null);
+    async function load() {
+      const { data } = await supabase.auth.getSession();
+      const res = await fetch(`/api/admin/report-downloads?since=${encodeURIComponent(since.toISOString())}`, {
+        cache: "no-store", headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const counts: DownloadCount[] = await res.json();
+      if (active) setDownloads(counts);
+    }
+    void load().catch(error => {
+      console.error("Chargement des téléchargements impossible", error);
+      if (active) setDownloads("error");
+    });
+    return () => { active = false; };
+  }, [since]);
+  const downloadCount = (source?: string, format?: string) => Array.isArray(downloads)
+    ? downloads.reduce((sum, r) => (!source || r.source === source) && (!format || r.format === format) ? sum + r.total : sum, 0)
+    : "—";
   const orientationBuckets = useMemo(() => {
     const config = PERIODS.find((item) => item.key === period)!;
     const keys = new Set(buildBuckets(period, config.buckets));
@@ -643,6 +666,21 @@ function StatsContent() {
           </div>
         </Card>
 
+        <Card className="p-5">
+          <h2 className="text-lg font-semibold">Téléchargements de rapports</h2>
+          <p className="text-sm text-muted-foreground">PDF et images · {PERIOD_LABELS[period]}. Chaque téléchargement déclenché compte, même pour un rapport déjà téléchargé.</p>
+          {downloads === "error" ? <p role="alert">Compteurs indisponibles. Vérifiez la connexion et la migration Supabase 20261119160000_report_downloads.sql.</p>
+            : !downloads ? <p role="status">Chargement…</p>
+            : <table className="mt-4 w-full text-left text-sm tabular-nums">
+                <thead><tr><th>Page de téléchargement</th><th>PDF</th><th>Images</th><th>Total</th></tr></thead>
+                <tbody>{Object.entries(downloadLabels).map(([source, label]) => (
+                  <tr key={source}><th scope="row" className="py-1 font-normal">{label}</th>
+                    <td>{downloadCount(source, "pdf")}</td><td>{downloadCount(source, "png")}</td><td>{downloadCount(source)}</td></tr>
+                ))}</tbody>
+                <tfoot className="border-t font-semibold"><tr><th scope="row">Toutes les pages</th>
+                  <td>{downloadCount(undefined, "pdf")}</td><td>{downloadCount(undefined, "png")}</td><td>{downloadCount()}</td></tr></tfoot>
+              </table>}
+        </Card>
         {(
           [
             { page: "duo", title: "Page /duo (test à deux)", prefix: "duo", color: "oklch(0.55 0.2 300)" },
@@ -663,7 +701,7 @@ function StatsContent() {
                 20260920090000_page_events.sql dans Supabase.
               </div>
             )}
-            <div className="mt-4 grid grid-cols-3 gap-4">
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {(
                 [
                   ["visit", "Visites"],
@@ -685,6 +723,10 @@ function StatsContent() {
                   </div>
                 );
               })}
+              <div>
+                <div className="text-xs text-muted-foreground">Rapports téléchargés</div>
+                <div className="text-2xl font-semibold tabular-nums">{downloadCount(p.page)}</div>
+              </div>
             </div>
             <div className="mt-4 h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">

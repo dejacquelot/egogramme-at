@@ -9,6 +9,7 @@ import { streamAnalysis } from "@/lib/stream-client";
 import { trackPage } from "@/lib/track-page";
 import { completeInvitation } from "@/lib/invitation.functions";
 import { downloadIndividualReportPdf, downloadTeamReportPdf, type CatKey } from "@/lib/team-report";
+import { trackDownload } from "@/lib/report-downloads";
 
 const STORAGE_KEY = "egogramme_duo_live";
 const BLOCK_SIZE = 10;
@@ -360,6 +361,7 @@ export function DuoLiveTest({
           analysis,
         });
       }
+      void trackDownload("duo", "pdf");
     } catch {
       setError("Téléchargement impossible. Réessayez.");
     } finally {

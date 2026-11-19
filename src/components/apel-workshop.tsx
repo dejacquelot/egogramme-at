@@ -4,6 +4,7 @@ import { ScoutResultSave } from "@/components/scout-result-save";
 import { QUESTION_VARIANTS } from "@/lib/question-variants";
 import { streamAnalysis } from "@/lib/stream-client";
 import { trackPage } from "@/lib/track-page";
+import { trackDownload } from "@/lib/report-downloads";
 import { SCOUT_MAX, SCOUT_STORAGE_KEY, newScoutSession, scoutChiefs, scoutSessionSchema } from "@/lib/scout-session";
 import {
   APEL_BLOCK,
@@ -280,6 +281,7 @@ export function ApelWorkshop({ scout = false }: { scout?: boolean } = {}) {
       } else {
         throw new Error("Ce rapport n'est pas encore disponible.");
       }
+      void trackDownload(scout ? "scout" : "apel", "pdf");
     } catch (e) {
       console.error("APEL PDF failed", e);
       setPdfError(e instanceof Error ? e.message : "Téléchargement impossible. Réessayez.");

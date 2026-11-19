@@ -14,6 +14,7 @@ import {
   type CatKey,
 } from "@/lib/team-report";
 import { storeReportFiles } from "@/lib/report.functions";
+import { trackDownload } from "@/lib/report-downloads";
 import { supabase } from "@/integrations/supabase/client";
 import { completeInvitation, linkResultToUser } from "@/lib/invitation.functions";
 import { NavBar } from "@/components/nav-bar";
@@ -984,6 +985,7 @@ function ResultSection({
       };
       if (kind === "pdf") await downloadIndividualReportPdf(input);
       else await downloadIndividualReportImage(input);
+      void trackDownload("solo", kind === "pdf" ? "pdf" : "png");
     } catch {
       setError("Téléchargement impossible. Réessayez.");
     } finally {
@@ -1119,12 +1121,12 @@ function ResultSection({
             {indivUrls ? (
               <>
                 <Button asChild>
-                  <a href={indivUrls.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                  <a href={indivUrls.pdfUrl} onClick={() => void trackDownload("solo", "pdf")} target="_blank" rel="noopener noreferrer" download>
                     Télécharger le rapport PDF
                   </a>
                 </Button>
                 <Button asChild variant="outline">
-                  <a href={indivUrls.imageUrl} target="_blank" rel="noopener noreferrer" download>
+                  <a href={indivUrls.imageUrl} onClick={() => void trackDownload("solo", "png")} target="_blank" rel="noopener noreferrer" download>
                     Télécharger en image
                   </a>
                 </Button>

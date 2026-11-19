@@ -34,6 +34,7 @@ import {
   type ReportScores,
 } from "@/lib/team-report";
 import { storeReportFiles } from "@/lib/report.functions";
+import { trackDownload } from "@/lib/report-downloads";
 import { streamAnalysis } from "@/lib/stream-client";
 import { NavBar } from "@/components/nav-bar";
 import { isAdminEmail } from "@/lib/admin-config";
@@ -921,6 +922,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       };
       if (kind === "pdf") await downloadTeamReportPdf(input);
       else await downloadTeamReportImage(input);
+      void trackDownload("espace", kind === "pdf" ? "pdf" : "png");
     } catch (e) {
       console.error("download error:", e);
     } finally {
@@ -1047,6 +1049,7 @@ function Dashboard({ user }: { user: UserInfo }) {
       };
       if (kind === "pdf") await downloadIndividualReportPdf(input);
       else await downloadIndividualReportImage(input);
+      void trackDownload("espace", kind === "pdf" ? "pdf" : "png");
     } catch (e) {
       console.error("indiv download error:", e);
     } finally {
@@ -1773,12 +1776,12 @@ function Dashboard({ user }: { user: UserInfo }) {
               {indivUrls ? (
                 <>
                   <Button asChild>
-                    <a href={indivUrls.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                    <a href={indivUrls.pdfUrl} onClick={() => void trackDownload("espace", "pdf")} target="_blank" rel="noopener noreferrer" download>
                       📄 Télécharger en PDF
                     </a>
                   </Button>
                   <Button asChild variant="outline">
-                    <a href={indivUrls.imageUrl} target="_blank" rel="noopener noreferrer" download>
+                    <a href={indivUrls.imageUrl} onClick={() => void trackDownload("espace", "png")} target="_blank" rel="noopener noreferrer" download>
                       🖼️ Télécharger en image
                     </a>
                   </Button>
@@ -1808,12 +1811,12 @@ function Dashboard({ user }: { user: UserInfo }) {
               {teamUrls ? (
                 <>
                   <Button asChild>
-                    <a href={teamUrls.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                    <a href={teamUrls.pdfUrl} onClick={() => void trackDownload("espace", "pdf")} target="_blank" rel="noopener noreferrer" download>
                       📄 Télécharger en PDF
                     </a>
                   </Button>
                   <Button asChild variant="outline">
-                    <a href={teamUrls.imageUrl} target="_blank" rel="noopener noreferrer" download>
+                    <a href={teamUrls.imageUrl} onClick={() => void trackDownload("espace", "png")} target="_blank" rel="noopener noreferrer" download>
                       🖼️ Télécharger en image
                     </a>
                   </Button>
