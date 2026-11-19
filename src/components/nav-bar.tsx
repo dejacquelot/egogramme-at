@@ -12,6 +12,7 @@ const PUBLIC_LINKS = [
   { to: "/orientation", label: "🧭 Orientation" },
   { to: "/duo", label: "👩‍❤️‍👨 Couple" },
   { to: "/apel", label: "🏛️ Bureau d'association" },
+  { to: "/scout", label: "🏕️ Scouts" },
 ] as const;
 
 const BASE_LINKS = [
@@ -23,7 +24,6 @@ const BASE_LINKS = [
 const ADMIN_EXTRA = [
   { to: "/stats", label: "📊 Statistiques" },
   { to: "/utilisateurs", label: "👥 Utilisateurs" },
-  { to: "/admin", label: "⚙️ Administration" },
 ] as const;
 
 type UserInfo = { email: string; name: string } | null;
@@ -121,6 +121,16 @@ export function NavBar({ isAdmin: isAdminOverride }: NavBarProps = {}) {
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {user ? (
             <>
+              {isAdminEmail(user.email) && (
+                <Link
+                  to="/admin"
+                  aria-label="Administration"
+                  className="shrink-0 rounded-md px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  activeProps={{ className: "bg-indigo-100 text-indigo-700" }}
+                >
+                  <span aria-hidden="true">⚙️</span> Admin
+                </Link>
+              )}
               <span className="hidden text-xs text-gray-500 sm:inline">{user.name}</span>
               <button
                 onClick={handleSignOut}
